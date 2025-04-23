@@ -18,6 +18,9 @@ import {
   Settings,
   List,
   Circle,
+  BookOpen,
+  CalendarDays,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -69,10 +72,10 @@ export default function LandingPage() {
 
           <div className="mt-8">
             <Image
-              src="/logo.svg" // Replace with your actual image/video path
-              alt="Simple Quotes App Mockup"
-              width={120} // Adjust as needed
-              height={120} // Adjust as needed
+              src="/logo.svg"
+              alt="Simple Business Journals App Logo"
+              width={120}
+              height={120}
               className="mx-auto"
             />
           </div>
@@ -101,7 +104,7 @@ export default function LandingPage() {
             <CardContent>
               <p className="text-muted-foreground">
                 Quickly add items to your quote, from your inventory or create
-                new ones on the fly.
+                new ones on the fly.c cashflow entriss, inventrory, quotes
               </p>
             </CardContent>
           </Card>
@@ -143,13 +146,13 @@ export default function LandingPage() {
       {/* Benefits Section */}
       <section className="container mx-auto px-4 py-16">
         <h2 className="text-3xl font-bold text-center mb-12">
-          Why Choose Simple Quotes?
+          Why Use Simple Business Journals?
         </h2>
         <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <li className="flex items-center space-x-4">
-            <List className="h-6 w-6 text-primary" />
+            <BookOpen className="h-6 w-6 text-primary" />
             <div>
-              <h3 className="font-semibold">Save Time</h3>
+              <h3 className="font-semibold">Stay Organized</h3>
               <p className="text-muted-foreground">
                 Stop wasting time with spreadsheets. Create quotes in a
                 fraction of the time.
@@ -157,7 +160,7 @@ export default function LandingPage() {
             </div>
           </li>
           <li className="flex items-center space-x-4">
-            <PencilRuler className="h-6 w-6 text-primary" />
+            <CalendarDays className="h-6 w-6 text-primary" />
             <div>
               <h3 className="font-semibold">Look Professional</h3>
               <p className="text-muted-foreground">
@@ -199,14 +202,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="py-6 text-center text-muted-foreground">
-        <p>Simple Quotes © {new Date().getFullYear()}</p>
-        {/* Optional Links */}
-        {/* <div className="mt-2">
-                    <Link href="/about" className="mx-2">About</Link>
-                    <Link href="/contact" className="mx-2">Contact</Link>
-                    <Link href="/privacy" className="mx-2">Privacy Policy</Link>
-                    <Link href="/terms" className="mx-2">Terms of Service</Link>
-                </div> */}
+        <p>Simple Business Journals © {new Date().getFullYear()}</p>
       </footer>
     </div>
   );
