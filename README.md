@@ -8,7 +8,7 @@ This is a simple journal app that allows users to create and manage different ty
 ![Quote Desktop Screen](quote_desktop_screen.png)
 
 **Phone:**
-![Quote Phone Screen](quote_phone_screen.png)
+<img src="quote_phone_screen.png" alt="Quote Phone Screen" width="250">
 
 ## Example Output
 
