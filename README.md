@@ -2,6 +2,18 @@
 
 This is a simple journal app that allows users to create and manage different types of journals and collaborate with others.
 
+## Screenshots
+
+**Desktop:**
+![Quote Desktop Screen](quote_desktop_screen.png)
+
+**Phone:**
+![Quote Phone Screen](quote_phone_screen.png)
+
+## Example Output
+
+You can view an example PDF output here: [Example Quote PDF](example.pdf)
+
 ## Supported Journal Types
 
 Currently, the application supports the following journal types:
