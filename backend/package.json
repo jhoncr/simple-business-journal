@@ -1,0 +1,8 @@
+{
+  "name": "backend",
+  "scripts": {
+    "dev": "firebase --version;firebase emulators:start --project=demo-dummy --export-on-exit --import /mnt/c/Users/Owner/Desktop/projects/emulator-data/sbiz",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "dependencies": {}
+}

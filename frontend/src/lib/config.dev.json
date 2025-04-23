@@ -1,0 +1,12 @@
+{
+  "firebaseConfig": {
+    "apiKey": "somekey",
+    "authDomain": " demo-dummy.firebaseapp.com",
+    "projectId": "demo-dummy",
+    "storageBucket": "demo-dummy.appspot.com",
+    "messagingSenderId": "12345",
+    "appId": "1:1245:web:somekey",
+    "measurementId": "G-somekey"
+  },
+  "recaptchaSiteKey": "somekey"
+}

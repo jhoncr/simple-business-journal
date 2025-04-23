@@ -1,0 +1,51 @@
+import { type ClassValue, clsx } from "clsx";
+import { Timestamp } from "firebase/firestore";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+export function formattedDate(entryDate: Timestamp | Date) {
+  // console.log(entryDate);
+
+  let date: Date = new Date();
+  if (entryDate instanceof Timestamp) {
+    date = new Date(entryDate.toDate());
+  }
+  let options: Intl.DateTimeFormatOptions = {
+    month: "short",
+    day: "numeric",
+  };
+  if (date.getFullYear() === new Date().getFullYear()) {
+    options["year"] = "numeric";
+  }
+  return date.toLocaleDateString("en-US", options);
+}
+
+// Format currency
+export const formatCurrency = (amount: number, currencySymbol: string) => {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currencySymbol,
+  }).format(amount);
+};
+
+export const currencyToSymbol = (currency: string): string => {
+  if (!currency || typeof currency !== "string") {
+    return "$"; // Default to USD symbol
+  }
+
+  try {
+    const formatter = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency.toUpperCase(),
+    });
+
+    const parts = formatter.formatToParts(0);
+    const symbol = parts.find((part) => part.type === "currency")?.value;
+    return symbol || "$";
+  } catch (error) {
+    // Return default USD symbol if currency code is invalid
+    return "$";
+  }
+};

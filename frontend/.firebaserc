@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "default": "nessedia-3d219",
+    "prod": "nessedia-3d219"
+  },
+  "targets": {},
+  "etags": {}
+}

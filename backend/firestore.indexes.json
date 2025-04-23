@@ -1,0 +1,18 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "details.date", "direction": "DESCENDING" },
+        { "fieldPath": "createdAt", "direction": "DESCENDING" },
+        { "fieldPath": "isActive", "direction": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "logs",
+      "queryScope": "COLLECTION",
+      "fields": [{ "fieldPath": "createdAt", "direction": "ASCENDING" }]
+    }
+  ]
+}

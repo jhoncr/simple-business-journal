@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Combined function: Checks both access and activity
+    function hasAccessAndIsActive(journalId) {
+      let logData = get(/databases/$(database)/documents/journals/$(journalId)).data;
+      return request.auth.uid in logData.access_array && (logData.isActive == true || logData.isActive == null);
+    }
+    
+     // Function to check if a document is active (handles null case) at the document level
+    function isDocumentActive(docData) {
+       return docData.isActive == true || docData.isActive == null;
+    }
+
+    match /journals/{journalId} {
+      allow read: if request.auth.uid in resource.data.access_array && 
+                    (resource.data.isActive == true || resource.data.isActive == null);
+
+      match /{subcol}/{entryID} {
+        // Check if the user has access to the parent log, the parent log is active, AND entry is active.
+        allow read: if hasAccessAndIsActive(journalId) && isDocumentActive(resource.data);
+      }
+    }
+  }
+}

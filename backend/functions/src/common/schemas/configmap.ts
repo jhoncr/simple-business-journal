@@ -1,0 +1,115 @@
+import * as z from "zod";
+import {
+  BABY_ENTRY_TYPES,
+  napDetailsSchema,
+  diaperDetailsSchema,
+  feedDetailsSchema,
+  growthDetailsSchema,
+} from "../const";
+import { cashFlowEntryDetailsSchema } from "./CashflowSchema";
+import { materialItemSchema } from "./InventorySchema";
+import { quoteDetailsStateSchema } from "./quote_schema";
+
+// Define an interface for entry configuration
+interface EntryConfig<T extends z.ZodTypeAny> {
+  subcollection: string;
+  schema: T;
+  displayName?: string; // Optional human-readable name
+  icon?: string; // Optional icon identifier
+  category: "business" | "baby" | "other";
+  sortField?: string; // Optional sort field
+}
+
+// Map EntryType -> EntryConfig
+export const ENTRY_CONFIG = {
+  // Business Entry Types
+  cashflow: {
+    subcollection: "cashflow_entries",
+    schema: cashFlowEntryDetailsSchema,
+    displayName: "Cash Flow",
+    category: "business",
+    sortField: "details.date", // Add sortField
+  },
+  inventory: {
+    subcollection: "inventory_items",
+    schema: materialItemSchema,
+    displayName: "Inventory",
+    category: "business",
+    sortField: "createdAt", // Add sortField
+  },
+  quote: {
+    subcollection: "quotes",
+    schema: quoteDetailsStateSchema,
+    displayName: "Quote",
+    category: "business",
+    sortField: "createdAt", // Add sortField
+  },
+
+  // Baby Entry Types
+  [BABY_ENTRY_TYPES.NAP]: {
+    subcollection: "naps",
+    schema: napDetailsSchema,
+    displayName: "Nap",
+    category: "baby",
+    sortField: "details.start", // Add sortField
+  },
+  [BABY_ENTRY_TYPES.DIAPER]: {
+    subcollection: "diapers",
+    schema: diaperDetailsSchema,
+    displayName: "Diaper",
+    category: "baby",
+    sortField: "details.time", // Add sortField
+  },
+  [BABY_ENTRY_TYPES.FEED]: {
+    subcollection: "feeds",
+    schema: feedDetailsSchema,
+    displayName: "Feed",
+    category: "baby",
+    sortField: "details.time", // Add sortField
+  },
+  [BABY_ENTRY_TYPES.GROWTH]: {
+    subcollection: "growth_entries",
+    schema: growthDetailsSchema,
+    displayName: "Growth",
+    category: "baby",
+    sortField: "details.date", // Add sortField
+  },
+} as const satisfies Record<string, EntryConfig<any>>;
+
+// Helper functions to filter entries by category
+export const getBusinessEntries = () =>
+  Object.entries(ENTRY_CONFIG)
+    .filter(([_, config]) => config.category === "business")
+    .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+
+export const getBabyEntries = () =>
+  Object.entries(ENTRY_CONFIG)
+    .filter(([_, config]) => config.category === "baby")
+    .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+
+// Type helper to get subcollection names
+export type SubcollectionName =
+  (typeof ENTRY_CONFIG)[keyof typeof ENTRY_CONFIG]["subcollection"];
+
+// export schema for entry type validation
+
+export const entryTypeSchema = z.enum(
+  Object.keys(ENTRY_CONFIG) as [string, ...string[]],
+  {
+    required_error: "Entry type is mandatory.",
+    invalid_type_error: "Invalid entry type.",
+  },
+);
+export type EntryType = keyof typeof ENTRY_CONFIG;
+// Entry schema
+
+export const entrySchema = z.object({
+  entryId: z.string().optional(),
+  journalId: z.string(),
+  entryType: entryTypeSchema,
+  name: z
+    .string()
+    .min(3, { message: "Name must be at least 3 characters." })
+    .max(254, { message: "Name cannot exceed 254 characters." }),
+  details: z.unknown(), // Will be validated based on entryType
+});
