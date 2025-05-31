@@ -5,16 +5,15 @@ import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
 import {
   JOURNAL_COLLECTION,
-  ROLES_THAT_ADD, // --- Import ENTRY_CONFIG ---
+  ROLES_THAT_ADD,
 } from "./common/const";
 import { ENTRY_CONFIG,
-  entrySchema, // --- Use updated entrySchema ---
+  entrySchema,
   EntryType,
 } from "./common/schemas/configmap";
 import { ALLOWED, handleSchemaValidationError } from "./lib/bg-consts";
 import { EntryItf } from "./common/common_types";
 
-// import * as z from "zod"; // Import z
 
 if (getApps().length === 0) {
   initializeApp();
@@ -37,7 +36,6 @@ export const addLogFn = onCall(
         );
       }
 
-      // --- Validate the request data against the base entry schema (includes entryType) ---
       const requestResult = entrySchema.safeParse(request.data);
       if (!requestResult.success) {
         // Use format() for better error logging
@@ -47,16 +45,13 @@ export const addLogFn = onCall(
         );
         throw new HttpsError(
           "invalid-argument",
-          `Invalid request data: ${requestResult.error
-            .format()
-            ._errors?.join(", ")}`,
+          `Invalid request data: ${requestResult.error.message}`,
         );
       }
 
-      // --- Destructure validated data, including entryType ---
       const {
         journalId,
-        entryType, // --- Get entryType ---
+        entryType,
         name,
         details: rawDetails,
         entryId,
@@ -70,9 +65,8 @@ export const addLogFn = onCall(
         throw new HttpsError("not-found", "Journal not found or no access.");
       }
       const journalData = journalDoc.data() || {};
-      const journalType = journalData.journalType; // Type of the parent journal (e.g., 'business', 'baby')
+      const journalType = journalData.journalType;
 
-      // --- Check user permission ---
       if (
         !Object.getOwnPropertyDescriptor(journalData?.access ?? {}, uid) ||
         !ROLES_THAT_ADD.has(journalData?.access?.[uid]?.role)
@@ -83,8 +77,7 @@ export const addLogFn = onCall(
         );
       }
 
-      // --- Get subcollection configuration based on entryType ---
-      const config = ENTRY_CONFIG[entryType as EntryType]; // Type assertion needed here
+      const config = ENTRY_CONFIG[entryType as EntryType];
       if (!config) {
         throw new HttpsError(
           "invalid-argument",
@@ -98,7 +91,6 @@ export const addLogFn = onCall(
         `Processing entryType '${entryType}' for journal ${journalId} (type: ${journalType}).` +
           ` Target subcollection: ${targetSubcollectionName}`,
       );
-      // --- Validate details against the specific schema for the entryType ---
       const detailsResult = detailsSchema.safeParse(rawDetails);
       if (!detailsResult.success) {
         // Use the utility function for schema errors
@@ -118,76 +110,30 @@ export const addLogFn = onCall(
         // createdBy will be set based on context (add vs update)
       };
 
-      // --- Determine the target collection reference ---
       const entriesColRef = journalDocRef.collection(targetSubcollectionName);
 
       if (entryId) {
-        // --- Update existing entry ---
-        await db
-          .runTransaction(async (transaction) => {
-            const entryDocRef = entriesColRef.doc(entryId);
-            // Optionally, verify the entry exists and belongs to the user if needed
-            const existingEntryDoc = await transaction.get(entryDocRef);
-            if (!existingEntryDoc.exists) {
-              throw new HttpsError(
-                "not-found",
-                `Entry ${entryId} not found in ${targetSubcollectionName}.`,
-              );
-            }
-            // Consider adding check if user is allowed to edit (e.g., createdBy === uid or role allows)
-
-            transaction.update(entryDocRef, {
-              ...baseEntry, // Include name, isActive
-              details: validatedDetails,
-              updatedAt: FieldValue.serverTimestamp(),
-              // DO NOT update createdBy or createdAt on edits
-            });
-          })
-          .catch((error) => {
-            logger.error("Transaction failed during update: ", error);
-            if (error instanceof HttpsError) throw error;
-            throw new HttpsError(
-              "internal",
-              "Failed to update entry. Please try again later.",
-            );
-          });
-        logger.info(
-          `Entry ${entryId} in ${targetSubcollectionName} updated successfully`,
+        return await _updateEntry(
+          db,
+          entriesColRef,
+          entryId,
+          baseEntry,
+          validatedDetails,
+          targetSubcollectionName,
         );
-        return {
-          result: "ok",
-          message: "Entry updated successfully",
-          id: entryId,
-        };
       } else {
-        // --- Add new entry ---
-        const docRef = await entriesColRef
-          .add({
-            ...baseEntry,
-            createdBy: uid, // Set creator on add
-            details: validatedDetails,
-            createdAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp(),
-          })
-          .catch((error) => {
-            logger.error("Error adding entry: ", error);
-            throw new HttpsError(
-              "internal",
-              "Failed to add entry. Please try again later.",
-            );
-          });
-
-        logger.info(
-          `${entryType} entry successfully added to ${targetSubcollectionName} in journal ${journalId}`,
+        return await _addEntry(
+          entriesColRef,
+          baseEntry,
+          validatedDetails,
+          uid,
+          entryType,
+          journalId,
+          targetSubcollectionName,
         );
-        return {
-          result: "ok",
-          message: "Entry added successfully",
-          id: docRef.id,
-        };
       }
     } catch (error) {
-      logger.error("Error in addLogFn:", error);
+      logger.error("Error in addLogFn: ", error);
       if (error instanceof HttpsError) {
         throw error;
       }
@@ -198,3 +144,84 @@ export const addLogFn = onCall(
     }
   },
 );
+
+// --- Helper function to add a new entry ---
+async function _addEntry(
+  entriesColRef: FirebaseFirestore.CollectionReference,
+  baseEntry: Omit<EntryItf, "createdAt" | "updatedAt" | "details" | "createdBy">,
+  validatedDetails: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  uid: string,
+  entryType: string, // For logging
+  journalId: string, // For logging
+  targetSubcollectionName: string, // For logging
+) {
+  try {
+    const docRef = await entriesColRef.add({
+      ...baseEntry,
+      createdBy: uid, // Set creator on add
+      details: validatedDetails,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+    logger.info(
+      `${entryType} entry successfully added to ${targetSubcollectionName} in journal ${journalId}`,
+    );
+    return {
+      result: "ok",
+      message: "Entry added successfully",
+      id: docRef.id,
+    };
+  } catch (error) {
+    logger.error("Error adding entry: ", error);
+    throw new HttpsError(
+      "internal",
+      "Failed to add entry. Please try again later.",
+    );
+  }
+}
+
+// --- Helper function to update an existing entry ---
+async function _updateEntry(
+  db: FirebaseFirestore.Firestore,
+  entriesColRef: FirebaseFirestore.CollectionReference,
+  entryId: string,
+  baseEntry: Omit<EntryItf, "createdAt" | "updatedAt" | "details" | "createdBy">,
+  validatedDetails: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  targetSubcollectionName: string, // For logging
+) {
+  try {
+    await db.runTransaction(async (transaction) => {
+      const entryDocRef = entriesColRef.doc(entryId);
+      const existingEntryDoc = await transaction.get(entryDocRef);
+      if (!existingEntryDoc.exists) {
+        throw new HttpsError(
+          "not-found",
+          `Entry ${entryId} not found in ${targetSubcollectionName}.`,
+        );
+      }
+      // Consider adding check if user is allowed to edit (e.g., createdBy === uid or role allows)
+
+      transaction.update(entryDocRef, {
+        ...baseEntry, // Include name, isActive
+        details: validatedDetails,
+        updatedAt: FieldValue.serverTimestamp(),
+        // DO NOT update createdBy or createdAt on edits
+      });
+    });
+    logger.info(
+      `Entry ${entryId} in ${targetSubcollectionName} updated successfully`,
+    );
+    return {
+      result: "ok",
+      message: "Entry updated successfully",
+      id: entryId,
+    };
+  } catch (error) {
+    logger.error("Transaction failed during update: ", error);
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError(
+      "internal",
+      "Failed to update entry. Please try again later.",
+    );
+  }
+}

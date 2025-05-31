@@ -1,12 +1,3 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
-
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as z from "zod";
@@ -64,7 +55,7 @@ export const addContributor = onCall(
       if (!result.success) {
         throw new HttpsError(
           "invalid-argument",
-          result.error.issues.map((issue) => issue.message).join("\n"),
+          result.error.message, // Simplified error message
         );
       }
 
@@ -148,24 +139,34 @@ const handleAddOperation = async (
     return value.email === data.email;
   });
   if (cur) {
-    const [key, _] = cur;
-    // update the role
-    // TODO: block update of admin role
+    const [uid, contributorData] = cur;
+    // If user is already an admin, prevent role change via this function.
+    // Admin role changes should be handled by a dedicated admin management function.
+    if (contributorData.role === "admin") {
+      logger.warn(
+        `Attempt to change role of admin ${data.email} was blocked.`,
+      );
+      return; // Or throw an error: new HttpsError("permission-denied", "Cannot change admin role here.");
+    }
+    // Update the role for existing non-admin user
     transaction.update(logDocRef, {
-      [`access.${key}.role`]: data.role,
+      [`access.${uid}.role`]: data.role,
     });
-
+    logger.info(`Updated role for ${data.email} to ${data.role}.`);
     return;
   }
-  // if the email is not in the access map, add it to pendingAccess map
+
+  // If the email is not in the access map, add it to pendingAccess map
   const pendingAccess = logData?.pendingAccess ?? {};
+  // Avoid overwriting if email already in pendingAccess, update role instead
+  if (pendingAccess[data.email] && pendingAccess[data.email] !== data.role) {
+     logger.info(`Updating role for ${data.email} in pendingAccess to ${data.role}.`);
+  } else if (!pendingAccess[data.email]) {
+    logger.info(`Adding ${data.email} to pendingAccess with role ${data.role}.`);
+  }
   transaction.update(logDocRef, {
-    pendingAccess: {
-      ...pendingAccess,
-      [data.email]: data.role,
-    },
+    [`pendingAccess.${data.email}`]: data.role, // Use email as key for pendingAccess
   });
-  return;
 };
 
 const handleRemoveOperation = async (
@@ -174,36 +175,47 @@ const handleRemoveOperation = async (
   data: z.infer<typeof updateShareRequest>,
   logData: JournalSchemaType,
 ) => {
-  // check if the email is in the access map, if so, remove it from the access map
+  // Check if the email is in the access map (active contributor)
   const access = logData?.access ?? {};
-  const cur = Object.entries(access).find(([key, value]) => {
-    return value.email === data.email;
-  });
-  if (cur) {
-    const [key, _] = cur;
-    // remove the email from the access map
+  const contributorEntry = Object.entries(access).find(
+    ([_, value]) => value.email === data.email,
+  );
+
+  if (contributorEntry) {
+    const [uid, contributorData] = contributorEntry;
+
+    // Prevent admin from removing themselves if they are the sole admin
+    if (contributorData.role === "admin") {
+      const adminCount = Object.values(access).filter(c => c.role === "admin").length;
+      if (adminCount <= 1) {
+        throw new HttpsError("permission-denied", "Cannot remove the sole admin.");
+      }
+    }
+
+    // Remove the user from the access map
     transaction.update(logDocRef, {
-      [`access.${key}`]: FieldValue.delete(),
+      [`access.${uid}`]: FieldValue.delete(),
     });
 
-    // remove email from access_array, use FieldValue.arrayRemove
+    // Remove UID from access_array
     transaction.update(logDocRef, {
-      access_array: FieldValue.arrayRemove(data.email),
+      access_array: FieldValue.arrayRemove(uid),
     });
+    logger.info(`Removed ${data.email} (UID: ${uid}) from access and access_array.`);
     return;
   }
-  // if the email is not in the access map, remove it from pendingAccess map
+
+  // If the email is not in the access map, check pendingAccess map
   const pendingAccess = logData?.pendingAccess ?? {};
-  const cur2 = Object.entries(pendingAccess).find(([key, value]) => {
-    return value === data.email;
-  });
-  // if the email is in the pendingAccess map, remove it from the pendingAccess map
-  if (cur2) {
-    const [key, _] = cur2;
-    // remove the email from the pendingAccess map
+  if (pendingAccess[data.email]) {
+    // Remove the email from the pendingAccess map
     transaction.update(logDocRef, {
-      [`pendingAccess.${key}`]: FieldValue.delete(),
+      [`pendingAccess.${data.email}`]: FieldValue.delete(),
     });
+    logger.info(`Removed ${data.email} from pendingAccess.`);
+  } else {
+    logger.warn(
+      `Attempted to remove ${data.email}, but they were not found in access or pendingAccess.`,
+    );
   }
-  return;
 };

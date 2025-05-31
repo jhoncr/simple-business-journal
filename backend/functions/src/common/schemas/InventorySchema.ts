@@ -7,7 +7,7 @@ export const dimensionConfigSchema = z.object({
 });
 
 export const laborItemSchema = z.object({
-  id: z.string(),
+  id: z.string(), // TODO: Define if this ID is local, global, or linked to another collection
   laborRate: z.number().nonnegative(),
   laborType: z.enum(["quantity", "fixed", "percentage"]),
   description: z.string(),
@@ -18,13 +18,16 @@ export const materialItemSchema = z
     id: z
       .string()
       .min(3, {
-        message: "The description must be at least 3 characters.",
+        message: "ID must be at least 3 characters.", // Corrected message
       })
       .max(254, {
-        message: "A max of 254 characters is allowed in the description.",
+        message: "ID cannot exceed 254 characters.", // Adjusted message for ID
       })
       .optional(),
-    description: z.string(),
+    description: z
+      .string()
+      .min(3, { message: "Description must be at least 3 characters." })
+      .max(254, { message: "Description cannot exceed 254 characters." }),
     unitPrice: z.number().nonnegative(),
     dimensions: dimensionConfigSchema,
     currency: allowedCurrencySchema.nullable(),

@@ -16,17 +16,19 @@ export function formattedDate(entryDate: Timestamp | Date) {
     month: "short",
     day: "numeric",
   };
-  if (date.getFullYear() === new Date().getFullYear()) {
+  // Corrected logic: Display the year if the entry's year is different from the current year.
+  if (date.getFullYear() !== new Date().getFullYear()) {
     options["year"] = "numeric";
   }
   return date.toLocaleDateString("en-US", options);
 }
 
 // Format currency
-export const formatCurrency = (amount: number, currencySymbol: string) => {
+// Renamed parameter currencySymbol to currencyCode for clarity.
+export const formatCurrency = (amount: number, currencyCode: string) => {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency: currencySymbol,
+    currency: currencyCode, // Use the renamed parameter
   }).format(amount);
 };
 
@@ -45,6 +47,8 @@ export const currencyToSymbol = (currency: string): string => {
     const symbol = parts.find((part) => part.type === "currency")?.value;
     return symbol || "$";
   } catch (error) {
+    // Added console.warn for better error visibility during development
+    console.warn("Invalid currency code for currencyToSymbol:", currency, error);
     // Return default USD symbol if currency code is invalid
     return "$";
   }

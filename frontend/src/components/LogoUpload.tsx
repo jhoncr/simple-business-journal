@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { MinusCircle, UploadCloud } from "lucide-react";
+import { useToast } from "@/hooks/use-toast"; // Import useToast
 
 interface LogoUploadProps {
   setLogo?: (logo: string | null) => void;
@@ -10,11 +11,18 @@ interface LogoUploadProps {
 }
 
 export function LogoUpload({ setLogo, logo }: LogoUploadProps) {
+  const { toast } = useToast(); // Initialize useToast
+
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       if (file.type !== "image/svg+xml") {
-        alert("Please upload an SVG file");
+        // alert("Please upload an SVG file"); // Old alert
+        toast({ // New toast notification
+          title: "Invalid File Type",
+          description: "Please upload an SVG file.",
+          variant: "destructive",
+        });
         return;
       }
       const reader = new FileReader();

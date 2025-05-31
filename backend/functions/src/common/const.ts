@@ -20,33 +20,6 @@ export const BABY_ENTRY_TYPES = {
   GROWTH: "growth",
 } as const;
 
-// --- NEW/UPDATE: Map Entry Types to Subcollections and Schemas ---
-// Define baby schemas (simple placeholders for now)
-export const napDetailsSchema = z.object({
-  start: z.coerce.date(),
-  end: z.coerce.date().optional(),
-  notes: z.string().optional(),
-});
-export const diaperDetailsSchema = z.object({
-  time: z.coerce.date(),
-  type: z.enum(["wet", "dirty", "mixed"]),
-  notes: z.string().optional(),
-});
-export const feedDetailsSchema = z.object({
-  time: z.coerce.date(),
-  type: z.enum(["breast", "bottle"]),
-  amount: z.number().optional(),
-  unit: z.string().optional(),
-  notes: z.string().optional(),
-});
-export const growthDetailsSchema = z.object({
-  date: z.coerce.date(),
-  weight: z.number().optional(),
-  height: z.number().optional(),
-  headCirc: z.number().optional(),
-  notes: z.string().optional(),
-});
-
 export const CURRENCY_OPTIONS: {
   [symbol: string]: { code: string; name: string; symbol: string };
 } = {

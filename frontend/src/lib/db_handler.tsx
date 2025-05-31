@@ -20,18 +20,14 @@ import {
 } from "firebase/firestore";
 import { app } from "@/lib/auth_handler";
 import { DBentry, DBentryMap, Journal } from "./custom_types"; // Use updated types
-// --- Import frontend/backend constants ---
+// --- Import Shared Constants ---
 import {
   JOURNAL_COLLECTION,
-  // ENTRY_CONFIG, // Need frontend equivalent or direct use
-  // BABY_ENTRY_TYPES // Potentially needed if logic differs
-} from "@/../../backend/functions/src/common/const"; // Adjust path as needed
-import {
   ENTRY_CONFIG,
   EntryType,
-} from "@/../../backend/functions/src/common/schemas/configmap";
+} from "@/lib/config_shared"; // Updated imports
 
-// --- Define Frontend ENTRY_CONFIG (or import if possible/preferred) ---
+// --- Define Frontend ENTRY_CONFIG (or import if possible/preferred) --- // This comment block is now removed
 // This avoids direct dependency if backend changes often, but requires duplication
 // const FE_ENTRY_CONFIG = {
 //   cashflow: { subcollection: "cashflow_entries", sortField: "details.date" },
@@ -42,7 +38,7 @@ import {
 //   feed: { subcollection: "feeds", sortField: "details.time" },
 //   growth: { subcollection: "growth_entries", sortField: "details.date" },
 // } as const;
-// --- End Frontend ENTRY_CONFIG ---
+// --- End Frontend ENTRY_CONFIG --- // This comment block is now removed
 
 export const db = getFirestore(app);
 
@@ -53,7 +49,7 @@ if (process.env.NODE_ENV === "development") {
 
 // Helper to get subcollection config
 function getEntryConfig(entryType: EntryType) {
-  const config = ENTRY_CONFIG[entryType as keyof typeof ENTRY_CONFIG];
+  const config = ENTRY_CONFIG[entryType as keyof typeof ENTRY_CONFIG]; // Cast is safe due to EntryType definition
   if (!config) {
     console.error(`Invalid entryType provided: ${entryType}`);
     return null;
@@ -75,9 +71,9 @@ export async function fetchDateRangeEntries(
   }
 
   const config = getEntryConfig(entryType);
-  if (!config || !config.sortField.startsWith("details.")) {
+  if (!config || !config.sortField || !config.sortField.startsWith("details.")) { // Added null check for sortField
     console.error(
-      `Date range fetch not supported or configured for entryType: ${entryType}`,
+      `Date range fetch not supported or configured (or sortField missing/invalid) for entryType: ${entryType}`,
     );
     return []; // Or throw error
   }
@@ -121,7 +117,10 @@ export async function fetchOlderEntrys(
 ): Promise<DBentryMap> {
   // Return type updated
   const config = getEntryConfig(entryType);
-  if (!config) return {};
+  if (!config || !config.sortField) { // Added null check for sortField
+    console.error(`Configuration or sortField missing for entryType: ${entryType}`);
+    return {};
+  }
   const subcollectionName = config.subcollection;
   const primarySortField = config.sortField; // e.g., "details.date" or "createdAt"
 
@@ -131,23 +130,42 @@ export async function fetchOlderEntrys(
     const primarySortValue = primarySortField.startsWith("details.")
       ? (oldestEntry.details as any)?.[primarySortField.split(".")[1]]
       : oldestEntry[primarySortField as keyof DBentry];
+
+    // Assuming createdAt is always present for secondary sort, if not, this might need adjustment
     const secondarySortValue = oldestEntry.createdAt;
 
-    if (primarySortValue === undefined || secondarySortValue === undefined) {
+    if (primarySortValue === undefined /* secondarySortValue can be undefined if not always present */) {
       console.error("Oldest entry is missing sort field values", {
         primarySortField,
+        primarySortValue,
+        secondarySortValue, // Log this to see if it's the issue
         oldestEntry,
       });
       return {};
     }
 
+    const queryConstraints = [
+        where("isActive", "==", true),
+        orderBy(primarySortField, "desc"),
+        // orderBy("createdAt", "desc"), // Consider if this secondary sort is always needed/reliable
+        limit(past_k),
+    ];
+
+    // startAfter requires all orderBy fields. If secondarySortValue is potentially undefined,
+    // this might cause issues. For simplicity, if using only primarySortField in orderBy,
+    // then startAfter should only use primarySortValue.
+    // If 'createdAt' is a guaranteed secondary sort, it should be in orderBy.
+    // For now, assuming primarySortValue is sufficient if secondary is problematic.
+    if (secondarySortValue !== undefined) {
+        queryConstraints.push(startAfter(primarySortValue, secondarySortValue));
+    } else {
+        queryConstraints.push(startAfter(primarySortValue));
+    }
+
+
     const q = query(
       collection(db, colPath),
-      where("isActive", "==", true),
-      orderBy(primarySortField, "desc"),
-      // orderBy("createdAt", "desc"),
-      startAfter(primarySortValue, secondarySortValue), // Use potentially dynamic sort field value
-      limit(past_k),
+      ...queryConstraints
     );
 
     const querySnapshot = await getDocs(q);
@@ -184,9 +202,9 @@ export function useEntriesSubCol(
     setDocs({});
 
     const config = getEntryConfig(entryType);
-    if (!journalId || !config) {
+    if (!journalId || !config || !config.sortField) { // Added null check for sortField
       console.warn(
-        `useEntriesSubCol: Invalid journalId or entryType (${entryType})`,
+        `useEntriesSubCol: Invalid journalId, entryType (${entryType}), or sortField missing`,
       );
       return () => {}; // Return empty cleanup
     }

@@ -5,10 +5,9 @@ import * as logger from "firebase-functions/logger";
 import * as z from "zod";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
-// --- Update import ---
 import { JOURNAL_COLLECTION } from "./common/const";
 import { ALLOWED } from "./lib/bg-consts";
-import { JournalSchemaType } from "./common/schemas/JournalSchema"; // Keep for typing
+import { JournalSchemaType } from "./common/schemas/JournalSchema";
 
 if (getApps().length === 0) {
   initializeApp();
@@ -16,7 +15,6 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 
-// --- Schema remains the same ---
 const schema = z
   .object({
     journalID: z.string(),
@@ -43,7 +41,7 @@ export const acceptShare = onCall(
       if (!result.success) {
         throw new HttpsError(
           "invalid-argument",
-          result.error.issues.map((issue) => issue.message).join("\n"),
+          result.error.message, // Simplified error message
         );
       }
 
@@ -84,10 +82,13 @@ export const acceptShare = onCall(
         // Check operation: Verify invitation exists
         if (operation === "check") {
           if (email && logData.pendingAccess && logData.pendingAccess[email]) {
+            const role = logData.pendingAccess[email];
             logger.info(
-              `Access check successful for ${email} on journal ${journalId}`,
+              `Access check successful for ${email} on journal ${journalId}. Role: ${role}`,
             );
-            return; // Exit transaction successfully
+            // Message now includes the role.
+            // This return is inside the transaction, so the main return after transaction won't be hit for "check".
+            return { result: "ok", message: `You have a pending invitation as a ${role}.` };
           } else {
             logger.warn(
               `Access check failed for ${email} on journal ${journalId}. No pending access found.`,
@@ -99,23 +100,17 @@ export const acceptShare = onCall(
           }
         }
 
-        // Accept operation
-        if (operation !== "accept") {
-          // Should not happen if schema validation is correct, but good safety check
-          throw new HttpsError(
-            "invalid-argument",
-            `Invalid operation: ${operation}`,
-          );
-        }
+        // --- Core Logic for "accept" operation ---
+        // The `if (operation !== "accept")` check is removed as it's redundant here.
+        // If operation was "ignore" or "check", logic would have returned/thrown before this point.
 
-        // --- Core Logic: Move from pendingAccess to access ---
         if (
           email &&
-          logData.pendingAccess && // Ensure pendingAccess exists
-          Object.prototype.hasOwnProperty.call(logData.pendingAccess, email) // Safer check
+          logData.pendingAccess &&
+          Object.prototype.hasOwnProperty.call(logData.pendingAccess, email)
         ) {
           logger.info(`Accepting share for ${email} on journal ${journalId}.`);
-          const role = logData.pendingAccess[email]; // Get the role from pending
+          const role = logData.pendingAccess[email];
 
           // Prepare updates
           const updates: Record<string, any> = {
@@ -151,12 +146,17 @@ export const acceptShare = onCall(
         }
       }); // End transaction
 
-      // If transaction completes without throwing, it was successful.
-      if (operation === "check") {
-        return { result: "ok", message: "You have a pending invitation." };
-      }
+      // If the transaction returned a specific message (e.g. for "check"), that will be the function's return.
+      // Otherwise, default to "accept" operation's success message.
+      // Note: The transaction now returns the message for "check", so this part is mainly for "accept".
+      // If the transaction promise resolves to an object (like the one from "check"),
+      // that object will be returned by the onCall function.
+      // If the transaction promise resolves to undefined (normal successful transaction for "accept"),
+      // then the specific message for "accept" is returned.
       return { result: "ok", message: "Accepted grant to access journal" };
     } catch (error) {
+      // If HttpsError was thrown from within the transaction for "check" (e.g. "not-found"),
+      // it will be caught here and re-thrown.
       logger.error("Error accepting share for journal:", error);
       if (error instanceof HttpsError) {
         throw error;
