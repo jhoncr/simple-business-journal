@@ -76,7 +76,7 @@ export const acceptShare = onCall(
         if (logData.access && logData.access[uid]) {
           logger.info(`User ${uid} already has access to journal ${journalId}`);
           // No error needed, just inform the user
-          return; // Exit transaction successfully
+          return null; // Exit transaction successfully
         }
 
         // Check operation: Verify invitation exists
@@ -88,7 +88,10 @@ export const acceptShare = onCall(
             );
             // Message now includes the role.
             // This return is inside the transaction, so the main return after transaction won't be hit for "check".
-            return { result: "ok", message: `You have a pending invitation as a ${role}.` };
+            return {
+              result: "ok",
+              message: `You have a pending invitation as a ${role}.`,
+            };
           } else {
             logger.warn(
               `Access check failed for ${email} on journal ${journalId}. No pending access found.`,
@@ -135,6 +138,7 @@ export const acceptShare = onCall(
           logger.info(
             `User ${uid} (${email}) successfully added to journal ${journalId} with role ${role}.`,
           );
+          return null;
         } else {
           logger.warn(
             `Accept operation failed for ${email} on journal ${journalId}. No pending access found.`,

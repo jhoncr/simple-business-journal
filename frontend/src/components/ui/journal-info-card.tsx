@@ -68,6 +68,7 @@ export function JournalInfoCard({
   const { toast } = useToast();
   const router = useRouter();
 
+  console.log("journalSubcollections", journalSubcollections);
   // --- Prepare Data for Edit Form ---
   // This assumes the card is primarily for Business type for editing
   // Adjust if editing different types directly from the card
@@ -271,23 +272,19 @@ export function JournalInfoCard({
       {/* --- Footer for Subcollection Links --- */}
       {Object.keys(journalSubcollections).length > 0 && (
         // Link the entire footer to the main journal page for simplicity
-        <Link href={`/journal?jid=${id}`}>
-          <CardFooter className="border-t flex flex-wrap justify-start p-3 mt-2 bg-secondary/50 hover:bg-secondary/80 transition-colors cursor-pointer">
-            <span className="text-xs font-medium mr-2 text-secondary-foreground/80">
-              Sections:
-            </span>
-            {Object.entries(journalSubcollections).map(([key, info]) => (
-              <Badge
-                key={key}
-                variant="secondary"
-                className="mr-1 mb-1 text-xs"
-              >
+        <CardFooter className="border-t flex flex-wrap justify-start p-3 mt-2 bg-secondary/50 hover:bg-secondary/80 transition-colors cursor-pointer">
+          <span className="text-xs font-medium mr-2 text-secondary-foreground/80">
+            Sections:
+          </span>
+          {Object.entries(journalSubcollections).map(([key, info]) => (
+            <Link href={`/journal?jid=${id}&type=${key}`} key={key}>
+              <Badge variant="secondary" className="mr-1 mb-1 text-xs">
                 {/* Optionally add icon: getJournalIcon(key) */}
-                {getSubcollectionDisplayName(key)} {/* Use display name */}
+                {key}
               </Badge>
-            ))}
-          </CardFooter>
-        </Link>
+            </Link>
+          ))}
+        </CardFooter>
       )}
     </Card>
   );
