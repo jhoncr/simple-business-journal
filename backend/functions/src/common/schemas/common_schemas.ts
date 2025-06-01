@@ -1,7 +1,7 @@
 // backend/functions/src/common/schemas/common_schemas.ts
 import * as z from "zod";
 
-export const ROLES = ["viewer", "reporter", "editor", "admin"] as const;
+export const ROLES = ["viewer", "staff", "editor", "admin"] as const;
 
 // User access schemas
 export const UserSchema = z.object({

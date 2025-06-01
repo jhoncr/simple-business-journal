@@ -15,6 +15,7 @@ import { initializeApp, getApps } from "firebase-admin/app";
 import { JOURNAL_COLLECTION } from "./common/const";
 import { JournalSchemaType } from "./common/schemas/JournalSchema";
 import { ALLOWED } from "./lib/bg-consts";
+import { ROLES } from "./common/schemas/common_schemas";
 
 if (getApps().length === 0) {
   initializeApp();
@@ -22,7 +23,6 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 
-const ROLES = ["viewer", "reporter", "editor", "admin"] as const;
 const SHARE_ROLES = new Set(["admin"]);
 
 const updateShareRequest = z
@@ -188,21 +188,21 @@ const handleRemoveOperation = async (
 
     // remove email from access_array, use FieldValue.arrayRemove
     transaction.update(logDocRef, {
-      access_array: FieldValue.arrayRemove(data.email),
+      access_array: FieldValue.arrayRemove(key), // Use UID (key) here
     });
     return;
   }
   // if the email is not in the access map, remove it from pendingAccess map
   const pendingAccess = logData?.pendingAccess ?? {};
-  const cur2 = Object.entries(pendingAccess).find(([key, value]) => {
-    return value === data.email;
+  const cur2 = Object.entries(pendingAccess).find(([key, _value]) => {
+    return key === data.email; // Check the key (email)
   });
   // if the email is in the pendingAccess map, remove it from the pendingAccess map
   if (cur2) {
-    const [key, _] = cur2;
+    const [emailToRemoveFromPending, _] = cur2;
     // remove the email from the pendingAccess map
     transaction.update(logDocRef, {
-      [`pendingAccess.${key}`]: FieldValue.delete(),
+      [`pendingAccess.${emailToRemoveFromPending}`]: FieldValue.delete(),
     });
   }
   return;

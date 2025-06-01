@@ -5,28 +5,19 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   PackagePlus,
-  PencilRuler,
-  Printer,
-  Share2,
   Settings,
-  List,
   Circle,
   BookOpen,
   CalendarDays,
-  Search,
 } from "lucide-react";
-import Link from "next/link";
 import Image from "next/image";
-import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth_handler";
-import { Sign } from "crypto";
 
 const GoogleIcon = () => (
   <div className="flex items-center justify-center w-6 h-6 rounded-full shadow">

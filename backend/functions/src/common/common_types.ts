@@ -1,5 +1,6 @@
 import { AccessMap } from "./schemas/common_schemas";
 import { Timestamp } from "firebase-admin/firestore";
+import { ROLES } from "./schemas/common_schemas"; // Import ROLES
 
 export interface EntryItf {
   name: string;
@@ -14,16 +15,17 @@ export interface EntryItf {
   };
 }
 
-export enum JournalRole {
-  "admin",
-  "editor",
-  "staff",
-  "viewer",
-}
+// Remove JournalRole enum
+// export enum JournalRole {
+//   "admin",
+//   "editor",
+//   "staff",
+//   "viewer",
+// }
 
 export interface JournalUser {
   displayName: string;
-  role: JournalRole;
+  role: (typeof ROLES)[number]; // Use ROLES type
   email: string;
   photoURL: string;
 }
@@ -32,11 +34,11 @@ export interface JournalDocument {
   id?: string; // only for the UI, the UI library hydrates the doc with the document ID
   title: string;
   journalType: string;
-  status: string;
+  // status: string; // Removed status field
   createdAt: Timestamp;
   updatedAt: Timestamp;
   access: AccessMap;
   pendingAccess: {
-    [email: string]: JournalRole;
+    [email: string]: (typeof ROLES)[number]; // Use ROLES type
   };
 }

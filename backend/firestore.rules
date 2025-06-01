@@ -19,7 +19,7 @@ service cloud.firestore {
 
       match /{subcol}/{entryID} {
         // Check if the user has access to the parent log, the parent log is active, AND entry is active.
-        allow read: if hasAccessAndIsActive(journalId) && isDocumentActive(resource.data);
+        allow read: if hasAccessAndIsActive(journalId) && (resource.data.isActive == true || resource.data.isActive == null);
       }
     }
   }
