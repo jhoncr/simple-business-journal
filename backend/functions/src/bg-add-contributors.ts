@@ -6,6 +6,7 @@ import { initializeApp, getApps } from "firebase-admin/app";
 import { JOURNAL_COLLECTION } from "./common/const";
 import { JournalSchemaType } from "./common/schemas/JournalSchema";
 import { ALLOWED } from "./lib/bg-consts";
+import { ROLES } from "./common/schemas/common_schemas";
 
 if (getApps().length === 0) {
   initializeApp();
@@ -13,7 +14,6 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 
-const ROLES = ["viewer", "reporter", "editor", "admin"] as const;
 const SHARE_ROLES = new Set(["admin"]);
 
 const updateShareRequest = z

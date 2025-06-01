@@ -24,6 +24,7 @@ import {
   quoteDetailsStateSchema,
 } from "@/../../backend/functions/src/common/schemas/quote_schema";
 import { ROLES_THAT_ADD } from "@/../../backend/functions/src/common/const"; // Import ROLES_THAT_ADD
+import { ROLES } from "@/../../backend/functions/src/common/schemas/common_schemas"; // Import ROLES for type
 
 export type Adjustment = quoteDetailsState["adjustments"][number];
 
@@ -32,7 +33,7 @@ interface AdjustmentFormProps {
   onTaxSubmit?: (value: number) => void;
   currency?: string;
   taxPercentage?: number;
-  userRole?: string; // Added userRole prop for permission check
+  userRole?: (typeof ROLES)[number]; // Updated userRole prop type
 }
 
 // Define adjustment types for better type safety

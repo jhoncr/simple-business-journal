@@ -33,10 +33,6 @@ const MessageList = memo(function MessageList({
   const [showToTopButton, setShowToTopButton] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    console.log("initializing MessageList");
-  }, []);
-
   const handleScroll = useCallback(
     (event: React.UIEvent<HTMLDivElement>) => {
       const { scrollTop, clientHeight, scrollHeight } = event.currentTarget;

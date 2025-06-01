@@ -4,7 +4,7 @@ import { addContributor } from "./bg-add-contributors";
 import { acceptShare } from "./bg-accept-share";
 import { deleteJournal, deleteEntry } from "./bg-delete-entry"; // Import new functions
 import { onInventoryEntryWrite } from "./cache-updates/bg-cache";
-import { createJournal, updateJournal } from "./bg-add-group";
+import { createJournal, updateJournal } from "./bg-journal-management"; // Updated import path
 
 if (getApps().length === 0) {
   initializeApp();
