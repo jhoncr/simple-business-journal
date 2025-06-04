@@ -28,9 +28,3 @@ export const cashFlowEntryDetailsSchema = z.object({
 export type CashFlowEntryDetailsType = z.infer<
   typeof cashFlowEntryDetailsSchema
 >;
-// export interface CashFlowEntryDetailsType {
-//   description: string;
-//   date: Date;
-//   type: "received" | "paid";
-//   value: number;
-// }

@@ -51,8 +51,11 @@ function DisplayJournalList({ journals }: { journals: Journal[] }) {
             // --- Pass Subcollection Info (example: map config) ---
             // get only config where entry.category="business"
             journalSubcollections: Object.entries(ENTRY_CONFIG)
-              .filter(([_, config]) => config.category === "business")
-              .map(([key, config]) => ({ key, ...config })),
+              .filter(([key, config]) => config.category === "business")
+              .reduce((acc, [key, config]) => {
+                acc[key] = config;
+                return acc;
+              }, {} as Record<string, any>),
           };
         } else if (journal.journalType === JOURNAL_TYPES.BABY) {
           // --- Handle Baby Journal Type ---

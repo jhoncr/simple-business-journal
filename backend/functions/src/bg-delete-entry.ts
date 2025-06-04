@@ -1,11 +1,9 @@
-// backend/functions/src/bg-delete-entry.ts (File can be renamed later if desired)
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
 import * as z from "zod";
-// --- Update imports ---
-import { JOURNAL_COLLECTION, ROLES_CAN_DELETE } from "./common/const"; // Use ROLES_CAN_DELETE
+import { JOURNAL_COLLECTION, ROLES_CAN_DELETE } from "./common/const";
 import { ENTRY_CONFIG } from "./common/schemas/configmap";
 import { EntryType } from "./common/schemas/configmap";
 import { ALLOWED } from "./lib/bg-consts";
@@ -39,7 +37,7 @@ export const deleteJournal = onCall(
         logger.error("Invalid data for deleteJournal:", result.error.format());
         throw new HttpsError(
           "invalid-argument",
-          "Invalid journal ID provided.",
+          result.error.message, // Use Zod error message
         );
       }
 
@@ -119,7 +117,7 @@ export const deleteEntry = onCall(
         logger.error("Invalid data for deleteEntry:", result.error.format());
         throw new HttpsError(
           "invalid-argument",
-          `Invalid data provided: ${result.error.format()._errors?.join(", ")}`,
+          result.error.message, // Simplified error message
         );
       }
 
@@ -164,12 +162,14 @@ export const deleteEntry = onCall(
         .collection(targetSubcollectionName)
         .doc(entryId);
 
-      // --- Soft delete the entry ---
-      // Optionally check if entry exists before updating
-      // const entryDoc = await entryRef.get();
-      // if (!entryDoc.exists) {
-      //     throw new HttpsError("not-found", `Entry ${entryId} not found in ${targetSubcollectionName}.`);
-      // }
+      // Check if entry exists before updating
+      const entryDoc = await entryRef.get();
+      if (!entryDoc.exists) {
+        throw new HttpsError(
+          "not-found",
+          `Entry ${entryId} not found in ${targetSubcollectionName}.`,
+        );
+      }
 
       await entryRef.update({
         isActive: false,
@@ -194,6 +194,3 @@ export const deleteEntry = onCall(
     }
   },
 );
-
-// --- REMOVE original combined deleteItem/deleteEntry function ---
-// export const deleteItem = ...

@@ -1,11 +1,11 @@
 import * as z from "zod";
+import { BABY_ENTRY_TYPES } from "../const";
 import {
-  BABY_ENTRY_TYPES,
   napDetailsSchema,
   diaperDetailsSchema,
   feedDetailsSchema,
   growthDetailsSchema,
-} from "../const";
+} from "./BabySchema"; // Updated import path
 import { cashFlowEntryDetailsSchema } from "./CashflowSchema";
 import { materialItemSchema } from "./InventorySchema";
 import { quoteDetailsStateSchema } from "./quote_schema";

@@ -5,7 +5,6 @@ import { initializeApp, getApps } from "firebase-admin/app";
 import { EntryItf } from "../common/common_types";
 import { materialItemSchema } from "../common/schemas/InventorySchema";
 import { handleSchemaValidationError } from "../lib/bg-consts";
-// --- Import correct constants ---
 import { JOURNAL_COLLECTION, JOURNAL_TYPES } from "../common/const";
 import { ENTRY_CONFIG } from "../common/schemas/configmap";
 import * as logger from "firebase-functions/logger";
@@ -16,18 +15,16 @@ if (getApps().length === 0) {
 
 const db: Firestore = getFirestore();
 
-// --- Define the inventory subcollection name ---
-const INVENTORY_SUBCOLLECTION = ENTRY_CONFIG.inventory.subcollection; // "inventory_items"
+const INVENTORY_SUBCOLLECTION = ENTRY_CONFIG.inventory.subcollection;
 
 /**
  * triggered /journals/{journalId}/inventory_items collection is created or updated.
  * It updates the parent journal document with a cache of active inventory items.
  */
 export const onInventoryEntryWrite = onDocumentWritten(
-  // --- UPDATE the trigger path ---
   `${JOURNAL_COLLECTION}/{journalId}/${INVENTORY_SUBCOLLECTION}/{itemId}`,
   async (event) => {
-    const { journalId, itemId } = event.params; // Parameters match the path segments
+    const { journalId, itemId } = event.params;
     const entryDataAfter = (event.data?.after.data() ||
       null) as EntryItf | null;
     const entryDataBefore = (event.data?.before.data() ||
@@ -52,7 +49,6 @@ export const onInventoryEntryWrite = onDocumentWritten(
     }
 
     const journalData = journalDoc.data();
-    // --- Ensure this is a business journal ---
     if (journalData?.journalType !== JOURNAL_TYPES.BUSINESS) {
       logger.info(
         `Journal ${journalId} is not a business journal (type: ${journalData?.journalType}).` +
@@ -69,13 +65,11 @@ export const onInventoryEntryWrite = onDocumentWritten(
     const isDeletion = !entryDataAfter || entryDataAfter.isActive === false;
 
     if (isDeletion) {
-      // --- Handle deletion/deactivation: Remove from cache ---
       logger.info(
         `Deleting activeItems cache for item ${itemId} in journal ${journalId}`,
       );
       try {
         await journalDocRef.update({
-          // --- UPDATE cache path --- (e.g., use 'inventoryCache' field)
           [`inventoryCache.${itemId}`]: FieldValue.delete(),
           updatedAt: FieldValue.serverTimestamp(),
         });
@@ -89,7 +83,6 @@ export const onInventoryEntryWrite = onDocumentWritten(
         );
       }
     } else {
-      // --- Handle add/update: Validate and update cache ---
       // Validate that entryDataAfter is still a valid inventory item entry
       const detailsResult = materialItemSchema.safeParse(
         entryDataAfter.details,
@@ -122,7 +115,6 @@ export const onInventoryEntryWrite = onDocumentWritten(
       );
       try {
         await journalDocRef.update({
-          // --- UPDATE cache path ---
           [`inventoryCache.${itemId}`]: cacheEntry,
           updatedAt: FieldValue.serverTimestamp(),
         });
@@ -138,17 +130,3 @@ export const onInventoryEntryWrite = onDocumentWritten(
     }
   },
 );
-
-// --- REMOVE or Adapt the generic onEntryWrite if it existed ---
-// The specific onInventoryEntryWrite is now handling inventory.
-// You might create similar specific triggers for other types (e.g., cashflow totals) if needed.
-
-/*
-// Example: Placeholder for a future cash flow trigger
-export const onCashflowEntryWrite = onDocumentWritten(
-  `${JOURNAL_COLLECTION}/{journalId}/${ENTRY_CONFIG.cashflow.subcollection}/{entryId}`,
-  async (event) => {
-    // ... logic to update cashflow totals on the parent journal ...
-  }
-);
-*/

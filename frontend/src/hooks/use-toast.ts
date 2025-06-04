@@ -6,7 +6,7 @@ import * as React from "react";
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
 
 const TOAST_LIMIT = 1;
-const TOAST_REMOVE_DELAY = 1000000;
+const TOAST_REMOVE_DELAY = 5000; // Adjusted TOAST_REMOVE_DELAY
 
 type ToasterToast = ToastProps & {
   id: string;
@@ -55,13 +55,28 @@ interface State {
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>();
 
-const addToRemoveQueue = (toastId: string) => {
-  if (toastTimeouts.has(toastId)) {
-    return;
+// Helper function to clear a specific timeout
+const clearToastTimeout = (toastId: string) => {
+  const timeout = toastTimeouts.get(toastId);
+  if (timeout) {
+    clearTimeout(timeout);
+    toastTimeouts.delete(toastId);
   }
+};
+
+// Helper function to clear all timeouts
+const clearAllToastTimeouts = () => {
+  toastTimeouts.forEach((timeout) => clearTimeout(timeout));
+  toastTimeouts.clear();
+};
+
+const addToRemoveQueue = (toastId: string) => {
+  // If a timeout already exists for this toastId (e.g., from a previous dismiss action that was superseded),
+  // clear it before setting a new one. This can happen if onOpenChange is called multiple times rapidly.
+  clearToastTimeout(toastId);
 
   const timeout = setTimeout(() => {
-    toastTimeouts.delete(toastId);
+    toastTimeouts.delete(toastId); // Ensure it's deleted before dispatching REMOVE_TOAST
     dispatch({
       type: "REMOVE_TOAST",
       toastId: toastId,
@@ -74,6 +89,8 @@ const addToRemoveQueue = (toastId: string) => {
 export const reducer = (state: State, action: Action): State => {
   switch (action.type) {
     case "ADD_TOAST":
+      // Clear timeout if a toast with the same ID is being re-added
+      // This is handled in the `toast` function before dispatching ADD_TOAST
       return {
         ...state,
         toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
@@ -89,15 +106,12 @@ export const reducer = (state: State, action: Action): State => {
 
     case "DISMISS_TOAST": {
       const { toastId } = action;
-
-      // ! Side effects ! - This could be extracted into a dismissToast() action,
-      // but I'll keep it here for simplicity
+      // Side effect of calling addToRemoveQueue is removed from the reducer.
+      // Clearing timeouts is a state management concern related to toast lifecycle.
       if (toastId) {
-        addToRemoveQueue(toastId);
+        clearToastTimeout(toastId); // Clear specific timeout
       } else {
-        state.toasts.forEach((toast) => {
-          addToRemoveQueue(toast.id);
-        });
+        clearAllToastTimeouts(); // Clear all timeouts if dismissing all
       }
 
       return {
@@ -106,14 +120,21 @@ export const reducer = (state: State, action: Action): State => {
           t.id === toastId || toastId === undefined
             ? {
                 ...t,
-                open: false,
+                open: false, // Only mark as not open
               }
             : t,
         ),
       };
     }
-    case "REMOVE_TOAST":
-      if (action.toastId === undefined) {
+    case "REMOVE_TOAST": {
+      const { toastId } = action;
+      if (toastId) {
+        clearToastTimeout(toastId); // Clear specific timeout
+      } else {
+        clearAllToastTimeouts(); // Clear all timeouts if removing all
+      }
+
+      if (toastId === undefined) {
         return {
           ...state,
           toasts: [],
@@ -121,8 +142,9 @@ export const reducer = (state: State, action: Action): State => {
       }
       return {
         ...state,
-        toasts: state.toasts.filter((t) => t.id !== action.toastId),
+        toasts: state.toasts.filter((t) => t.id !== toastId),
       };
+    }
   }
 };
 
@@ -147,7 +169,13 @@ function toast({ ...props }: Toast) {
       type: "UPDATE_TOAST",
       toast: { ...props, id },
     });
+
+  // Original dismiss function, now primarily for external calls or if onOpenChange doesn't cover all dismiss cases.
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id });
+
+  // Before adding a new toast, clear any existing timeout for this ID.
+  // This handles cases where a toast might be rapidly re-added or updated.
+  clearToastTimeout(id);
 
   dispatch({
     type: "ADD_TOAST",
@@ -156,7 +184,15 @@ function toast({ ...props }: Toast) {
       id,
       open: true,
       onOpenChange: (open) => {
-        if (!open) dismiss();
+        if (!open) {
+          // When toast is closed (e.g., by user action or auto-hide from component),
+          // schedule its removal from the state.
+          addToRemoveQueue(id);
+          // We can still call dismiss to ensure the state's `open` flag is set to false,
+          // though addToRemoveQueue will eventually remove it.
+          // This also handles any other logic that might be in dismiss (currently none beyond setting open:false).
+          dispatch({ type: "DISMISS_TOAST", toastId: id });
+        }
       },
     },
   });
@@ -184,6 +220,7 @@ function useToast() {
   return {
     ...state,
     toast,
+    // Expose a general dismiss function that can take an ID or dismiss all
     dismiss: (toastId?: string) =>
       dispatch({ type: "DISMISS_TOAST", toastId }),
   };

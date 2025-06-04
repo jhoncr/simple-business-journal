@@ -40,30 +40,32 @@ if (process.env.NODE_ENV === "development") {
   connectFunctionsEmulator(functions, "localhost", 5001);
 }
 
+// Initialize App Check directly after Firebase app setup and emulator connections,
+// but only on the client side.
 if (typeof window !== "undefined") {
-  window.onload = () => {
-    console.log("window loaded");
-
-    if (process.env.NODE_ENV === "development") {
-      initializeAppCheck(app, {
-        provider: new CustomProvider({
-          getToken: () => {
-            return Promise.resolve({
-              token: "fake-token",
-              expireTimeMillis: Date.now() + 1000 * 60 * 60 * 24, // 1 day
-            });
-          },
-        }),
-
-        isTokenAutoRefreshEnabled: true,
-      });
-    } else {
-      initializeAppCheck(app, {
-        provider: new ReCaptchaEnterpriseProvider(config.recaptchaSiteKey),
-        isTokenAutoRefreshEnabled: true,
-      });
-    }
-  };
+  // The console.log("window loaded") was part of window.onload,
+  // it's removed as App Check now initializes sooner.
+  // If specific logging for App Check init is needed, it can be added here.
+  if (process.env.NODE_ENV === "development") {
+    initializeAppCheck(app, {
+      provider: new CustomProvider({
+        getToken: () => {
+          return Promise.resolve({
+            token: "fake-token",
+            expireTimeMillis: Date.now() + 1000 * 60 * 60 * 24, // 1 day
+          });
+        },
+      }),
+      isTokenAutoRefreshEnabled: true,
+    });
+    console.log("App Check initialized with CustomProvider for development.");
+  } else {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaEnterpriseProvider(config.recaptchaSiteKey),
+      isTokenAutoRefreshEnabled: true,
+    });
+    console.log("App Check initialized with ReCaptchaEnterpriseProvider for production.");
+  }
 }
 
 export const useFirebaseAuth = () => {
