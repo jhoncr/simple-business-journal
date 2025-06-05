@@ -6,7 +6,7 @@ import { initializeApp, getApps } from "firebase-admin/app";
 import { JOURNAL_COLLECTION, ROLES_THAT_ADD } from "./common/const"; // Assuming ROLES_THAT_ADD is appropriate, or define new role check
 import { ENTRY_CONFIG, EntryType } from "./common/schemas/configmap";
 import { ALLOWED } from "./lib/bg-consts"; // For CORS
-import { estimateDetailsStateSchema } from "./common/schemas/estimate_schema"; // For type hint
+import { estimateDetailsStateSchema, LineItem, Adjustment, estimateDetailsState } from "./common/schemas/estimate_schema"; // For type hint and calculation
 import { invoiceDetailsSchema } from "./common/schemas/invoice_schema"; // For type hint and validation
 
 if (getApps().length === 0) {
@@ -26,6 +26,52 @@ function generateInvoiceNumber(): string {
   const minutes = now.getMinutes().toString().padStart(2, '0');
   const seconds = now.getSeconds().toString().padStart(2, '0');
   return `INV-${year}${month}${day}-${hours}${minutes}${seconds}`;
+}
+
+// Helper function to calculate totals, mimicking frontend logic
+function _calculateInvoiceTotalInternal(
+  lineItems: LineItem[], // Use the imported LineItem type
+  adjustments: Adjustment[], // Use the imported Adjustment type
+  taxPercentage: number
+): number { // Returns only the grandTotal, as that's what invoice schema needs for totalAmount
+  const itemsTotal = lineItems.reduce((sum, item) => {
+    const quantity = item.quantity || 0;
+    const unitPrice = item.material?.unitPrice || 0; // Safely access nested properties
+    return sum + quantity * unitPrice;
+  }, 0);
+
+  const adjustmentsTotal = adjustments.reduce((sum, adj) => {
+    const value = adj.value || 0;
+    let adjustmentValue = 0;
+    switch (adj.type) {
+      case "addFixed":
+        adjustmentValue = value;
+        break;
+      case "discountFixed":
+        adjustmentValue = -value;
+        break;
+      case "addPercent":
+        // Ensure itemsTotal is not zero to avoid NaN if value is also zero, though multiplication handles it.
+        adjustmentValue = (itemsTotal * value) / 100;
+        break;
+      case "discountPercent":
+        adjustmentValue = -(itemsTotal * value) / 100;
+        break;
+      // 'taxPercent' type adjustments are not summed directly into adjustmentsTotal here,
+      // as taxPercentage field is used for the final tax calculation.
+      // If 'taxPercent' type adjustments *should* be part of adjustmentsTotal, this logic needs change.
+      // Based on frontend, 'taxPercent' in adjustments array is ignored for this subtotal.
+    }
+    return sum + adjustmentValue;
+  }, 0);
+
+  const subtotalBeforeTax = itemsTotal + adjustmentsTotal;
+  const taxAmount = (subtotalBeforeTax * (taxPercentage || 0)) / 100; // Use taxPercentage from estimate details
+  const grandTotal = subtotalBeforeTax + taxAmount;
+
+  // It's good practice to round to a sensible number of decimal places for currency.
+  // Assuming 2 decimal places.
+  return Math.round(grandTotal * 100) / 100;
 }
 
 export const convertEstimateToInvoiceFn = onCall(
@@ -116,21 +162,25 @@ export const convertEstimateToInvoiceFn = onCall(
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + 30); // Due 30 days from now
 
+        // Calculate totalAmount using the helper function
+        const calculatedTotalAmount = _calculateInvoiceTotalInternal(
+          validEstimateDetails.confirmedItems || [], // Pass confirmedItems as lineItems, ensure it's an array
+          validEstimateDetails.adjustments || [],   // Ensure adjustments is an array
+          validEstimateDetails.taxPercentage || 0 // Pass taxPercentage, default to 0
+        );
+
         const newInvoiceDetails = {
           invoiceNumber: invoiceNumber,
           estimateId_ref: estimateId,
           dueDate: dueDate.toISOString(), // Store as ISO string
-          paymentStatus: "pending",
+          paymentStatus: "pending" as const,
           customer: validEstimateDetails.customer,
           supplier: validEstimateDetails.supplier,
-          lineItems: validEstimateDetails.confirmedItems, // Assuming lineItems are compatible
-          adjustments: validEstimateDetails.adjustments, // Assuming adjustments are compatible
+          lineItems: validEstimateDetails.confirmedItems || [], // Assuming lineItems are compatible
+          adjustments: validEstimateDetails.adjustments || [], // Assuming adjustments are compatible
           currency: validEstimateDetails.currency,
           notes: validEstimateDetails.notes,
-          totalAmount: estimateData?.name, // 'name' in estimate might be 'totalAmount'. This needs clarification from schema or context.
-                                       // If 'totalAmount' is calculated, ensure that calculation logic is here or passed correctly.
-                                       // For now, assuming 'name' field of estimate holds the total. This is a common placeholder.
-                                       // It's better to have a dedicated 'totalAmount' field in estimateDetails.
+          totalAmount: calculatedTotalAmount, // USE THE CALCULATED VALUE HERE
           // paymentDetails: null, // Explicitly null or undefined
         };
 
