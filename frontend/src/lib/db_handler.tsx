@@ -32,7 +32,7 @@ import {
 // const FE_ENTRY_CONFIG = {
 //   cashflow: { subcollection: "cashflow_entries", sortField: "details.date" },
 //   inventory: { subcollection: "inventory_items", sortField: "createdAt" },
-//   quote: { subcollection: "quotes", sortField: "createdAt" },
+//   estimate: { subcollection: "estimates", sortField: "createdAt" },
 //   nap: { subcollection: "naps", sortField: "details.start" },
 //   diaper: { subcollection: "diapers", sortField: "details.time" },
 //   feed: { subcollection: "feeds", sortField: "details.time" },
@@ -71,7 +71,12 @@ export async function fetchDateRangeEntries(
   }
 
   const config = getEntryConfig(entryType);
-  if (!config || !config.sortField || !config.sortField.startsWith("details.")) { // Added null check for sortField
+  if (
+    !config ||
+    !config.sortField ||
+    !config.sortField.startsWith("details.")
+  ) {
+    // Added null check for sortField
     console.error(
       `Date range fetch not supported or configured (or sortField missing/invalid) for entryType: ${entryType}`,
     );
@@ -117,8 +122,11 @@ export async function fetchOlderEntrys(
 ): Promise<DBentryMap> {
   // Return type updated
   const config = getEntryConfig(entryType);
-  if (!config || !config.sortField) { // Added null check for sortField
-    console.error(`Configuration or sortField missing for entryType: ${entryType}`);
+  if (!config || !config.sortField) {
+    // Added null check for sortField
+    console.error(
+      `Configuration or sortField missing for entryType: ${entryType}`,
+    );
     return {};
   }
   const subcollectionName = config.subcollection;
@@ -134,7 +142,10 @@ export async function fetchOlderEntrys(
     // Assuming createdAt is always present for secondary sort, if not, this might need adjustment
     const secondarySortValue = oldestEntry.createdAt;
 
-    if (primarySortValue === undefined /* secondarySortValue can be undefined if not always present */) {
+    if (
+      primarySortValue ===
+      undefined /* secondarySortValue can be undefined if not always present */
+    ) {
       console.error("Oldest entry is missing sort field values", {
         primarySortField,
         primarySortValue,
@@ -145,10 +156,10 @@ export async function fetchOlderEntrys(
     }
 
     const queryConstraints = [
-        where("isActive", "==", true),
-        orderBy(primarySortField, "desc"),
-        // orderBy("createdAt", "desc"), // Consider if this secondary sort is always needed/reliable
-        limit(past_k),
+      where("isActive", "==", true),
+      orderBy(primarySortField, "desc"),
+      // orderBy("createdAt", "desc"), // Consider if this secondary sort is always needed/reliable
+      limit(past_k),
     ];
 
     // startAfter requires all orderBy fields. If secondarySortValue is potentially undefined,
@@ -157,16 +168,12 @@ export async function fetchOlderEntrys(
     // If 'createdAt' is a guaranteed secondary sort, it should be in orderBy.
     // For now, assuming primarySortValue is sufficient if secondary is problematic.
     if (secondarySortValue !== undefined) {
-        queryConstraints.push(startAfter(primarySortValue, secondarySortValue));
+      queryConstraints.push(startAfter(primarySortValue, secondarySortValue));
     } else {
-        queryConstraints.push(startAfter(primarySortValue));
+      queryConstraints.push(startAfter(primarySortValue));
     }
 
-
-    const q = query(
-      collection(db, colPath),
-      ...queryConstraints
-    );
+    const q = query(collection(db, colPath), ...queryConstraints);
 
     const querySnapshot = await getDocs(q);
     const docsDict: DBentryMap = {};
@@ -202,7 +209,8 @@ export function useEntriesSubCol(
     setDocs({});
 
     const config = getEntryConfig(entryType);
-    if (!journalId || !config || !config.sortField) { // Added null check for sortField
+    if (!journalId || !config || !config.sortField) {
+      // Added null check for sortField
       console.warn(
         `useEntriesSubCol: Invalid journalId, entryType (${entryType}), or sortField missing`,
       );

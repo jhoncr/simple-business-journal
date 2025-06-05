@@ -121,7 +121,7 @@ export function JournalInfoCard({
     const nameMap: Record<string, string> = {
       cashflow: "Cash Flow",
       inventory: "Inventory",
-      quotes: "Quotes",
+      estimates: "Estimates",
       naps: "Naps",
       diapers: "Diapers",
       feeds: "Feeds",

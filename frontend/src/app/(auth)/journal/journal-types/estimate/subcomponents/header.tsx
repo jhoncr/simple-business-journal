@@ -4,15 +4,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { contactInfoSchemaType } from "../../../../../../../../backend/functions/src/common/schemas/common_schemas";
 
-interface QuoteHeaderProps {
+interface EstimateHeaderProps {
   contactInfo?: contactInfoSchemaType;
   logo?: string | null;
 }
 
-export function QuoteHeader({
+export function EstimateHeader({
   logo = "/placeholder.svg?height=40&width=120",
   contactInfo,
-}: QuoteHeaderProps) {
+}: EstimateHeaderProps) {
   return (
     <div className="print:shadow-none print:max-w-none print:mx-0 print:w-full border-b p-4">
       <div className="flex flex-wrap justify-between items-center gap-4">

@@ -54,11 +54,11 @@ export default function LandingPage() {
       <header className="bg-primary text-primary-foreground py-12">
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-6xl font-bold mb-4">
-            Create Professional Quotes in Minutes
+            Create Professional Estimates in Minutes
           </h1>
           <p className="text-lg md:text-xl mb-8">
-            Simple Quotes helps you generate, customize, and print/share
-            business quotes effortlessly.
+            Simple Estimates helps you generate, customize, and print/share
+            business estimates effortlessly.
           </p>
 
           <div className="mt-8">
@@ -82,7 +82,7 @@ export default function LandingPage() {
       {/* How It Works Section */}
       <section className="container mx-auto px-4 py-16">
         <h2 className="text-3xl font-bold text-center mb-12">
-          Creating Quotes is as Easy as 1-2-3
+          Creating Estimates is as Easy as 1-2-3
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <Card>
@@ -94,8 +94,9 @@ export default function LandingPage() {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Quickly add items to your quote, from your inventory or create
-                new ones on the fly.c cashflow entriss, inventrory, quotes
+                Quickly add items to your estimate, from your inventory or
+                create new ones on the fly.c cashflow entriss, inventrory,
+                estimates
               </p>
             </CardContent>
           </Card>
@@ -124,8 +125,8 @@ export default function LandingPage() {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Generate a professional PDF quote to print, or share directly
-                with your client via a unique link.
+                Generate a professional PDF estimate to print, or share
+                directly with your client via a unique link.
               </p>
             </CardContent>
           </Card>
@@ -145,7 +146,7 @@ export default function LandingPage() {
             <div>
               <h3 className="font-semibold">Stay Organized</h3>
               <p className="text-muted-foreground">
-                Stop wasting time with spreadsheets. Create quotes in a
+                Stop wasting time with spreadsheets. Create estimates in a
                 fraction of the time.
               </p>
             </div>
@@ -155,7 +156,7 @@ export default function LandingPage() {
             <div>
               <h3 className="font-semibold">Look Professional</h3>
               <p className="text-muted-foreground">
-                Impress clients with polished, branded quotes.
+                Impress clients with polished, branded estimates.
               </p>
             </div>
           </li>
@@ -184,7 +185,7 @@ export default function LandingPage() {
       <section className=" py-16">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-8">
-            Sign up now and start creating professional quotes in minutes!{" "}
+            Sign up now and start creating professional estimates in minutes!{" "}
           </h2>
 
           <SignInButton />

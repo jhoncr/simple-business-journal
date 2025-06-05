@@ -233,7 +233,7 @@ export function CreateNewJournal({
           <DialogDescription>
             {isEdit
               ? "Update your business information."
-              : "Create a new business journal to manage quotes, inventory, and cash flow."}
+              : "Create a new business journal to manage estimates, inventory, and cash flow."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>

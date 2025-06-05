@@ -3,7 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
-import { QuoteDetails } from "@/app/(auth)/journal/journal-types/quote/addQuote";
+import { EstimateDetails } from "@/app/(auth)/journal/journal-types/estimate/addEstimate";
 // --- Store import removed ---
 // import { useJournalStore } from "@/lib/store/journalStore";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,7 +27,7 @@ const initInfo: contactInfoSchemaType = {
 
 // Component to render content - needed because hooks like useSearchParams
 // need to be called within a Suspense boundary in the main export default function
-function EditQuoteEntryPageContent() {
+function EditEstimateEntryPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const journalId = searchParams.get("jid");
@@ -64,7 +64,7 @@ function EditQuoteEntryPageContent() {
     setValidationError(null);
   }, [journalId, entryId, router]); // Rerun validation if IDs change
 
-  // --- Prepare Props for QuoteDetails ---
+  // --- Prepare Props for EstimateDetails ---
   let supplierInfo: contactInfoSchemaType = initInfo;
   let supplierLogo: string | null = null;
   let journalCurrency: allowedCurrencySchemaType | undefined;
@@ -124,7 +124,7 @@ function EditQuoteEntryPageContent() {
   if (journal.journalType !== JOURNAL_TYPES.BUSINESS) {
     return (
       <div className="p-4 text-center text-destructive">
-        <p>Error: Quotes can only be added to Business journals.</p>
+        <p>Error: Estimates can only be added to Business journals.</p>
         <Link href="/" className="text-primary underline mt-4 inline-block">
           Go Home
         </Link>
@@ -132,7 +132,7 @@ function EditQuoteEntryPageContent() {
     );
   }
 
-  // Check if currency is set (required for quotes)
+  // Check if currency is set (required for estimates)
   if (!journalCurrency) {
     return (
       <div className="p-4 text-center text-destructive">
@@ -148,10 +148,10 @@ function EditQuoteEntryPageContent() {
     );
   }
 
-  // --- Render QuoteDetails with Props ---
+  // --- Render EstimateDetails with Props ---
   return (
     <div className="w-full">
-      <QuoteDetails
+      <EstimateDetails
         journalId={journalId!} // Pass journalId (non-null asserted)
         entryId={entryId} // Pass optional entryId
         // Pass data derived from the context's journal object
@@ -164,11 +164,11 @@ function EditQuoteEntryPageContent() {
   );
 }
 
-export default function EditQuoteEntryPage() {
+export default function EditEstimateEntryPage() {
   // Wrap the main content in Suspense because it uses useSearchParams
   return (
     <Suspense fallback={<div className="p-4">Loading...</div>}>
-      <EditQuoteEntryPageContent />
+      <EditEstimateEntryPageContent />
     </Suspense>
   );
 }

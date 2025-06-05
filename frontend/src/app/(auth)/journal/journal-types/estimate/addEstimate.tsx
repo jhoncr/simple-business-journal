@@ -1,4 +1,4 @@
-// frontend/src/app/(auth)/journal/journal-types/quote/addQuote.tsx
+// frontend/src/app/(auth)/journal/journal-types/estimate/addEstimate.tsx
 "use client";
 
 import React, {
@@ -17,9 +17,9 @@ import { NewItemForm } from "./subcomponents/NewItemForm";
 import {
   LineItem,
   Adjustment,
-  quoteDetailsState,
-  quoteDetailsStateSchema,
-} from "@/../../backend/functions/src/common/schemas/quote_schema";
+  estimateDetailsState,
+  estimateDetailsStateSchema,
+} from "@/../../backend/functions/src/common/schemas/estimate_schema";
 import { InvoiceBottomLines } from "./subcomponents/Adjustments";
 import {
   contactInfoSchemaType,
@@ -31,7 +31,7 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/auth_handler";
 import { fetchEntry } from "@/lib/db_handler";
 import { formattedDate, formatCurrency } from "@/lib/utils";
-import { QuoteHeader } from "./subcomponents/header";
+import { EstimateHeader } from "./subcomponents/header";
 import { InlineEditTextarea } from "./subcomponents/EditNotes";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
@@ -42,7 +42,7 @@ import { useJournalContext } from "@/context/JournalContext"; // Import useJourn
 
 // --- Constants ---
 const ADD_LOG_FN_NAME = "addLogFn";
-const QUOTE_ENTRY_TYPE = "quote";
+const ESTIMATE_ENTRY_TYPE = "estimate";
 
 // Initial Contact Info remains the same
 const initInfo: contactInfoSchemaType = {
@@ -63,9 +63,9 @@ const addLogFn = httpsCallable(functions, ADD_LOG_FN_NAME, {
 });
 
 // --- Updated Props Interface ---
-interface QuoteDetailsProps {
+interface EstimateDetailsProps {
   journalId: string; // Standardized name
-  entryId?: string | null; // Optional for new quotes
+  entryId?: string | null; // Optional for new estimates
   // Props passed down from parent (using JournalContext)
   supplierInfo: contactInfoSchemaType;
   supplierLogo: string | null;
@@ -75,17 +75,18 @@ interface QuoteDetailsProps {
 
 // --- Main Component ---
 // Use forwardRef if necessary, otherwise a standard functional component is fine
-export const QuoteDetails = React.memo(function QuoteDetails({
+export const EstimateDetails = React.memo(function EstimateDetails({
   journalId,
   entryId: initialEntryId, // Rename prop to avoid conflict with state
   supplierInfo,
   supplierLogo,
   journalCurrency,
   journalInventoryCache,
-}: QuoteDetailsProps) {
+}: EstimateDetailsProps) {
   // --- State Variables ---
   const [confirmedItems, setConfirmedItems] = useState<LineItem[]>([]);
-  const [status, setStatus] = useState<quoteDetailsState["status"]>("pending");
+  const [status, setStatus] =
+    useState<estimateDetailsState["status"]>("pending");
   const [customer, setCustomer] = useState<contactInfoSchemaType>(initInfo);
   // supplier, logo, currency state removed -> use props
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
@@ -134,22 +135,22 @@ export const QuoteDetails = React.memo(function QuoteDetails({
         try {
           const entry = await fetchEntry(
             journalId,
-            QUOTE_ENTRY_TYPE,
+            ESTIMATE_ENTRY_TYPE,
             initialEntryId,
           );
           console.log("Fetched entry:", entry);
 
           if (!entry) {
-            setEntryError("Quote entry not found or access denied.");
+            setEntryError("Estimate entry not found or access denied.");
           } else if (entry.details) {
-            const details = entry.details as quoteDetailsState;
-            const validation = quoteDetailsStateSchema.safeParse(details);
+            const details = entry.details as estimateDetailsState;
+            const validation = estimateDetailsStateSchema.safeParse(details);
             if (!validation.success) {
               console.error(
-                "Fetched quote details failed validation:",
+                "Fetched estimate details failed validation:",
                 validation.error,
               );
-              setEntryError("Loaded quote data is invalid.");
+              setEntryError("Loaded estimate data is invalid.");
             } else {
               // Set state based on fetched entry data
               setConfirmedItems(validation.data.confirmedItems || []);
@@ -162,13 +163,13 @@ export const QuoteDetails = React.memo(function QuoteDetails({
             }
           }
         } catch (error) {
-          console.error("Error loading quote entry:", error);
-          setEntryError("Failed to load quote details. Please try again.");
+          console.error("Error loading estimate entry:", error);
+          setEntryError("Failed to load estimate details. Please try again.");
         } finally {
           setLoading(false);
         }
       } else {
-        // New quote: Reset fields (supplier/logo/currency come from props)
+        // New estimate: Reset fields (supplier/logo/currency come from props)
         setConfirmedItems([]);
         setStatus("pending");
         setCustomer(initInfo);
@@ -218,7 +219,7 @@ export const QuoteDetails = React.memo(function QuoteDetails({
 
   // --- Updated handleSave ---
   const handleSave = useCallback(
-    async (updates: Partial<quoteDetailsState> = {}) => {
+    async (updates: Partial<estimateDetailsState> = {}) => {
       if (isSaving || !journalId || !journalCurrency) {
         console.warn(
           "Save aborted. Already saving or missing Journal ID/Currency.",
@@ -226,7 +227,7 @@ export const QuoteDetails = React.memo(function QuoteDetails({
         if (!journalCurrency) {
           toast({
             title: "Missing Currency",
-            description: "Cannot save quote, journal currency is not set.",
+            description: "Cannot save estimate, journal currency is not set.",
             variant: "destructive",
           });
         }
@@ -259,7 +260,7 @@ export const QuoteDetails = React.memo(function QuoteDetails({
       }
 
       // Construct Details Payload using props and state
-      const quoteDetailsData: quoteDetailsState = {
+      const estimateDetailsData: estimateDetailsState = {
         confirmedItems: updates.confirmedItems ?? confirmedItems,
         status: updates.status ?? status,
         customer: updates.customer ?? customer,
@@ -273,16 +274,16 @@ export const QuoteDetails = React.memo(function QuoteDetails({
 
       // Validate final details object
       const detailsValidation =
-        quoteDetailsStateSchema.safeParse(quoteDetailsData);
+        estimateDetailsStateSchema.safeParse(estimateDetailsData);
       if (!detailsValidation.success) {
         console.error(
-          "Quote details validation failed before save:",
+          "Estimate details validation failed before save:",
           detailsValidation.error.format(),
         );
         toast({
-          title: "Invalid Quote Data",
+          title: "Invalid Estimate Data",
           description:
-            "Could not save quote due to invalid data. Check console for details.",
+            "Could not save estimate due to invalid data. Check console for details.",
           variant: "destructive",
         });
         setIsSaving(false);
@@ -293,18 +294,18 @@ export const QuoteDetails = React.memo(function QuoteDetails({
       // Construct Backend Payload
       const payload = {
         journalId: journalId, // Use prop
-        entryType: QUOTE_ENTRY_TYPE,
-        name: `Quote for ${validatedDetails.customer.name || "Unknown"}`,
+        entryType: ESTIMATE_ENTRY_TYPE,
+        name: `Estimate for ${validatedDetails.customer.name || "Unknown"}`,
         details: validatedDetails,
         ...(entryId && { entryId }), // Include entryId if editing
       };
 
-      console.log("Saving quote with payload:", payload);
+      console.log("Saving estimate with payload:", payload);
 
       // Call Backend Function
       try {
         const result = await addLogFn(payload);
-        console.log("Quote save successful:", result.data);
+        console.log("Estimate save successful:", result.data);
 
         const returnedId = (result.data as any)?.id;
         if (returnedId && !entryId) {
@@ -316,14 +317,14 @@ export const QuoteDetails = React.memo(function QuoteDetails({
         }
 
         toast({
-          title: entryId ? "Quote Updated" : "Quote Saved",
-          description: `Quote for ${validatedDetails.customer.name} saved successfully.`,
+          title: entryId ? "Estimate Updated" : "Estimate Saved",
+          description: `Estimate for ${validatedDetails.customer.name} saved successfully.`,
         });
       } catch (error: any) {
-        console.error("Error saving quote:", error);
+        console.error("Error saving estimate:", error);
         toast({
           title: "Save Failed",
-          description: error.message || "Could not save the quote.",
+          description: error.message || "Could not save the estimate.",
           variant: "destructive",
         });
       } finally {
@@ -351,7 +352,7 @@ export const QuoteDetails = React.memo(function QuoteDetails({
   // --- Render Logic ---
   if (loading) {
     // Loading state while fetching entry
-    return <div className="text-center p-10">Loading quote details...</div>;
+    return <div className="text-center p-10">Loading estimate details...</div>;
   }
   if (entryError) {
     // Display error if fetching entry failed
@@ -369,11 +370,11 @@ export const QuoteDetails = React.memo(function QuoteDetails({
   // --- JSX Structure ---
   return (
     <div
-      id="quote-printable-container"
+      id="estimate-printable-container"
       className="w-full print:max-w-none mx-auto p-2 border-none relative pb-20 md:pb-4 lg:pr-[430px]" // Add right padding on large screens
     >
       {/* --- Header (Passes props) --- */}
-      <QuoteHeader logo={supplierLogo} contactInfo={supplierInfo} />
+      <EstimateHeader logo={supplierLogo} contactInfo={supplierInfo} />
 
       {/* --- Content --- */}
       <div className="space-y-4 px-2 md:px-4">
@@ -538,7 +539,7 @@ export const QuoteDetails = React.memo(function QuoteDetails({
 
       {/* Actions Bar */}
       <div
-        id="quote-actions-bar"
+        id="estimate-actions-bar"
         className="print-hide flex justify-between items-center mt-6 px-2 md:px-4"
       >
         <Button variant="brutalist" asChild size="sm">
@@ -548,7 +549,7 @@ export const QuoteDetails = React.memo(function QuoteDetails({
         </Button>
         {/* Explicit Save Button (Optional) */}
         {/* <Button variant="default" size="sm" onClick={() => handleSave()} disabled={isSaving}>
-          {isSaving ? "Saving..." : "Save Quote"}
+          {isSaving ? "Saving..." : "Save Estimate"}
         </Button> */}
         <Button
           variant="brutalist"
@@ -570,18 +571,18 @@ export const QuoteDetails = React.memo(function QuoteDetails({
           }
 
           /* Hide placeholders when printing */
-          #quote-printable-container input::placeholder,
-          #quote-printable-container textarea::placeholder {
+          #estimate-printable-container input::placeholder,
+          #estimate-printable-container textarea::placeholder {
             color: transparent !important;
             opacity: 0 !important;
           }
 
-          /* Target the quote container by ID */
-          #quote-printable-container,
-          #quote-printable-container * {
+          /* Target the estimate container by ID */
+          #estimate-printable-container,
+          #estimate-printable-container * {
             visibility: visible;
           }
-          #quote-printable-container {
+          #estimate-printable-container {
             position: absolute;
             left: 50%;
             top: 0;
@@ -594,7 +595,7 @@ export const QuoteDetails = React.memo(function QuoteDetails({
             margin: 0 !important;
           }
           /* Make all text and backgrounds black and white */
-          #quote-printable-container * {
+          #estimate-printable-container * {
             color: black !important;
             background-color: transparent !important;
             border-color: black !important;
@@ -623,14 +624,14 @@ export const QuoteDetails = React.memo(function QuoteDetails({
   );
 });
 
-// --- AddNewQuoteBtn Component (No changes needed here) ---
-export const AddNewQuoteBtn = ({ journalId }: { journalId: string }) => {
+// --- AddNewEstimateBtn Component (No changes needed here) ---
+export const AddNewEstimateBtn = ({ journalId }: { journalId: string }) => {
   // Rename journalId to journalId for consistency internally if preferred
   return (
     <div>
       <Button variant="brutalist" className="mb-4" asChild>
         {/* Use journalId in the link */}
-        <Link href={`/journal/entry?jid=${journalId}`}>New Quote</Link>
+        <Link href={`/journal/entry?jid=${journalId}`}>New Estimate</Link>
       </Button>
     </div>
   );

@@ -6,7 +6,6 @@ import {
   dimensionConfigSchema,
 } from "./InventorySchema";
 
-
 export const currencyCodeSchema = allowedCurrencySchema; // ISO 4217 currency codes are 3 letters
 // Add this near the top of the file, before the schemas
 export const currencySchema = z
@@ -50,7 +49,7 @@ const adjustmentSchema = z.object({
   description: z.string(),
 });
 
-export const quoteDetailsStateSchema = z.object({
+export const estimateDetailsStateSchema = z.object({
   confirmedItems: z.array(lineItemSchema),
   status: z.enum(["pending", "accepted", "rejected"]),
   customer: contactInfoSchema,
@@ -66,7 +65,7 @@ export const quoteDetailsStateSchema = z.object({
     .nullable(),
 });
 
-export type quoteDetailsState = z.infer<typeof quoteDetailsStateSchema>;
+export type estimateDetailsState = z.infer<typeof estimateDetailsStateSchema>;
 export type contactInfoSchemaType = z.infer<typeof contactInfoSchema>;
 export type LineItem = z.infer<typeof lineItemSchema>;
 export type Adjustment = z.infer<typeof adjustmentSchema>;

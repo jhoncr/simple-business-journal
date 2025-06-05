@@ -4,8 +4,8 @@ import { InventoryItemEntry } from "./inventory/InventoryItemEntry";
 import { AddInventoryEntryForm } from "./inventory/add-inventory-entry";
 import { AddLogEntryForm } from "./cash-flow/add-cf-entry";
 import React from "react";
-import { AddNewQuoteBtn } from "./quote/addQuote";
-import { QuoteEntry } from "./quote/QuoteEntry";
+import { AddNewEstimateBtn } from "./estimate/addEstimate";
+import { EstimateEntry } from "./estimate/EstimateEntry";
 import { DBentry } from "@/lib/custom_types";
 import { EntryViewProps } from "../comp/EntryView";
 
@@ -29,11 +29,11 @@ const JOURNAL_CONFIG: {
     entryComponent: InventoryItemEntry,
     addEntryForm: AddInventoryEntryForm,
   },
-  quote: {
+  estimate: {
     icon: <PencilRuler className="h-4 w-4" />,
-    title: "Quotes",
-    entryComponent: QuoteEntry,
-    addEntryForm: AddNewQuoteBtn,
+    title: "Estimates",
+    entryComponent: EstimateEntry,
+    addEntryForm: AddNewEstimateBtn,
   },
   group: {
     icon: <FileText className="h-4 w-4" />,

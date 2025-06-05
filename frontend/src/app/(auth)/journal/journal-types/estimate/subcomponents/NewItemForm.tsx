@@ -1,4 +1,4 @@
-// frontend/src/app/(auth)/journal/journal-types/quote/subcomponents/NewItemForm.tsx
+// frontend/src/app/(auth)/journal/journal-types/estimate/subcomponents/NewItemForm.tsx
 import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   LineItem,
   MaterialItem,
-} from "@/../../backend/functions/src/common/schemas/quote_schema";
+} from "@/../../backend/functions/src/common/schemas/estimate_schema";
 import { allowedCurrencySchemaType } from "@/../../backend/functions/src/common/schemas/common_schemas";
 import { ROLES_THAT_ADD } from "@/../../backend/functions/src/common/const"; // Import ROLES_THAT_ADD
 import { ROLES } from "@/../../backend/functions/src/common/schemas/common_schemas"; // Import ROLES type
@@ -731,7 +731,7 @@ export function NewItemForm({
   if (isDesktop) {
     return (
       <div
-        id="quote-add-item-form"
+        id="estimate-add-item-form"
         // Ensure fixed positioning doesn't overlap printable area
         className="print-hide fixed bottom-4 right-4 z-50 bg-background border rounded-lg p-4 w-[400px] shadow-lg max-h-[calc(100vh-4rem)] flex flex-col" // Max height and flex column
       >
@@ -775,7 +775,7 @@ export function NewItemForm({
   // Mobile Drawer remains similar
   return (
     <div
-      id="quote-add-item-form"
+      id="estimate-add-item-form"
       className="relative mb-6 print-hide print:m-0"
     >
       <Drawer open={isOpen} onOpenChange={setIsOpen}>

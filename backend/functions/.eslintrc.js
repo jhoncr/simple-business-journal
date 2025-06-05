@@ -24,13 +24,13 @@ module.exports = {
   ],
   plugins: ["@typescript-eslint", "import"],
   rules: {
-    quotes: ["error", "double"],
+    estimates: ["error", "double"],
     "import/no-unresolved": 0,
     // "indent": ["error", 2],
     indent: "off",
     "max-len": ["error", { code: 120 }],
     "object-curly-spacing": ["error", "always"],
-    // "quote-props": ["error", "as-needed"],
+    // "estimate-props": ["error", "as-needed"],
     "valid-jsdoc": "off",
   },
 };

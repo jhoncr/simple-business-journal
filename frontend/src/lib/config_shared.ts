@@ -111,10 +111,10 @@ export const ENTRY_CONFIG: Record<string, FrontendEntryConfig> = {
     category: "business",
     sortField: "createdAt",
   },
-  quote: {
-    subcollection: "quotes",
+  estimate: {
+    subcollection: "estimates",
     // schema: {} as any,
-    displayName: "Quote",
+    displayName: "Estimate",
     category: "business",
     sortField: "createdAt",
   },

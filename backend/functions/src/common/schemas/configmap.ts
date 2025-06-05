@@ -8,7 +8,7 @@ import {
 } from "./BabySchema"; // Updated import path
 import { cashFlowEntryDetailsSchema } from "./CashflowSchema";
 import { materialItemSchema } from "./InventorySchema";
-import { quoteDetailsStateSchema } from "./quote_schema";
+import { estimateDetailsStateSchema } from "./estimate_schema";
 
 // Define an interface for entry configuration
 interface EntryConfig<T extends z.ZodTypeAny> {
@@ -37,10 +37,10 @@ export const ENTRY_CONFIG = {
     category: "business",
     sortField: "createdAt", // Add sortField
   },
-  quote: {
-    subcollection: "quotes",
-    schema: quoteDetailsStateSchema,
-    displayName: "Quote",
+  estimate: {
+    subcollection: "estimates",
+    schema: estimateDetailsStateSchema,
+    displayName: "Estimate",
     category: "business",
     sortField: "createdAt", // Add sortField
   },

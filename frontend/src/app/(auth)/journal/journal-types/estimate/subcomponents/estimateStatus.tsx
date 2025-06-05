@@ -17,12 +17,12 @@ const statusStyles: Record<StatusType, string> = {
     "bg-red-100 border-red-500 hover:bg-red-100 dark:bg-red-900/50 dark:border-red-500 dark:hover:bg-red-900/50",
 };
 
-interface QuoteStatusProps {
+interface EstimateStatusProps {
   qstatus: StatusType;
   setStatus: (status: StatusType) => void;
 }
 
-export function QuoteStatus({ qstatus, setStatus }: QuoteStatusProps) {
+export function EstimateStatus({ qstatus, setStatus }: EstimateStatusProps) {
   return (
     qstatus && (
       <div className="flex items-center gap-2">

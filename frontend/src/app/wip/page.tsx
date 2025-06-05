@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { QuoteDetails } from "@/app/(auth)/journal/journal-types/quote/addQuote";
+import { EstimateDetails } from "@/app/(auth)/journal/journal-types/estimate/addEstimate";
 
 export default function WIPPage() {
   const router = useRouter();
@@ -26,7 +26,7 @@ export default function WIPPage() {
           mode
         </p>
       </div> */}
-      {/* <QuoteDetails /> */}
+      {/* <EstimateDetails /> */}
     </div>
   );
 }

@@ -16,7 +16,7 @@ This is the frontend for the Journal App, a web application that allows users to
 - **Multiple Journal Types:** Create and manage different types of journals, including:
     -   **Cash Flow:** Track income and expenses.
     -   **Inventory:** Manage inventory items.
-    -   **Quote:** Generate and manage quotes.
+    -   **Estimate:** Generate and manage estimates.
 - **Journal Entry Management:** Add, view, edit, and delete entries for each journal type.
 - **Journal Sharing and Collaboration:** Share journals with other users and manage their permissions.
 - **Responsive Design:** The application is designed to work well on various devices.

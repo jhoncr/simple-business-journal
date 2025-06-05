@@ -20,13 +20,13 @@ import { NumericInput } from "@/components/InputUnit";
 import { currencyToSymbol } from "@/lib/utils";
 import { ListPlus, Plus } from "lucide-react";
 import {
-  quoteDetailsState,
-  quoteDetailsStateSchema,
-} from "@/../../backend/functions/src/common/schemas/quote_schema";
+  estimateDetailsState,
+  estimateDetailsStateSchema,
+} from "@/../../backend/functions/src/common/schemas/estimate_schema";
 import { ROLES_THAT_ADD } from "@/../../backend/functions/src/common/const"; // Import ROLES_THAT_ADD
 import { ROLES } from "@/../../backend/functions/src/common/schemas/common_schemas"; // Import ROLES for type
 
-export type Adjustment = quoteDetailsState["adjustments"][number];
+export type Adjustment = estimateDetailsState["adjustments"][number];
 
 interface AdjustmentFormProps {
   onSubmit: (adj: Adjustment) => void;
@@ -146,7 +146,7 @@ export function AdjustmentForm({
 
   const formContent = (
     <form
-      id="quote-adjustments-form"
+      id="estimate-adjustments-form"
       onSubmit={handleSubmit}
       className="space-y-4"
       // No direct disable on form, disable inputs instead
@@ -248,7 +248,7 @@ export function AdjustmentForm({
             <DrawerFooter className="pt-2">
               <Button
                 type="submit"
-                form="quote-adjustments-form"
+                form="estimate-adjustments-form"
                 variant="brutalist"
                 disabled={!formState.value || !canModify} // Disable button
               >

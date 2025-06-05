@@ -9,8 +9,8 @@ import {
 import {
   Adjustment,
   LineItem,
-  quoteDetailsState,
-} from "@/../../backend/functions/src/common/schemas/quote_schema";
+  estimateDetailsState,
+} from "@/../../backend/functions/src/common/schemas/estimate_schema";
 import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap";
 // --- Import frontend types ---
 import { DBentry, User } from "@/lib/custom_types";
@@ -19,20 +19,20 @@ import { formatCurrency, formattedDate } from "@/lib/utils"; // Import utils
 // import { CURRENCY_OPTIONS } from "@/../../backend/functions/src/common/const";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge"; // For status
-import { FileText } from "lucide-react"; // Icon for quote
+import { FileText } from "lucide-react"; // Icon for estimate
 
 // --- Define Props Interface ---
-interface QuoteEntryProps {
+interface EstimateEntryProps {
   journalId: string;
-  entry: DBentry; // Details should match quoteDetailsState
-  entryType: EntryType; // Will be 'quote'
+  entry: DBentry; // Details should match estimateDetailsState
+  entryType: EntryType; // Will be 'estimate'
   user: User; // Creator info
   role: string; // Viewer's role
   removeFn: (entry: DBentry) => void;
 }
 
 // Helper Interface for calculated totals
-interface QuoteTotals {
+interface EstimateTotals {
   itemsTotal: number;
   adjustmentsTotal: number;
   taxAmount: number;
@@ -40,9 +40,9 @@ interface QuoteTotals {
 }
 
 // Helper function to calculate totals (can be memoized if complex)
-const calculateQuoteTotals = (
-  details: quoteDetailsState | undefined,
-): QuoteTotals => {
+const calculateEstimateTotals = (
+  details: estimateDetailsState | undefined,
+): EstimateTotals => {
   if (!details)
     return { itemsTotal: 0, adjustmentsTotal: 0, taxAmount: 0, grandTotal: 0 };
 
@@ -92,17 +92,17 @@ const calculateQuoteTotals = (
 };
 
 // --- Main Component ---
-export const QuoteEntry = React.memo(function QuoteEntry({
+export const EstimateEntry = React.memo(function EstimateEntry({
   journalId,
   entry,
   entryType,
   user,
   role,
   removeFn,
-}: QuoteEntryProps) {
+}: EstimateEntryProps) {
   // --- Basic validation ---
-  if (!journalId || !entry || entryType !== "quote" || !entry.details) {
-    console.error("Invalid props for QuoteEntry:", {
+  if (!journalId || !entry || entryType !== "estimate" || !entry.details) {
+    console.error("Invalid props for EstimateEntry:", {
       journalId,
       entry,
       entryType,
@@ -111,8 +111,8 @@ export const QuoteEntry = React.memo(function QuoteEntry({
   }
 
   // --- Safely access details ---
-  // Cast details, assuming it matches quoteDetailsState structure based on entryType
-  const details = entry.details as quoteDetailsState;
+  // Cast details, assuming it matches estimateDetailsState structure based on entryType
+  const details = entry.details as estimateDetailsState;
   const {
     customer,
     confirmedItems = [],
@@ -125,11 +125,11 @@ export const QuoteEntry = React.memo(function QuoteEntry({
 
   // --- Calculate Totals ---
   const { itemsTotal, adjustmentsTotal, taxAmount, grandTotal } =
-    calculateQuoteTotals(details);
+    calculateEstimateTotals(details);
 
   // --- Determine Status Color ---
   const getStatusBadgeVariant = (
-    status: quoteDetailsState["status"],
+    status: estimateDetailsState["status"],
   ): "default" | "secondary" | "destructive" | "outline" => {
     switch (status) {
       case "accepted":
@@ -152,7 +152,7 @@ export const QuoteEntry = React.memo(function QuoteEntry({
       role={role}
       removeFn={removeFn}
     >
-      {/* --- Quote Specific Summary --- */}
+      {/* --- Estimate Specific Summary --- */}
       {/* Link wraps the main content area */}
       <Link
         href={`/journal/entry?jid=${journalId}&eid=${entry.id}`} // Use journalId

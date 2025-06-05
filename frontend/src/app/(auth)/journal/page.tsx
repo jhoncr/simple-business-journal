@@ -140,7 +140,7 @@ export default function ListJournalPage() {
             ENTRY_CONFIG[key as keyof typeof ENTRY_CONFIG].category ===
             "business",
         ) as EntryType[];
-        defaultType = "cashflow"; // Default to cashflow for business
+        defaultType = "inventory"; // Default to inventory for business
       } else if (journal.journalType === JOURNAL_TYPES.BABY) {
         typesForJournal = Object.keys(ENTRY_CONFIG).filter(
           (key) =>
@@ -299,7 +299,7 @@ export default function ListJournalPage() {
     const nameMap: Record<string, string> = {
       cashflow: "Cash Flow",
       inventory: "Inventory",
-      quotes: "Quotes",
+      estimate: "Estimates",
       naps: "Naps",
       diapers: "Diapers",
       feeds: "Feeds",

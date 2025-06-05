@@ -31,7 +31,7 @@ Based on the filenames, the following core functionalities are implemented as Cl
 -   `bg-accept-share.ts`: Handles the logic for accepting a shared journal or resource.
 -   `bg-add-contributors.ts`: Manages adding new contributors or collaborators to journals.
 -   `bg-add-group.ts`: Logic for adding a new group (context might be user groups or journal categorization).
--   `bg-add-log-entry.ts`: Responsible for adding new entries (like cash flow, inventory, quotes) to a specific journal.
+-   `bg-add-log-entry.ts`: Responsible for adding new entries (like cash flow, inventory, estimates) to a specific journal.
 -   `bg-create-new-journal.ts`: Handles the creation process for new journals of different types.
 -   `bg-delete-entry.ts`: Manages the deletion of entries from a journal.
 -   `index.ts`: Entry point that likely exports and organizes the callable functions.
