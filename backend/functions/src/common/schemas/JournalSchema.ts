@@ -17,13 +17,6 @@ export const businessDetailsSchema = z
   })
   .strict();
 
-export const babyDetailsSchema = z
-  .object({
-    childName: z.string().min(1),
-    dateOfBirth: z.coerce.date().optional().nullable(),
-  })
-  .strict();
-
 export const JournalSchema = z
   .object({
     id: z.string().min(20).max(50).optional(),
@@ -33,7 +26,7 @@ export const JournalSchema = z
     createdAt: z.coerce.date(),
     journalType: journalTypeSchema,
     title: z.string(),
-    details: z.union([businessDetailsSchema, babyDetailsSchema]).optional(),
+    details: businessDetailsSchema.optional(),
     isActive: z.boolean(),
   })
   .strict();
@@ -49,7 +42,6 @@ export const JournalCreateBaseSchema = JournalSchema.omit({
 
 export type JournalSchemaType = z.infer<typeof JournalSchema>;
 export type BusinessDetailsType = z.infer<typeof businessDetailsSchema>;
-export type BabyDetailsType = z.infer<typeof babyDetailsSchema>;
 export type AccessMap = z.infer<typeof AccessSchema>;
 export type PendingAccess = z.infer<typeof JournalSchema>["pendingAccess"];
 export type JournalCreateBaseType = z.infer<typeof JournalCreateBaseSchema>;

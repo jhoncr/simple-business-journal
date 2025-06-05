@@ -9,15 +9,6 @@ export const JOURNAL_COLLECTION = "journals";
 
 export const JOURNAL_TYPES = {
   BUSINESS: "business",
-  BABY: "baby",
-} as const;
-
-// --- NEW: Define Baby Entry Types ---
-export const BABY_ENTRY_TYPES = {
-  NAP: "nap",
-  DIAPER: "diaper",
-  FEED: "feed",
-  GROWTH: "growth",
 } as const;
 
 export const CURRENCY_OPTIONS: {
