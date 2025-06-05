@@ -10,14 +10,6 @@ export const JOURNAL_COLLECTION = "journals"; // Added
 
 export const JOURNAL_TYPES = {
   BUSINESS: "business",
-  BABY: "baby",
-} as const;
-
-export const BABY_ENTRY_TYPES = {
-  NAP: "nap",
-  DIAPER: "diaper",
-  FEED: "feed",
-  GROWTH: "growth",
 } as const;
 
 // Copied and simplified from backend/functions/src/common/schemas/common_schemas.ts
@@ -117,36 +109,6 @@ export const ENTRY_CONFIG: Record<string, FrontendEntryConfig> = {
     displayName: "Estimate",
     category: "business",
     sortField: "createdAt",
-  },
-
-  // Baby Entry Types
-  [BABY_ENTRY_TYPES.NAP]: {
-    subcollection: "naps",
-    // schema: {} as any,
-    displayName: "Nap",
-    category: "baby",
-    sortField: "details.start",
-  },
-  [BABY_ENTRY_TYPES.DIAPER]: {
-    subcollection: "diapers",
-    // schema: {} as any,
-    displayName: "Diaper",
-    category: "baby",
-    sortField: "details.time",
-  },
-  [BABY_ENTRY_TYPES.FEED]: {
-    subcollection: "feeds",
-    // schema: {} as any,
-    displayName: "Feed",
-    category: "baby",
-    sortField: "details.time",
-  },
-  [BABY_ENTRY_TYPES.GROWTH]: {
-    subcollection: "growth_entries",
-    // schema: {} as any,
-    displayName: "Growth",
-    category: "baby",
-    sortField: "details.date",
   },
 };
 

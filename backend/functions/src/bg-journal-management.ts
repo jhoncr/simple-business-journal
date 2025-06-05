@@ -6,7 +6,6 @@ import { JOURNAL_COLLECTION, JOURNAL_TYPES } from "./common/const";
 import {
   JournalCreateBaseSchema,
   businessDetailsSchema,
-  babyDetailsSchema,
 } from "./common/schemas/JournalSchema";
 import { ALLOWED } from "./lib/bg-consts";
 import * as z from "zod";
@@ -18,14 +17,12 @@ if (getApps().length === 0) {
 const db = getFirestore();
 
 const CreateJournalPayloadSchema = JournalCreateBaseSchema.extend({
-  details: z.union([businessDetailsSchema, babyDetailsSchema]),
+  details: businessDetailsSchema,
 }).refine(
   (data) => {
     return (
-      (data.journalType === JOURNAL_TYPES.BUSINESS &&
-        businessDetailsSchema.safeParse(data.details).success) ||
-      (data.journalType === JOURNAL_TYPES.BABY &&
-        babyDetailsSchema.safeParse(data.details).success)
+      data.journalType === JOURNAL_TYPES.BUSINESS &&
+      businessDetailsSchema.safeParse(data.details).success
       // Add checks for other types as needed
     );
   },
@@ -101,9 +98,7 @@ export const createJournal = onCall(
 const UpdateJournalPayloadSchema = JournalCreateBaseSchema.partial()
   .extend({
     id: z.string().min(1),
-    details: z
-      .union([businessDetailsSchema.partial(), babyDetailsSchema.partial()])
-      .optional(),
+    details: businessDetailsSchema.partial().optional(),
   })
   .refine(
     (data) => {
@@ -112,12 +107,6 @@ const UpdateJournalPayloadSchema = JournalCreateBaseSchema.partial()
         if (
           data.journalType === JOURNAL_TYPES.BUSINESS &&
           !businessDetailsSchema.partial().safeParse(details).success
-        ) {
-          return false;
-        }
-        if (
-          data.journalType === JOURNAL_TYPES.BABY &&
-          !babyDetailsSchema.partial().safeParse(details).success
         ) {
           return false;
         }
