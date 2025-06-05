@@ -9,6 +9,7 @@ import {
 import { cashFlowEntryDetailsSchema } from "./CashflowSchema";
 import { materialItemSchema } from "./InventorySchema";
 import { estimateDetailsStateSchema } from "./estimate_schema";
+import { invoiceDetailsSchema } from "./invoice_schema";
 
 // Define an interface for entry configuration
 interface EntryConfig<T extends z.ZodTypeAny> {
@@ -43,6 +44,13 @@ export const ENTRY_CONFIG = {
     displayName: "Estimate",
     category: "business",
     sortField: "createdAt", // Add sortField
+  },
+  invoice: {
+    subcollection: "invoices",
+    schema: invoiceDetailsSchema,
+    displayName: "Invoice",
+    category: "business",
+    sortField: "details.dueDate",
   },
 
   // Baby Entry Types
