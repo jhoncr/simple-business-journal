@@ -90,10 +90,11 @@ export const getBusinessEntries = () =>
     .filter(([_, config]) => config.category === "business")
     .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
 
-export const getBabyEntries = () =>
-  Object.entries(ENTRY_CONFIG)
-    .filter(([_, config]) => config.category === "baby")
-    .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+// TODO: Uncomment or adjust getBabyEntries when baby entry types are re-enabled.
+// export const getBabyEntries = () =>
+//   Object.entries(ENTRY_CONFIG)
+//     .filter(([_, config]) => config.category === "baby")
+//     .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
 
 // Type helper to get subcollection names
 export type SubcollectionName =
