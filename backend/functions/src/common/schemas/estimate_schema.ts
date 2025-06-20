@@ -16,6 +16,15 @@ export const currencySchema = z
   })
   .nullable();
 
+export const paymentSchema = z.object({
+  id: z.string().cuid().optional(),
+  amount: z.number().positive("Payment amount must be positive."),
+  date: z.coerce.date(),
+  method: z.string().optional().nullable(),
+  transactionId: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
+
 export const lineItemSchema = z.object({
   id: z.string(),
   parentId: z.string(),
@@ -52,7 +61,15 @@ export const adjustmentSchema = z.object({
 
 export const estimateDetailsStateSchema = z.object({
   confirmedItems: z.array(lineItemSchema),
-  status: z.enum(["pending", "accepted", "rejected"]),
+  status: z.enum([
+    "draft",
+    "pending",
+    "accepted",
+    "rejected",
+    "paid",
+    "overdue",
+    "cancelled",
+  ]),
   customer: contactInfoSchema,
   supplier: contactInfoSchema,
   logo: z.string().nullable(),
@@ -65,7 +82,12 @@ export const estimateDetailsStateSchema = z.object({
     .optional()
     .nullable(),
   is_archived: z.boolean().optional().nullable(),
-  invoiceId_ref: z.string().optional().nullable(),
+  // invoiceId_ref: z.string().optional().nullable(), // This is no longer needed.
+
+  // Fields from invoice
+  invoiceNumber: z.string().optional().nullable(),
+  dueDate: z.coerce.date().optional().nullable(),
+  payments: z.array(paymentSchema).optional(),
 });
 
 export type estimateDetailsState = z.infer<typeof estimateDetailsStateSchema>;
@@ -75,6 +97,7 @@ export type Adjustment = z.infer<typeof adjustmentSchema>;
 export type MaterialItem = z.infer<typeof materialItemSchema>;
 export type LaborItem = z.infer<typeof laborItemSchema>;
 export type DimensionConfig = z.infer<typeof dimensionConfigSchema>;
+export type Payment = z.infer<typeof paymentSchema>;
 // Add the type export
 export type Currency = z.infer<typeof currencySchema>;
 export type CurrencyCode = z.infer<typeof currencyCodeSchema>;

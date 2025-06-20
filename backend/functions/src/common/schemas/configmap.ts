@@ -46,14 +46,14 @@ export const ENTRY_CONFIG = {
     sortField: "createdAt", // Add sortField
     icon: "ClipboardList", // Added icon
   },
-  invoice: {
-    subcollection: "invoices",
-    schema: invoiceDetailsSchema,
-    displayName: "Invoice",
-    category: "business",
-    sortField: "details.dueDate",
-    icon: "ReceiptText", // Added icon
-  },
+  // invoice: {
+  //   subcollection: "invoices",
+  //   schema: invoiceDetailsSchema,
+  //   displayName: "Invoice",
+  //   category: "business",
+  //   sortField: "details.dueDate",
+  //   icon: "ReceiptText", // Added icon
+  // },
 
   // Baby Entry Types // TODO: Fix missing BabySchema.ts or BABY_ENTRY_TYPES export and re-enable baby entry types.
   // [BABY_ENTRY_TYPES.NAP]: {

@@ -120,8 +120,13 @@ export const EstimateDetails = React.memo(function EstimateDetails({
       setEntryError(null);
 
       if (jtype !== ESTIMATE_ENTRY_TYPE) {
-        console.error("EstimateDetails component received an invalid jtype:", jtype);
-        setEntryError(`This form is for estimates only. Received type: ${jtype}. Please check the URL or link.`);
+        console.error(
+          "EstimateDetails component received an invalid jtype:",
+          jtype,
+        );
+        setEntryError(
+          `This form is for estimates only. Received type: ${jtype}. Please check the URL or link.`,
+        );
         setLoading(false);
         return;
       }
@@ -135,7 +140,11 @@ export const EstimateDetails = React.memo(function EstimateDetails({
       if (initialEntryId) {
         try {
           // Simplified: fetch only ESTIMATE_ENTRY_TYPE
-          const entry = await fetchEntry(journalId, ESTIMATE_ENTRY_TYPE, initialEntryId);
+          const entry = await fetchEntry(
+            journalId,
+            ESTIMATE_ENTRY_TYPE,
+            initialEntryId,
+          );
           console.log("Fetched estimate entry:", entry);
 
           if (!entry) {
@@ -162,7 +171,9 @@ export const EstimateDetails = React.memo(function EstimateDetails({
               setNotes(validData.notes || "");
               setIsArchived(validData.is_archived);
               setInvoiceIdRef(validData.invoiceId_ref);
-              if(entry.createdAt) setCreatedDate(formattedDate(entry.createdAt)); else setCreatedDate(null);
+              if (entry.createdAt)
+                setCreatedDate(formattedDate(entry.createdAt));
+              else setCreatedDate(null);
             }
           }
         } catch (error) {
@@ -199,11 +210,19 @@ export const EstimateDetails = React.memo(function EstimateDetails({
     }
     setIsConverting(true);
     try {
-      const convertEstimateFn = httpsCallable(functions, "convertEstimateToInvoice");
-      const result = await convertEstimateFn({ journalId: journalId, estimateId: entryId });
+      const convertEstimateFn = httpsCallable(
+        functions,
+        "convertEstimateToInvoice",
+      );
+      const result = await convertEstimateFn({
+        journalId: journalId,
+        estimateId: entryId,
+      });
       toast({
         title: "Success",
-        description: `Estimate converted to Invoice ${(result.data as any)?.invoiceNumber || ""}.`,
+        description: `Estimate converted to Invoice ${
+          (result.data as any)?.invoiceNumber || ""
+        }.`,
       });
       setIsArchived(true);
       setInvoiceIdRef((result.data as any)?.invoiceId);
@@ -243,7 +262,9 @@ export const EstimateDetails = React.memo(function EstimateDetails({
 
   const currencyFormat = useCallback(
     (amount: number) => {
-      return journalCurrency ? formatCurrency(amount, journalCurrency) : amount.toFixed(2);
+      return journalCurrency
+        ? formatCurrency(amount, journalCurrency)
+        : amount.toFixed(2);
     },
     [journalCurrency],
   );
@@ -251,12 +272,20 @@ export const EstimateDetails = React.memo(function EstimateDetails({
   const handleSave = useCallback(
     async (updates: Partial<estimateDetailsState> = {}) => {
       if (jtype !== ESTIMATE_ENTRY_TYPE) {
-        toast({title: "Save Error", description: "Cannot save, incorrect form type.", variant: "destructive"});
+        toast({
+          title: "Save Error",
+          description: "Cannot save, incorrect form type.",
+          variant: "destructive",
+        });
         return;
       }
       if (isSaving || !journalId || !journalCurrency) {
         if (!journalCurrency) {
-          toast({ title: "Missing Currency", description: "Cannot save estimate, journal currency is not set.", variant: "destructive"});
+          toast({
+            title: "Missing Currency",
+            description: "Cannot save estimate, journal currency is not set.",
+            variant: "destructive",
+          });
         }
         return;
       }
@@ -265,12 +294,20 @@ export const EstimateDetails = React.memo(function EstimateDetails({
       if (customerRef.current) {
         const isValid = await customerRef.current.validate();
         if (!isValid) {
-          toast({ title: "Invalid Customer Info", description: "Please correct customer details before saving.", variant: "destructive"});
+          toast({
+            title: "Invalid Customer Info",
+            description: "Please correct customer details before saving.",
+            variant: "destructive",
+          });
           setIsSaving(false);
           return;
         }
       } else {
-        toast({ title: "Save Error", description: "Could not validate customer info.", variant: "destructive"});
+        toast({
+          title: "Save Error",
+          description: "Could not validate customer info.",
+          variant: "destructive",
+        });
         setIsSaving(false);
         return;
       }
@@ -289,10 +326,18 @@ export const EstimateDetails = React.memo(function EstimateDetails({
         invoiceId_ref: updates.invoiceId_ref ?? invoiceIdRef, // Include invoiceId_ref
       };
 
-      const detailsValidation = estimateDetailsStateSchema.safeParse(estimateDetailsData);
+      const detailsValidation =
+        estimateDetailsStateSchema.safeParse(estimateDetailsData);
       if (!detailsValidation.success) {
-        console.error("Estimate details validation failed before save:", detailsValidation.error.format());
-        toast({ title: "Invalid Estimate Data", description: "Could not save estimate. Check console.", variant: "destructive"});
+        console.error(
+          "Estimate details validation failed before save:",
+          detailsValidation.error.format(),
+        );
+        toast({
+          title: "Invalid Estimate Data",
+          description: "Could not save estimate. Check console.",
+          variant: "destructive",
+        });
         setIsSaving(false);
         return;
       }
@@ -321,16 +366,33 @@ export const EstimateDetails = React.memo(function EstimateDetails({
         });
       } catch (error: any) {
         console.error("Error saving estimate:", error);
-        toast({ title: "Save Failed", description: error.message || "Could not save estimate.", variant: "destructive"});
+        toast({
+          title: "Save Failed",
+          description: error.message || "Could not save estimate.",
+          variant: "destructive",
+        });
       } finally {
         setIsSaving(false);
       }
     },
     [
       jtype, // Added jtype to ensure it's checked on save
-      isSaving, journalId, journalCurrency, confirmedItems, status, customer,
-      supplierInfo, supplierLogo, adjustments, taxPercentage, notes, entryId,
-      isArchived, invoiceIdRef, toast, router,
+      isSaving,
+      journalId,
+      journalCurrency,
+      confirmedItems,
+      status,
+      customer,
+      supplierInfo,
+      supplierLogo,
+      adjustments,
+      taxPercentage,
+      notes,
+      entryId,
+      isArchived,
+      invoiceIdRef,
+      toast,
+      router,
     ],
   );
 
@@ -341,7 +403,11 @@ export const EstimateDetails = React.memo(function EstimateDetails({
     return <div className="text-center p-10 text-red-600">{entryError}</div>;
   }
   if (!journalCurrency || !supplierInfo) {
-    return <div className="text-center p-10 text-muted-foreground">Journal details (currency, supplier) not available.</div>;
+    return (
+      <div className="text-center p-10 text-muted-foreground">
+        Journal details (currency, supplier) not available.
+      </div>
+    );
   }
   // --- JSX Structure ---
   return (
@@ -356,7 +422,9 @@ export const EstimateDetails = React.memo(function EstimateDetails({
           <ContactInfo
             ref={customerRef}
             info={customer}
-            setInfo={(newInfo) => { setCustomer(newInfo); }}
+            setInfo={(newInfo) => {
+              setCustomer(newInfo);
+            }}
             onSave={() => handleSave({ customer })}
           />
         </div>
@@ -367,10 +435,18 @@ export const EstimateDetails = React.memo(function EstimateDetails({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-xs text-muted-foreground border-b">
-                    <th className="text-left py-2 px-1 font-medium w-20">Qty</th>
-                    <th className="text-left py-2 px-1 font-medium">Description</th>
-                    <th className="text-right py-2 px-2 font-medium w-24">Price</th>
-                    <th className="text-right py-2 px-1 font-medium w-24">Total</th>
+                    <th className="text-left py-2 px-1 font-medium w-20">
+                      Qty
+                    </th>
+                    <th className="text-left py-2 px-1 font-medium">
+                      Description
+                    </th>
+                    <th className="text-right py-2 px-2 font-medium w-24">
+                      Price
+                    </th>
+                    <th className="text-right py-2 px-1 font-medium w-24">
+                      Total
+                    </th>
                     <th className="w-8 print-hide"></th>
                   </tr>
                 </thead>
@@ -378,7 +454,9 @@ export const EstimateDetails = React.memo(function EstimateDetails({
                   {confirmedItems.map((item) => (
                     <tr
                       key={item.id}
-                      className={`border-b border-dashed last:border-0 ${item.parentId === "root" ? "bg-secondary/30" : ""}`}
+                      className={`border-b border-dashed last:border-0 ${
+                        item.parentId === "root" ? "bg-secondary/30" : ""
+                      }`}
                     >
                       <td className="py-2 px-1 text-left align-top">
                         <div className="flex flex-col items-center w-min">
@@ -389,36 +467,58 @@ export const EstimateDetails = React.memo(function EstimateDetails({
                         </div>
                       </td>
                       <td className="py-2 px-1 align-top">
-                        {item.description && (<div className="text-sm">{item.description}</div>)}
+                        {item.description && (
+                          <div className="text-sm">{item.description}</div>
+                        )}
                         <div className="text-xs text-muted-foreground flex flex-row items-center gap-1">
                           {item.material?.description || "N/A"}
-                          {item.material?.dimensions?.type === "area" && item.dimensions && (
+                          {item.material?.dimensions?.type === "area" &&
+                            item.dimensions && (
                               <div className="">
-                                : {item.dimensions.length} × {item.dimensions.width} {item.material.dimensions.unitLabel}
+                                : {item.dimensions.length} ×{" "}
+                                {item.dimensions.width}{" "}
+                                {item.material.dimensions.unitLabel}
                               </div>
-                          )}
+                            )}
                         </div>
                       </td>
                       <td className="py-2 px-1 align-top">
                         <div className="text-right pr-2">
                           {currencyFormat(item.material?.unitPrice || 0)}
                           <div className="text-xs text-muted-foreground">
-                            {`/${item.material?.dimensions?.unitLabel || "unit"}`}
+                            {`/${
+                              item.material?.dimensions?.unitLabel || "unit"
+                            }`}
                           </div>
                         </div>
                       </td>
                       <td className="py-2 px-1 text-right align-top">
-                        {currencyFormat(item.quantity * (item.material?.unitPrice || 0))}
+                        {currencyFormat(
+                          item.quantity * (item.material?.unitPrice || 0),
+                        )}
                       </td>
                       <td className="py-2 px-1 print-hide align-top">
-                        <Button variant="ghost" size="icon" onClick={() => removeConfirmedItem(item.id)} disabled={isSaving} className="h-8 w-8">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeConfirmedItem(item.id)}
+                          disabled={isSaving}
+                          className="h-8 w-8"
+                        >
                           <MinusCircle className="h-4 w-4 text-muted-foreground" />
                         </Button>
                       </td>
                     </tr>
                   ))}
                   {confirmedItems.length === 0 && (
-                    <tr><td colSpan={5} className="text-center py-4 text-sm text-muted-foreground">Add items using the form below.</td></tr>
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="text-center py-4 text-sm text-muted-foreground"
+                      >
+                        Add items using the form below.
+                      </td>
+                    </tr>
                   )}
                 </tbody>
               </table>
@@ -432,9 +532,15 @@ export const EstimateDetails = React.memo(function EstimateDetails({
             <InvoiceBottomLines
               itemSubtotal={calculateSubtotal()}
               adjustments={adjustments}
-              setAdjustments={(newAdjustments) => { setAdjustments(newAdjustments); handleSave({ adjustments: newAdjustments }); }}
+              setAdjustments={(newAdjustments) => {
+                setAdjustments(newAdjustments);
+                handleSave({ adjustments: newAdjustments });
+              }}
               taxPercentage={taxPercentage}
-              setTaxPercentage={(newTaxPercentage) => { setTaxPercentage(newTaxPercentage); handleSave({ taxPercentage: newTaxPercentage }); }}
+              setTaxPercentage={(newTaxPercentage) => {
+                setTaxPercentage(newTaxPercentage);
+                handleSave({ taxPercentage: newTaxPercentage });
+              }}
               currency={journalCurrency}
               userRole={userRole}
             />
@@ -444,7 +550,10 @@ export const EstimateDetails = React.memo(function EstimateDetails({
           <Label htmlFor="notes">Notes</Label>
           <InlineEditTextarea
             initialValue={notes}
-            onSave={(value) => { setNotes(value); handleSave({ notes: value }); }}
+            onSave={(value) => {
+              setNotes(value);
+              handleSave({ notes: value });
+            }}
             placeholder="Add any additional notes..."
             disabled={isSaving}
           />
@@ -454,33 +563,65 @@ export const EstimateDetails = React.memo(function EstimateDetails({
         id="estimate-actions-bar"
         className="print-hide flex justify-between items-center mt-6 px-2 md:px-4 sticky bottom-0 py-2 bg-background/90 backdrop-blur-sm border-t"
       >
-        <Button variant="brutalist" asChild size="sm" disabled={isSaving || isConverting}>
-          <Link href={`/journal?jid=${journalId}&type=estimate`}><ChevronLeft className="h-4 w-4 mr-2" /> Back</Link>
+        <Button
+          variant="brutalist"
+          asChild
+          size="sm"
+          disabled={isSaving || isConverting}
+        >
+          <Link href={`/journal?jid=${journalId}&type=estimate`}>
+            <ChevronLeft className="h-4 w-4 mr-2" /> Back
+          </Link>
         </Button>
         <div className="flex items-center space-x-2">
           {entryId && status === "pending" && !isArchived && !invoiceIdRef && (
             <>
-              <Button variant="destructive" size="sm" onClick={() => handleSave({ status: "rejected" })} disabled={isSaving || isConverting}>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => handleSave({ status: "rejected" })}
+                disabled={isSaving || isConverting}
+              >
                 <MinusCircle className="h-4 w-4 mr-2" /> Reject
               </Button>
-              <Button variant="success" size="sm" onClick={() => handleSave({ status: "accepted" })} disabled={isSaving || isConverting}>
+              <Button
+                variant="success"
+                size="sm"
+                onClick={() => handleSave({ status: "accepted" })}
+                disabled={isSaving || isConverting}
+              >
                 <FileCog className="h-4 w-4 mr-2" /> Accept
               </Button>
             </>
           )}
-          {entryId && status === "accepted" && !isArchived && !invoiceIdRef && (
-              <Button variant="default" size="sm" onClick={handleConvertToInvoice} disabled={isConverting || isSaving}>
+          {entryId &&
+            status === "accepted" &&
+            !isArchived &&
+            !invoiceIdRef && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleConvertToInvoice}
+                disabled={isConverting || isSaving}
+              >
                 <FileCog className="h-4 w-4 mr-2" />
                 {isConverting ? "Converting..." : "Convert to Invoice"}
               </Button>
             )}
-          <Button variant="brutalist" size="sm" onClick={() => window.print()} disabled={isSaving || isConverting}>
+          <Button
+            variant="brutalist"
+            size="sm"
+            onClick={() => window.print()}
+            disabled={isSaving || isConverting}
+          >
             <Printer className="h-4 w-4 mr-2" /> Print
           </Button>
         </div>
       </div>
       <style jsx global>{`
-        @media print { /* ... same print styles ... */ }
+        @media print {
+          /* ... same print styles ... */
+        }
       `}</style>
     </div>
   );
@@ -490,7 +631,9 @@ export const AddNewEstimateBtn = ({ journalId }: { journalId: string }) => {
   return (
     <div>
       <Button variant="brutalist" className="mb-4" asChild>
-        <Link href={`/journal/entry?jid=${journalId}&jtype=estimate`}>New Estimate</Link> {/* Ensure jtype=estimate */}
+        <Link href={`/journal/entry?jid=${journalId}&jtype=estimate`}>
+          New Estimate
+        </Link>
       </Button>
     </div>
   );
