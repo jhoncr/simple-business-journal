@@ -64,8 +64,8 @@ export const estimateDetailsStateSchema = z.object({
     .max(250, { message: "Notes must be less than 250 characters" })
     .optional()
     .nullable(),
-  is_archived: z.boolean().optional(),
-  invoiceId_ref: z.string().optional(),
+  is_archived: z.boolean().optional().nullable(),
+  invoiceId_ref: z.string().optional().nullable(),
 });
 
 export type estimateDetailsState = z.infer<typeof estimateDetailsStateSchema>;
