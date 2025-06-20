@@ -1,4 +1,4 @@
-import { Coins, Package, List, FileText, PencilRuler } from "lucide-react";
+import { Coins, Package, List, FileText, PencilRuler, Receipt } from "lucide-react";
 import { CashFlowEntry } from "./cash-flow/CashFlowEntry";
 import { InventoryItemEntry } from "./inventory/InventoryItemEntry";
 import { AddInventoryEntryForm } from "./inventory/add-inventory-entry";
@@ -34,6 +34,12 @@ const JOURNAL_CONFIG: {
     title: "Estimates",
     entryComponent: EstimateEntry,
     addEntryForm: AddNewEstimateBtn,
+  },
+  invoice: {
+    icon: <Receipt className="h-4 w-4" />, // TODO: Choose a final icon if Receipt is not suitable
+    title: "Invoices",
+    entryComponent: EstimateEntry, // TODO: Replace with actual InvoiceEntry component when created
+    addEntryForm: AddNewEstimateBtn, // TODO: Replace with actual AddNewInvoiceBtn or logic to load InvoiceDetailsForm
   },
   group: {
     icon: <FileText className="h-4 w-4" />,
