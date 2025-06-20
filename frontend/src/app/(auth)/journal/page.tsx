@@ -135,12 +135,12 @@ export default function ListJournalPage() {
     if (journal) {
       // Determine available entry types based on journal type
       if (journal.journalType === JOURNAL_TYPES.BUSINESS) {
-        typesForJournal = Object.keys(ENTRY_CONFIG).filter(
+        typesForJournal = (Object.keys(ENTRY_CONFIG).filter(
           (key) =>
             ENTRY_CONFIG[key as keyof typeof ENTRY_CONFIG].category ===
             "business",
-        ) as EntryType[];
-        defaultType = "inventory"; // Default to inventory for business
+        ) as EntryType[]).filter(type => type !== "invoice"); // Filter out 'invoice'
+        defaultType = "estimate"; // Default to estimate for business now
       } else if (journal.journalType === JOURNAL_TYPES.BABY) {
         typesForJournal = Object.keys(ENTRY_CONFIG).filter(
           (key) =>
@@ -300,9 +300,9 @@ export default function ListJournalPage() {
       cashflow: "Cash Flow",
       inventory: "Inventory",
       estimate: "Estimates",
-      invoice: "Invoices",
+      // "invoice": "Invoices", // Removed Invoices
     };
-    return nameMap[type] || type;
+    return nameMap[type] || type.charAt(0).toUpperCase() + type.slice(1); // Capitalize if not in map
   };
 
   return (

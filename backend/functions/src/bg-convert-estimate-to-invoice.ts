@@ -6,8 +6,8 @@ import { initializeApp, getApps } from "firebase-admin/app";
 import { JOURNAL_COLLECTION, ROLES_THAT_ADD } from "./common/const"; // Assuming ROLES_THAT_ADD is appropriate, or define new role check
 import { ENTRY_CONFIG } from "./common/schemas/configmap";
 import { ALLOWED } from "./lib/bg-consts"; // For CORS
-import { estimateDetailsStateSchema, LineItem, Adjustment } from "./common/schemas/estimate_schema"; // For type hint and calculation
-import { invoiceDetailsSchema } from "./common/schemas/invoice_schema"; // For type hint and validation
+import { estimateDetailsStateSchema } from "./common/schemas/estimate_schema"; // For type hint and calculation
+// Removed: import { invoiceDetailsSchema } from "./common/schemas/invoice_schema";
 
 if (getApps().length === 0) {
   initializeApp();
@@ -15,63 +15,13 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 
-// Basic invoice number generation (example: INV-YYYYMMDD-HHMMSS)
-// For a robust solution, consider a dedicated counter document or more sophisticated unique ID generation.
-function generateInvoiceNumber(): string {
+// Basic invoice number generation
+function generateInvoiceNumber(prefix = "INV"): string {
   const now = new Date();
   const year = now.getFullYear();
-  const month = (now.getMonth() + 1).toString().padStart(2, '0');
-  const day = now.getDate().toString().padStart(2, '0');
-  const hours = now.getHours().toString().padStart(2, '0');
-  const minutes = now.getMinutes().toString().padStart(2, '0');
-  const seconds = now.getSeconds().toString().padStart(2, '0');
-  return `INV-${year}${month}${day}-${hours}${minutes}${seconds}`;
-}
-
-// Helper function to calculate totals, mimicking frontend logic
-function _calculateInvoiceTotalInternal(
-  lineItems: LineItem[], // Use the imported LineItem type
-  adjustments: Adjustment[], // Use the imported Adjustment type
-  taxPercentage: number
-): number { // Returns only the grandTotal, as that's what invoice schema needs for totalAmount
-  const itemsTotal = lineItems.reduce((sum, item) => {
-    const quantity = item.quantity || 0;
-    const unitPrice = item.material?.unitPrice || 0; // Safely access nested properties
-    return sum + quantity * unitPrice;
-  }, 0);
-
-  const adjustmentsTotal = adjustments.reduce((sum, adj) => {
-    const value = adj.value || 0;
-    let adjustmentValue = 0;
-    switch (adj.type) {
-      case "addFixed":
-        adjustmentValue = value;
-        break;
-      case "discountFixed":
-        adjustmentValue = -value;
-        break;
-      case "addPercent":
-        // Ensure itemsTotal is not zero to avoid NaN if value is also zero, though multiplication handles it.
-        adjustmentValue = (itemsTotal * value) / 100;
-        break;
-      case "discountPercent":
-        adjustmentValue = -(itemsTotal * value) / 100;
-        break;
-      // 'taxPercent' type adjustments are not summed directly into adjustmentsTotal here,
-      // as taxPercentage field is used for the final tax calculation.
-      // If 'taxPercent' type adjustments *should* be part of adjustmentsTotal, this logic needs change.
-      // Based on frontend, 'taxPercent' in adjustments array is ignored for this subtotal.
-    }
-    return sum + adjustmentValue;
-  }, 0);
-
-  const subtotalBeforeTax = itemsTotal + adjustmentsTotal;
-  const taxAmount = (subtotalBeforeTax * (taxPercentage || 0)) / 100; // Use taxPercentage from estimate details
-  const grandTotal = subtotalBeforeTax + taxAmount;
-
-  // It's good practice to round to a sensible number of decimal places for currency.
-  // Assuming 2 decimal places.
-  return Math.round(grandTotal * 100) / 100;
+  // Use a simpler timestamp chunk for uniqueness, or consider a Firestore counter for sequential numbers per journal.
+  const uniquePart = String(Date.now()).slice(-6);
+  return `${prefix}-${year}-${uniquePart}`;
 }
 
 export const convertEstimateToInvoiceFn = onCall(
@@ -116,14 +66,11 @@ export const convertEstimateToInvoiceFn = onCall(
         );
       }
 
-      const estimateConfig = ENTRY_CONFIG.estimate;
-      const invoiceConfig = ENTRY_CONFIG.invoice;
+      const estimateConfig = ENTRY_CONFIG.estimate; // Only need estimate config
 
       const estimateRef = journalDocRef
         .collection(estimateConfig.subcollection)
         .doc(estimateId);
-
-      const invoiceCollectionRef = journalDocRef.collection(invoiceConfig.subcollection);
 
       return await db.runTransaction(async (transaction) => {
         const estimateDoc = await transaction.get(estimateRef);
@@ -134,91 +81,89 @@ export const convertEstimateToInvoiceFn = onCall(
           );
         }
 
-        const estimateData = estimateDoc.data()!; // Assert estimateData is not null, as estimateDoc.exists is true
-        // Validate estimate data (optional, but good practice)
-        const parsedEstimate = estimateDetailsStateSchema.safeParse(estimateData.details);
-        if (!parsedEstimate.success) {
-            logger.error("Estimate data failed validation", parsedEstimate.error.format());
-            throw new HttpsError("internal", "Estimate data is invalid.");
-        }
-        const validEstimateDetails = parsedEstimate.data;
+        const estimateDetails = estimateDoc.data()?.details;
+        const initialParsedDetails = estimateDetailsStateSchema.safeParse(estimateDetails);
 
-        if (validEstimateDetails.is_archived || validEstimateDetails.invoiceId_ref) {
-          throw new HttpsError(
-            "failed-precondition",
-            "Estimate is already archived or converted to an invoice.",
-          );
+        if (!initialParsedDetails.success) {
+          logger.error("Initial estimate details failed validation", initialParsedDetails.error.format());
+          throw new HttpsError("internal", "Estimate data is invalid before conversion.");
         }
+        const currentDetails = initialParsedDetails.data;
 
-        // Check if estimate status allows conversion (e.g., must be 'accepted')
-        if (validEstimateDetails.status !== 'accepted') {
-            throw new HttpsError(
+        // Idempotency check: If already an invoice (e.g. has invoice number and status is Pending/Paid/Overdue)
+        // and meets certain criteria, maybe just return existing data.
+        // For now, we allow re-running to ensure status/archival is set, but invoice number/due date are preserved if existing.
+        if (currentDetails.status !== 'Accepted' && currentDetails.status !== 'Estimate' && currentDetails.status !== 'Draft' && currentDetails.status !== 'Pending') {
+          // Allow conversion from Pending too, in case of re-trigger or specific flows.
+          // If it's already Paid, Rejected, Cancelled, etc., don't convert.
+           if (currentDetails.invoiceNumber && (currentDetails.status === "Paid" || currentDetails.status === "Overdue" || currentDetails.status === "Cancelled" || currentDetails.status === "Rejected")) {
+             throw new HttpsError(
                 "failed-precondition",
-                `Estimate status must be 'accepted' to convert. Current status: ${validEstimateDetails.status}.`
-            );
+                `Estimate is already an invoice with status ${currentDetails.status} and cannot be re-converted this way.`
+             );
+           }
         }
 
-        const invoiceNumber = generateInvoiceNumber();
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 30); // Due 30 days from now
+        const updatedDetails: any = { ...currentDetails }; // Create a mutable copy
 
-        // Calculate totalAmount using the helper function
-        const calculatedTotalAmount = _calculateInvoiceTotalInternal(
-          validEstimateDetails.confirmedItems || [], // Pass confirmedItems as lineItems, ensure it's an array
-          validEstimateDetails.adjustments || [],   // Ensure adjustments is an array
-          validEstimateDetails.taxPercentage || 0 // Pass taxPercentage, default to 0
-        );
+        // 1. Set Invoice Number
+        if (!updatedDetails.invoiceNumber) {
+          updatedDetails.invoiceNumber = generateInvoiceNumber();
+        }
 
-        const newInvoiceDetails = {
-          invoiceNumber: invoiceNumber,
-          estimateId_ref: estimateId,
-          dueDate: dueDate.toISOString(), // Store as ISO string
-          paymentStatus: "pending" as const,
-          customer: validEstimateDetails.customer,
-          supplier: validEstimateDetails.supplier,
-          lineItems: validEstimateDetails.confirmedItems || [], // Assuming lineItems are compatible
-          adjustments: validEstimateDetails.adjustments || [], // Assuming adjustments are compatible
-          currency: validEstimateDetails.currency,
-          notes: validEstimateDetails.notes,
-          totalAmount: calculatedTotalAmount, // USE THE CALCULATED VALUE HERE
-          entryType: "invoice" as const, // Added entryType for invoice
-          // paymentDetails: null, // Explicitly null or undefined
-        };
+        // 2. Set Due Date
+        if (!updatedDetails.dueDate) {
+          const newDueDate = new Date();
+          newDueDate.setDate(newDueDate.getDate() + 30); // Default 30 days from now
+          updatedDetails.dueDate = newDueDate; // Store as Date object, Firestore will convert to Timestamp
+        } else {
+           // Ensure existing dueDate is a Date object if it's a string/Timestamp
+           updatedDetails.dueDate = new Date(updatedDetails.dueDate);
+        }
 
-        // Validate the new invoice details before saving
-        // The schema now expects entryType: "invoice"
-        const validatedInvoiceDetails = invoiceDetailsSchema.parse(newInvoiceDetails);
+        // 3. Initialize Payments array
+        if (updatedDetails.payments === undefined || updatedDetails.payments === null) {
+          updatedDetails.payments = [];
+        }
 
-        // Create the invoice entry structure
-        const newInvoiceEntry = {
-            name: `Invoice based on Estimate #${estimateData.name || estimateId}`, // Updated name
-            isActive: true,
-            createdBy: uid,
-            details: validatedInvoiceDetails, // details now includes entryType: "invoice"
-            createdAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp(),
-        };
+        // 4. Set Status
+        updatedDetails.status = "Pending"; // New status for the invoice
 
-        const newInvoiceRef = invoiceCollectionRef.doc(); // Auto-generate ID
-        transaction.set(newInvoiceRef, newInvoiceEntry);
+        // 5. Set is_archived (as per prompt, estimate aspect is archived)
+        // This field's meaning might need review in a unified schema.
+        // If it means "this estimate record is now an invoice and should not appear in 'estimates only' list", then true.
+        // If it means "this invoice is archived", then false.
+        // Following prompt's intention for "archiving the estimate aspect".
+        updatedDetails.is_archived = true;
 
-        // Archive the estimate
+        // 6. Set invoiceId_ref (points to itself as it's now an invoice)
+        updatedDetails.invoiceId_ref = estimateId;
+
+        // Validate final details before saving
+        const finalParsedDetails = estimateDetailsStateSchema.safeParse(updatedDetails);
+        if (!finalParsedDetails.success) {
+          logger.error("Updated invoice details failed validation", finalParsedDetails.error.format());
+          throw new HttpsError("internal", "Failed to prepare valid invoice data.");
+        }
+
         transaction.update(estimateRef, {
-          "details.is_archived": true,
-          "details.invoiceId_ref": newInvoiceRef.id,
-          "details.status": "invoiced", // New status for estimate
-          isActive: false, // Also set top-level isActive to false
+          details: finalParsedDetails.data,
+          isActive: true, // Ensure the entry remains active as an invoice
           updatedAt: FieldValue.serverTimestamp(),
+          // Optionally update 'name' if it should change, e.g., "Invoice #XYZ"
+          // name: `Invoice ${finalParsedDetails.data.invoiceNumber}`
         });
 
         logger.info(
-          `Estimate ${estimateId} converted to Invoice ${newInvoiceRef.id}. Invoice number: ${invoiceNumber}`,
+          `Estimate ${estimateId} successfully converted/updated to an Invoice. Invoice Number: ${finalParsedDetails.data.invoiceNumber}`,
         );
+
         return {
-          result: "ok",
-          message: "Estimate successfully converted to invoice.",
-          invoiceId: newInvoiceRef.id,
-          invoiceNumber: invoiceNumber,
+          success: true,
+          invoiceId: estimateId, // It's the same document ID
+          invoiceNumber: finalParsedDetails.data.invoiceNumber,
+          dueDate: finalParsedDetails.data.dueDate.toISOString(), // Return ISO string to frontend
+          status: finalParsedDetails.data.status,
         };
       });
     } catch (error) {
