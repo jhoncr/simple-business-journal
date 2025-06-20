@@ -4,9 +4,9 @@ import * as logger from "firebase-functions/logger";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { JOURNAL_COLLECTION, ROLES_THAT_ADD } from "./common/const"; // Assuming ROLES_THAT_ADD is appropriate, or define new role check
-import { ENTRY_CONFIG, EntryType } from "./common/schemas/configmap";
+import { ENTRY_CONFIG } from "./common/schemas/configmap";
 import { ALLOWED } from "./lib/bg-consts"; // For CORS
-import { estimateDetailsStateSchema, LineItem, Adjustment, estimateDetailsState } from "./common/schemas/estimate_schema"; // For type hint and calculation
+import { estimateDetailsStateSchema, LineItem, Adjustment } from "./common/schemas/estimate_schema"; // For type hint and calculation
 import { invoiceDetailsSchema } from "./common/schemas/invoice_schema"; // For type hint and validation
 
 if (getApps().length === 0) {

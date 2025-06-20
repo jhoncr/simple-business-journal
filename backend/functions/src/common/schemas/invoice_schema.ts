@@ -1,5 +1,5 @@
 import * as z from "zod";
-import { contactInfoSchema, currencyCodeSchema } from "./common_schemas";
+import { contactInfoSchema, allowedCurrencySchema } from "./common_schemas";
 import { lineItemSchema, adjustmentSchema } from "./estimate_schema"; // Assuming these can be reused
 
 export const invoiceDetailsSchema = z.object({
@@ -13,7 +13,7 @@ export const invoiceDetailsSchema = z.object({
   supplier: contactInfoSchema,
   lineItems: z.array(lineItemSchema),
   adjustments: z.array(adjustmentSchema),
-  currency: currencyCodeSchema,
+  currency: allowedCurrencySchema,
   notes: z
     .string()
     .max(250, { message: "Notes must be less than 250 characters" })

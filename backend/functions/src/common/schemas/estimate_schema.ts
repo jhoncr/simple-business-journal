@@ -37,7 +37,7 @@ export const lineItemSchema = z.object({
   material: materialItemSchema,
 });
 
-const adjustmentSchema = z.object({
+export const adjustmentSchema = z.object({
   type: z.enum([
     "addPercent",
     "addFixed",

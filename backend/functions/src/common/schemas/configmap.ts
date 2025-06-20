@@ -1,11 +1,11 @@
 import * as z from "zod";
-import { BABY_ENTRY_TYPES } from "../const";
-import {
-  napDetailsSchema,
-  diaperDetailsSchema,
-  feedDetailsSchema,
-  growthDetailsSchema,
-} from "./BabySchema"; // Updated import path
+// import { BABY_ENTRY_TYPES } from "../const"; // TODO: Fix missing BabySchema.ts or BABY_ENTRY_TYPES export and re-enable baby entry types.
+// import {
+//   napDetailsSchema,
+//   diaperDetailsSchema,
+//   feedDetailsSchema,
+//   growthDetailsSchema,
+// } from "./BabySchema"; // Updated import path // TODO: Fix missing BabySchema.ts or BABY_ENTRY_TYPES export and re-enable baby entry types.
 import { cashFlowEntryDetailsSchema } from "./CashflowSchema";
 import { materialItemSchema } from "./InventorySchema";
 import { estimateDetailsStateSchema } from "./estimate_schema";
@@ -53,35 +53,35 @@ export const ENTRY_CONFIG = {
     sortField: "details.dueDate",
   },
 
-  // Baby Entry Types
-  [BABY_ENTRY_TYPES.NAP]: {
-    subcollection: "naps",
-    schema: napDetailsSchema,
-    displayName: "Nap",
-    category: "baby",
-    sortField: "details.start", // Add sortField
-  },
-  [BABY_ENTRY_TYPES.DIAPER]: {
-    subcollection: "diapers",
-    schema: diaperDetailsSchema,
-    displayName: "Diaper",
-    category: "baby",
-    sortField: "details.time", // Add sortField
-  },
-  [BABY_ENTRY_TYPES.FEED]: {
-    subcollection: "feeds",
-    schema: feedDetailsSchema,
-    displayName: "Feed",
-    category: "baby",
-    sortField: "details.time", // Add sortField
-  },
-  [BABY_ENTRY_TYPES.GROWTH]: {
-    subcollection: "growth_entries",
-    schema: growthDetailsSchema,
-    displayName: "Growth",
-    category: "baby",
-    sortField: "details.date", // Add sortField
-  },
+  // Baby Entry Types // TODO: Fix missing BabySchema.ts or BABY_ENTRY_TYPES export and re-enable baby entry types.
+  // [BABY_ENTRY_TYPES.NAP]: {
+  //   subcollection: "naps",
+  //   schema: napDetailsSchema,
+  //   displayName: "Nap",
+  //   category: "baby",
+  //   sortField: "details.start", // Add sortField
+  // },
+  // [BABY_ENTRY_TYPES.DIAPER]: {
+  //   subcollection: "diapers",
+  //   schema: diaperDetailsSchema,
+  //   displayName: "Diaper",
+  //   category: "baby",
+  //   sortField: "details.time", // Add sortField
+  // },
+  // [BABY_ENTRY_TYPES.FEED]: {
+  //   subcollection: "feeds",
+  //   schema: feedDetailsSchema,
+  //   displayName: "Feed",
+  //   category: "baby",
+  //   sortField: "details.time", // Add sortField
+  // },
+  // [BABY_ENTRY_TYPES.GROWTH]: {
+  //   subcollection: "growth_entries",
+  //   schema: growthDetailsSchema,
+  //   displayName: "Growth",
+  //   category: "baby",
+  //   sortField: "details.date", // Add sortField
+  // },
 } as const satisfies Record<string, EntryConfig<any>>;
 
 // Helper functions to filter entries by category
