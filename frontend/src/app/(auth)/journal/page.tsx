@@ -141,8 +141,13 @@ export default function ListJournalPage() {
             "business",
         ) as EntryType[];
         defaultType = "inventory"; // Default to inventory for business
+      } else if (journal.journalType === JOURNAL_TYPES.BABY) {
+        typesForJournal = Object.keys(ENTRY_CONFIG).filter(
+          (key) =>
+            ENTRY_CONFIG[key as keyof typeof ENTRY_CONFIG].category === "baby",
+        ) as EntryType[];
+        defaultType = "feed"; // Default to feed for baby
       }
-      console.log(typesForJournal);
       setAvailableEntryTypes(typesForJournal);
 
       // Check if the URL parameter for tab exists and is valid
@@ -295,7 +300,10 @@ export default function ListJournalPage() {
       cashflow: "Cash Flow",
       inventory: "Inventory",
       estimate: "Estimates",
-      invoice: "Invoices",
+      naps: "Naps",
+      diapers: "Diapers",
+      feeds: "Feeds",
+      growth: "Growth",
     };
     return nameMap[type] || type;
   };

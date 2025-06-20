@@ -9,7 +9,7 @@ import React, {
   forwardRef,
   useMemo,
 } from "react";
-import { ChevronLeft, Printer, MinusCircle } from "lucide-react";
+import { ChevronLeft, Printer, MinusCircle, FileCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ContactInfo, ContactInfoRef } from "./subcomponents/ContactInfo";
@@ -87,6 +87,8 @@ export const EstimateDetails = React.memo(function EstimateDetails({
   const [confirmedItems, setConfirmedItems] = useState<LineItem[]>([]);
   const [status, setStatus] =
     useState<estimateDetailsState["status"]>("pending");
+  const [isArchived, setIsArchived] = useState<boolean | undefined>(undefined);
+  const [invoiceIdRef, setInvoiceIdRef] = useState<string | undefined>(undefined);
   const [customer, setCustomer] = useState<contactInfoSchemaType>(initInfo);
   // supplier, logo, currency state removed -> use props
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
@@ -95,6 +97,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
   const [loading, setLoading] = useState(true); // Still need loading state for fetching *entry*
   const [createdDate, setCreatedDate] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
   const [entryId, setEntryId] = useState<string | null | undefined>(
     initialEntryId,
   );
@@ -159,6 +162,8 @@ export const EstimateDetails = React.memo(function EstimateDetails({
               setAdjustments(validation.data.adjustments || []);
               setTaxPercentage(validation.data.taxPercentage || 0);
               setNotes(validation.data.notes || "");
+              setIsArchived(validation.data.is_archived);
+              setInvoiceIdRef(validation.data.invoiceId_ref);
               setCreatedDate(formattedDate(entry.createdAt));
             }
           }
@@ -176,6 +181,8 @@ export const EstimateDetails = React.memo(function EstimateDetails({
         setAdjustments([]);
         setTaxPercentage(0);
         setNotes("");
+        setIsArchived(undefined);
+        setInvoiceIdRef(undefined);
         setCreatedDate(formattedDate(new Date())); // Set to now
         setLoading(false); // Finished "loading" (no entry to fetch)
       }
@@ -184,6 +191,45 @@ export const EstimateDetails = React.memo(function EstimateDetails({
     loadEntryData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [journalId, initialEntryId]); // Rerun if journalId or initialEntryId changes
+
+  const handleConvertToInvoice = async () => {
+    if (!journalId || !entryId) {
+      toast({
+        title: "Error",
+        description: "Journal ID or Estimate ID is missing. Cannot convert.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsConverting(true);
+    try {
+      const convertEstimateFn = httpsCallable(functions, "convertEstimateToInvoice");
+      const result = await convertEstimateFn({
+        journalId: journalId,
+        estimateId: entryId,
+      });
+
+      toast({
+        title: "Success",
+        description: `Estimate converted to Invoice ${(result.data as any)?.invoiceNumber || ''}.`,
+      });
+
+      setIsArchived(true);
+      setInvoiceIdRef((result.data as any)?.invoiceId);
+      setStatus("invoiced");
+
+    } catch (error: any) {
+      console.error("Error converting estimate to invoice:", error);
+      toast({
+        title: "Conversion Failed",
+        description: error.message || "Could not convert the estimate.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsConverting(false);
+    }
+  };
 
   // --- Event Handlers ---
   const addConfirmedItem = (items: LineItem[]) => {
@@ -270,6 +316,10 @@ export const EstimateDetails = React.memo(function EstimateDetails({
         taxPercentage: updates.taxPercentage ?? taxPercentage,
         currency: journalCurrency, // Use prop
         notes: updates.notes ?? notes,
+        // Ensure is_archived and invoiceId_ref are included if they exist in state
+        // This is important if handleSave is called for status changes on an already converted/archived estimate (though UI should prevent this)
+        is_archived: isArchived,
+        invoiceId_ref: invoiceIdRef,
       };
 
       // Validate final details object
@@ -344,6 +394,8 @@ export const EstimateDetails = React.memo(function EstimateDetails({
       taxPercentage,
       notes,
       entryId,
+      isArchived, // Added to dependency array
+      invoiceIdRef, // Added to dependency array
       toast,
       router,
     ],
@@ -540,25 +592,72 @@ export const EstimateDetails = React.memo(function EstimateDetails({
       {/* Actions Bar */}
       <div
         id="estimate-actions-bar"
-        className="print-hide flex justify-between items-center mt-6 px-2 md:px-4"
+        className="print-hide flex justify-between items-center mt-6 px-2 md:px-4 sticky bottom-0 py-2 bg-background/90 backdrop-blur-sm border-t"
       >
-        <Button variant="brutalist" asChild size="sm">
+        <Button variant="brutalist" asChild size="sm" disabled={isSaving || isConverting}>
           <Link href={`/journal?jid=${journalId}`}>
             <ChevronLeft className="h-4 w-4 mr-2" /> Back
           </Link>
         </Button>
-        {/* Explicit Save Button (Optional) */}
-        {/* <Button variant="default" size="sm" onClick={() => handleSave()} disabled={isSaving}>
-          {isSaving ? "Saving..." : "Save Estimate"}
-        </Button> */}
-        <Button
-          variant="brutalist"
-          size="sm"
-          onClick={() => window.print()}
-          disabled={isSaving} // Disable print while saving to avoid inconsistencies
-        >
-          <Printer className="h-4 w-4 mr-2" /> Print
-        </Button>
+
+        <div className="flex items-center space-x-2">
+          {/* Save/Update Buttons (Placeholder, actual logic in parent or context) */}
+          {/* This button is illustrative; real save logic is via handleSave on field changes */}
+          {/* {status !== "accepted" && status !== "rejected" && status !== "invoiced" && (
+             <Button
+                variant="default"
+                size="sm"
+                onClick={() => handleSave()} // Generic save, might be better tied to specific actions
+                disabled={isSaving || isConverting}
+              >
+              {isSaving ? (entryId ? "Updating..." : "Saving...") : (entryId ? "Save Changes" : "Save Estimate")}
+             </Button>
+          )} */}
+
+          {/* Accept and Reject Buttons */}
+          {entryId && status === "pending" && !isArchived && !invoiceIdRef && (
+            <>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => handleSave({ status: "rejected" })} // Using handleSave to update status
+                disabled={isSaving || isConverting}
+              >
+                <MinusCircle className="h-4 w-4 mr-2" /> Reject
+              </Button>
+              <Button
+                variant="success"
+                size="sm"
+                onClick={() => handleSave({ status: "accepted" })} // Using handleSave to update status
+                disabled={isSaving || isConverting}
+              >
+                <FileCog className="h-4 w-4 mr-2" /> Accept
+              </Button>
+            </>
+          )}
+
+          {/* Convert to Invoice Button */}
+          {entryId && status === "accepted" && !isArchived && !invoiceIdRef && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleConvertToInvoice}
+              disabled={isConverting || isSaving}
+            >
+              <FileCog className="h-4 w-4 mr-2" />
+              {isConverting ? "Converting..." : "Convert to Invoice"}
+            </Button>
+          )}
+          {/* Print Button */}
+          <Button
+            variant="brutalist"
+            size="sm"
+            onClick={() => window.print()}
+            disabled={isSaving || isConverting}
+          >
+            <Printer className="h-4 w-4 mr-2" /> Print
+          </Button>
+        </div>
       </div>
 
       {/* Print Styles (No changes needed here) */}
