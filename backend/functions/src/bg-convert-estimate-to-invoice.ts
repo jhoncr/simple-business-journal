@@ -134,9 +134,9 @@ export const convertEstimateToInvoiceFn = onCall(
           );
         }
 
-        const estimateData = estimateDoc.data();
+        const estimateData = estimateDoc.data()!; // Assert estimateData is not null, as estimateDoc.exists is true
         // Validate estimate data (optional, but good practice)
-        const parsedEstimate = estimateDetailsStateSchema.safeParse(estimateData?.details);
+        const parsedEstimate = estimateDetailsStateSchema.safeParse(estimateData.details);
         if (!parsedEstimate.success) {
             logger.error("Estimate data failed validation", parsedEstimate.error.format());
             throw new HttpsError("internal", "Estimate data is invalid.");
@@ -181,18 +181,20 @@ export const convertEstimateToInvoiceFn = onCall(
           currency: validEstimateDetails.currency,
           notes: validEstimateDetails.notes,
           totalAmount: calculatedTotalAmount, // USE THE CALCULATED VALUE HERE
+          entryType: "invoice" as const, // Added entryType for invoice
           // paymentDetails: null, // Explicitly null or undefined
         };
 
         // Validate the new invoice details before saving
+        // The schema now expects entryType: "invoice"
         const validatedInvoiceDetails = invoiceDetailsSchema.parse(newInvoiceDetails);
 
         // Create the invoice entry structure
         const newInvoiceEntry = {
-            name: `Invoice ${invoiceNumber}`, // Or based on customer/project
+            name: `Invoice based on Estimate #${estimateData.name || estimateId}`, // Updated name
             isActive: true,
             createdBy: uid,
-            details: validatedInvoiceDetails,
+            details: validatedInvoiceDetails, // details now includes entryType: "invoice"
             createdAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
         };

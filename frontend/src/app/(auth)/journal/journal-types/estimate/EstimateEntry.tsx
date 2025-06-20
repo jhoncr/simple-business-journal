@@ -1,10 +1,11 @@
 import React from "react";
 import { Label } from "@/components/ui/label";
-import { CardHeader, CardContent } from "@/components/ui/card"; // Card components might not be needed if EntryView handles the card structure
+// Card components might not be needed if EntryView handles the card structure
+// import { CardHeader, CardContent } from "@/components/ui/card";
 import {
   EntryView,
-  EntryViewProps as BaseEntryViewProps,
-} from "../../comp/EntryView"; // Use alias
+  // EntryViewProps as BaseEntryViewProps, // Not used directly
+} from "../../comp/EntryView";
 // --- Import backend schema/types ---
 import {
   Adjustment,
@@ -14,12 +15,10 @@ import {
 import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap";
 // --- Import frontend types ---
 import { DBentry, User } from "@/lib/custom_types";
-import { formatCurrency, formattedDate } from "@/lib/utils"; // Import utils
-// --- Remove if CURRENCY_OPTIONS not used directly ---
-// import { CURRENCY_OPTIONS } from "@/../../backend/functions/src/common/const";
+import { formatCurrency, formattedDate } from "@/lib/utils";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge"; // For status
-import { FileText } from "lucide-react"; // Icon for estimate
+import { ClipboardList } from "lucide-react"; // Icon for estimate - UPDATED
 
 // --- Define Props Interface ---
 interface EstimateEntryProps {
@@ -51,7 +50,6 @@ const calculateEstimateTotals = (
   const itemsTotal = confirmedItems.reduce(
     (sum: number, item: Partial<LineItem>) => {
       const quantity = item.quantity || 0;
-      // Safely access nested properties
       const unitPrice = item.material?.unitPrice || 0;
       return sum + quantity * unitPrice;
     },
@@ -75,7 +73,6 @@ const calculateEstimateTotals = (
         case "discountPercent":
           adjustmentValue = -(itemsTotal * value) / 100;
           break;
-        // taxPercent is not an adjustment to sum here
         default:
           break;
       }
@@ -104,7 +101,7 @@ export const EstimateEntry = React.memo(function EstimateEntry({
   if (
     !journalId ||
     !entry ||
-    !["estimates", "invoice"].includes(entryType) ||
+    entryType !== "estimate" || // UPDATED: Should only be 'estimate'
     !entry.details
   ) {
     console.error("Invalid props for EstimateEntry:", {
@@ -115,40 +112,36 @@ export const EstimateEntry = React.memo(function EstimateEntry({
     return null;
   }
 
-  // --- Safely access details ---
-  // Cast details, assuming it matches estimateDetailsState structure based on entryType
   const details = entry.details as estimateDetailsState;
   const {
     customer,
     confirmedItems = [],
     adjustments = [],
-    status = "pending", // Default status
-    taxPercentage = 0,
-    currency, // Currency code (e.g., "USD") is stored in details
+    status = "pending",
+    currency,
     notes,
   } = details;
 
-  // --- Calculate Totals ---
-  const { itemsTotal, adjustmentsTotal, taxAmount, grandTotal } =
-    calculateEstimateTotals(details);
+  const { grandTotal } = calculateEstimateTotals(details);
 
-  // --- Determine Status Color ---
+  // --- Determine Status Color --- UPDATED
   const getStatusBadgeVariant = (
     status: estimateDetailsState["status"],
-  ): "default" | "secondary" | "destructive" | "outline" => {
+  ): "default" | "secondary" | "destructive" | "outline" | "success" => {
     switch (status) {
       case "accepted":
-        return "default"; // Greenish (using primary here, maybe customize later)
+        return "success";
       case "rejected":
-        return "destructive"; // Red
+        return "destructive";
+      case "invoiced":
+        return "outline";
       case "pending":
       default:
-        return "secondary"; // Yellowish/Grey
+        return "secondary";
     }
   };
 
   return (
-    // --- Pass props to EntryView ---
     <EntryView
       journalId={journalId}
       entry={entry}
@@ -157,19 +150,14 @@ export const EstimateEntry = React.memo(function EstimateEntry({
       role={role}
       removeFn={removeFn}
     >
-      {/* --- Estimate Specific Summary --- */}
-      {/* Link wraps the main content area */}
       <Link
-        href={`/journal/entry?jid=${journalId}&eid=${entry.id}`} // Use journalId
-        className="block hover:bg-accent/50 transition-colors rounded-md -m-2 p-2" // Make link cover area, adjust margins/padding
+        href={`/journal/entry?jid=${journalId}&eid=${entry.id}&jtype=estimate`} // Ensure jtype is passed for routing
+        className="block hover:bg-accent/50 transition-colors rounded-md -m-2 p-2"
       >
         {/* Top Row: Customer Name, Grand Total, Status */}
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 mb-1">
           <div className="flex items-center gap-2 min-w-0">
-            {" "}
-            {/* Allow shrinking */}
-            <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />{" "}
-            {/* Icon */}
+            <ClipboardList className="h-4 w-4 text-muted-foreground flex-shrink-0" /> {/* Icon UPDATED */}
             <span
               className="font-medium truncate"
               title={customer?.name || "No Customer"}
@@ -178,12 +166,11 @@ export const EstimateEntry = React.memo(function EstimateEntry({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {/* <Badge variant={getStatusBadgeVariant(status)} className="text-xs">
+            <Badge variant={getStatusBadgeVariant(status)} className="text-xs"> {/* BADGE UNCOMMENTED */}
               {status.charAt(0).toUpperCase() + status.slice(1)}
-            </Badge> */}
+            </Badge>
             <span className="font-semibold text-base">
-              {formatCurrency(grandTotal, currency || "USD")}{" "}
-              {/* Use currency code from details */}
+              {formatCurrency(grandTotal, currency || "USD")}
             </span>
           </div>
         </div>
@@ -204,11 +191,11 @@ export const EstimateEntry = React.memo(function EstimateEntry({
             <p className="truncate">
               {confirmedItems.length} item(s):{" "}
               {confirmedItems
-                .slice(0, 2) // Show first 2 items max
+                .slice(0, 2)
                 .map(
                   (item: Partial<LineItem>) =>
                     item.material?.description || item.description || "item",
-                ) // Safer access
+                )
                 .join(", ")}
               {confirmedItems.length > 2 ? "..." : ""}
             </p>
@@ -216,17 +203,15 @@ export const EstimateEntry = React.memo(function EstimateEntry({
           {adjustments.length > 0 && (
             <p className="truncate">
               {adjustments.length} adjustment(s)
-              {/* Maybe show first adjustment desc? */}
-              {/* {adjustments[0].description && ` (${adjustments[0].description})`} */}
             </p>
           )}
           {notes && <p className="truncate italic">Notes: {notes}</p>}
         </div>
 
-        {/* Creator and Date Info (Optional - can be moved/removed) */}
-        {/* <div className="text-xs text-muted-foreground mt-1 text-right">
-             {`${user?.displayName || 'User'} | ${formattedDate(entry.createdAt)}`}
-         </div> */}
+        {/* Creator and Date Info - ADDED/UNCOMMENTED */}
+        <div className="text-xs text-muted-foreground mt-2 text-right">
+          {user?.displayName || user?.email || "Unknown User"} | {formattedDate(entry.createdAt)}
+        </div>
       </Link>
     </EntryView>
   );

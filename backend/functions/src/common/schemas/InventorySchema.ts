@@ -32,6 +32,7 @@ export const materialItemSchema = z
     dimensions: dimensionConfigSchema,
     currency: allowedCurrencySchema.nullable(),
     labor: laborItemSchema.nullable().optional(), // Labor can be null or undefined
+    entryType: z.enum(["material", "labor", "service"]).optional(), // Added entryType
   })
   .strict();
 

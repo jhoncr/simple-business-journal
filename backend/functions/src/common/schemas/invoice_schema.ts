@@ -20,6 +20,7 @@ export const invoiceDetailsSchema = z.object({
     .optional()
     .nullable(),
   totalAmount: z.number().nonnegative("Total amount must be a non-negative number"),
+  entryType: z.literal("invoice"), // Added entryType
   paymentDetails: z
     .object({
       method: z.string().optional(),

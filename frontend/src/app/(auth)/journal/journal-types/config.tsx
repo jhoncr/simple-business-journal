@@ -6,6 +6,8 @@ import { AddLogEntryForm } from "./cash-flow/add-cf-entry";
 import React from "react";
 import { AddNewEstimateBtn } from "./estimate/addEstimate";
 import { EstimateEntry } from "./estimate/EstimateEntry";
+import { InvoiceEntry } from "./invoice/InvoiceEntry"; // Import InvoiceEntry
+import { AddNewInvoiceBtn } from "./invoice/AddNewInvoiceBtn"; // Import AddNewInvoiceBtn
 import { DBentry } from "@/lib/custom_types";
 import { EntryViewProps } from "../comp/EntryView";
 
@@ -36,10 +38,10 @@ const JOURNAL_CONFIG: {
     addEntryForm: AddNewEstimateBtn,
   },
   invoice: {
-    icon: <Receipt className="h-4 w-4" />, // TODO: Choose a final icon if Receipt is not suitable
+    icon: <Receipt className="h-4 w-4" />, // Using Receipt icon
     title: "Invoices",
-    entryComponent: EstimateEntry, // TODO: Replace with actual InvoiceEntry component when created
-    addEntryForm: AddNewEstimateBtn, // TODO: Replace with actual AddNewInvoiceBtn or logic to load InvoiceDetailsForm
+    entryComponent: InvoiceEntry, // Use InvoiceEntry component
+    addEntryForm: AddNewInvoiceBtn, // Use AddNewInvoiceBtn
   },
   group: {
     icon: <FileText className="h-4 w-4" />,
