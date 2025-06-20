@@ -22,10 +22,11 @@ export const lineItemSchema = z.object({
   quantity: z.number().nonnegative(),
   dimensions: z
     .object({
-      length: z.number().nonnegative().optional(),
-      width: z.number().nonnegative().optional(),
+      length: z.number().nonnegative().optional().nullable(),
+      width: z.number().nonnegative().optional().nullable(),
     })
-    .optional(),
+    .optional()
+    .nullable(),
   description: z
     .string()
     .min(3, {
