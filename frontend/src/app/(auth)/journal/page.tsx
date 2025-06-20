@@ -300,10 +300,7 @@ export default function ListJournalPage() {
       cashflow: "Cash Flow",
       inventory: "Inventory",
       estimate: "Estimates",
-      naps: "Naps",
-      diapers: "Diapers",
-      feeds: "Feeds",
-      growth: "Growth",
+      invoice: "Invoices",
     };
     return nameMap[type] || type;
   };
@@ -311,24 +308,6 @@ export default function ListJournalPage() {
   return (
     <div className="flex flex-col items-center justify-start w-full px-1">
       {/* --- Journal Info Card (Optional based on type) --- */}
-      {/*       
-      {currentJournal.journalType === JOURNAL_TYPES.BUSINESS && (
-        <div className="mb-4 w-full max-w-md mx-auto flex flex-col items-center">
-          {" "}
-          <JournalInfoCard
-            id={currentJournal.id}
-            currency={
-              (currentJournal.details as BusinessDetailsType)?.currency
-            }
-            contactInfo={
-              (currentJournal.details as BusinessDetailsType)?.contactInfo
-            }
-            logo={(currentJournal.details as BusinessDetailsType)?.logo}
-            journalSubcollections={ENTRY_CONFIG.business || {}} // Pass only relevant subcollections
-          />
-        </div>
-      )} */}
-      {/* TODO: Add specific card for Baby type? */}
 
       {/* --- Filter Badges --- */}
       <div

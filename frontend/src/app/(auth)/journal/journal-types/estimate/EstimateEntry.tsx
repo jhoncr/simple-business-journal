@@ -101,7 +101,12 @@ export const EstimateEntry = React.memo(function EstimateEntry({
   removeFn,
 }: EstimateEntryProps) {
   // --- Basic validation ---
-  if (!journalId || !entry || entryType !== "estimate" || !entry.details) {
+  if (
+    !journalId ||
+    !entry ||
+    !["estimates", "invoice"].includes(entryType) ||
+    !entry.details
+  ) {
     console.error("Invalid props for EstimateEntry:", {
       journalId,
       entry,

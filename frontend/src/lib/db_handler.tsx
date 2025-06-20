@@ -391,6 +391,7 @@ export async function fetchEntry(
 
   try {
     const docPath = `${JOURNAL_COLLECTION}/${journalId}/${subcollectionName}/${entryId}`;
+    console.info(`Getting DocPath ${docPath}`);
     const docRef = doc(db, docPath);
     const docSnap = await getDoc(docRef);
 

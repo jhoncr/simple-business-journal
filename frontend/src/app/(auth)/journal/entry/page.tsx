@@ -32,6 +32,7 @@ function EditEstimateEntryPageContent() {
   const router = useRouter();
   const journalId = searchParams.get("jid");
   const entryId = searchParams.get("eid") || undefined; // Keep entryId optional
+  const jtype = searchParams.get("jtype");
 
   // --- Use context state ---
   const {
@@ -60,9 +61,15 @@ function EditEstimateEntryPageContent() {
       return;
     }
 
+    // jtype should be either "estimate" or "invoice"
+    if (["estimate", "invoice"].indexOf(jtype) === -1) {
+      setValidationError("Invalid journal type (jtype) in the URL.");
+      return;
+    }
+
     // If validation passes, clear error
     setValidationError(null);
-  }, [journalId, entryId, router]); // Rerun validation if IDs change
+  }, [journalId, entryId, jtype, router]); // Rerun validation if IDs change
 
   // --- Prepare Props for EstimateDetails ---
   let supplierInfo: contactInfoSchemaType = initInfo;
@@ -159,6 +166,7 @@ function EditEstimateEntryPageContent() {
         supplierLogo={supplierLogo}
         journalCurrency={journalCurrency}
         journalInventoryCache={journalInventoryCache}
+        jtype={journal.journalType} // Pass journal type
       />
     </div>
   );

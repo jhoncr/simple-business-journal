@@ -20,6 +20,7 @@ import {
   estimateDetailsState,
   estimateDetailsStateSchema,
 } from "@/../../backend/functions/src/common/schemas/estimate_schema";
+import { invoiceDetailsSchema } from "@/../../backend/functions/src/common/schemas/invoice_schema";
 import { InvoiceBottomLines } from "./subcomponents/Adjustments";
 import {
   contactInfoSchemaType,
@@ -43,6 +44,7 @@ import { useJournalContext } from "@/context/JournalContext"; // Import useJourn
 // --- Constants ---
 const ADD_LOG_FN_NAME = "addLogFn";
 const ESTIMATE_ENTRY_TYPE = "estimate";
+const INVOICE_ENTRY_TYPE = "invoice";
 
 // Initial Contact Info remains the same
 const initInfo: contactInfoSchemaType = {
@@ -71,6 +73,7 @@ interface EstimateDetailsProps {
   supplierLogo: string | null;
   journalCurrency: allowedCurrencySchemaType;
   journalInventoryCache: Record<string, EntryItf>; // Receive inventory cache
+  jtype: string;
 }
 
 // --- Main Component ---
@@ -82,13 +85,16 @@ export const EstimateDetails = React.memo(function EstimateDetails({
   supplierLogo,
   journalCurrency,
   journalInventoryCache,
+  jtype = "estimage",
 }: EstimateDetailsProps) {
   // --- State Variables ---
   const [confirmedItems, setConfirmedItems] = useState<LineItem[]>([]);
   const [status, setStatus] =
     useState<estimateDetailsState["status"]>("pending");
   const [isArchived, setIsArchived] = useState<boolean | undefined>(undefined);
-  const [invoiceIdRef, setInvoiceIdRef] = useState<string | undefined>(undefined);
+  const [invoiceIdRef, setInvoiceIdRef] = useState<string | undefined>(
+    undefined,
+  );
   const [customer, setCustomer] = useState<contactInfoSchemaType>(initInfo);
   // supplier, logo, currency state removed -> use props
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
@@ -138,7 +144,9 @@ export const EstimateDetails = React.memo(function EstimateDetails({
         try {
           const entry = await fetchEntry(
             journalId,
-            ESTIMATE_ENTRY_TYPE,
+            jtype === ESTIMATE_ENTRY_TYPE
+              ? ESTIMATE_ENTRY_TYPE
+              : INVOICE_ENTRY_TYPE,
             initialEntryId,
           );
           console.log("Fetched entry:", entry);
@@ -147,13 +155,18 @@ export const EstimateDetails = React.memo(function EstimateDetails({
             setEntryError("Estimate entry not found or access denied.");
           } else if (entry.details) {
             const details = entry.details as estimateDetailsState;
-            const validation = estimateDetailsStateSchema.safeParse(details);
-            if (!validation.success) {
+            let validation = null;
+            if (jtype == ESTIMATE_ENTRY_TYPE)
+              validation = estimateDetailsStateSchema.safeParse(details);
+            else if ((jtype = INVOICE_ENTRY_TYPE))
+              validation = invoiceDetailsSchema.safeParse(details);
+
+            if (!validation || !validation.success) {
               console.error(
                 "Fetched estimate details failed validation:",
                 validation.error,
               );
-              setEntryError("Loaded estimate data is invalid.");
+              setEntryError("Loaded data is invalid.");
             } else {
               // Set state based on fetched entry data
               setConfirmedItems(validation.data.confirmedItems || []);
@@ -204,7 +217,10 @@ export const EstimateDetails = React.memo(function EstimateDetails({
 
     setIsConverting(true);
     try {
-      const convertEstimateFn = httpsCallable(functions, "convertEstimateToInvoice");
+      const convertEstimateFn = httpsCallable(
+        functions,
+        "convertEstimateToInvoice",
+      );
       const result = await convertEstimateFn({
         journalId: journalId,
         estimateId: entryId,
@@ -212,13 +228,14 @@ export const EstimateDetails = React.memo(function EstimateDetails({
 
       toast({
         title: "Success",
-        description: `Estimate converted to Invoice ${(result.data as any)?.invoiceNumber || ''}.`,
+        description: `Estimate converted to Invoice ${
+          (result.data as any)?.invoiceNumber || ""
+        }.`,
       });
 
       setIsArchived(true);
       setInvoiceIdRef((result.data as any)?.invoiceId);
       setStatus("invoiced");
-
     } catch (error: any) {
       console.error("Error converting estimate to invoice:", error);
       toast({
@@ -594,7 +611,12 @@ export const EstimateDetails = React.memo(function EstimateDetails({
         id="estimate-actions-bar"
         className="print-hide flex justify-between items-center mt-6 px-2 md:px-4 sticky bottom-0 py-2 bg-background/90 backdrop-blur-sm border-t"
       >
-        <Button variant="brutalist" asChild size="sm" disabled={isSaving || isConverting}>
+        <Button
+          variant="brutalist"
+          asChild
+          size="sm"
+          disabled={isSaving || isConverting}
+        >
           <Link href={`/journal?jid=${journalId}`}>
             <ChevronLeft className="h-4 w-4 mr-2" /> Back
           </Link>
@@ -637,17 +659,20 @@ export const EstimateDetails = React.memo(function EstimateDetails({
           )}
 
           {/* Convert to Invoice Button */}
-          {entryId && status === "accepted" && !isArchived && !invoiceIdRef && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleConvertToInvoice}
-              disabled={isConverting || isSaving}
-            >
-              <FileCog className="h-4 w-4 mr-2" />
-              {isConverting ? "Converting..." : "Convert to Invoice"}
-            </Button>
-          )}
+          {entryId &&
+            status === "accepted" &&
+            !isArchived &&
+            !invoiceIdRef && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleConvertToInvoice}
+                disabled={isConverting || isSaving}
+              >
+                <FileCog className="h-4 w-4 mr-2" />
+                {isConverting ? "Converting..." : "Convert to Invoice"}
+              </Button>
+            )}
           {/* Print Button */}
           <Button
             variant="brutalist"
