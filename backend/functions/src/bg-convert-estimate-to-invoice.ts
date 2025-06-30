@@ -6,7 +6,10 @@ import { initializeApp, getApps } from "firebase-admin/app";
 import { JOURNAL_COLLECTION, ROLES_THAT_ADD } from "./common/const"; // Assuming ROLES_THAT_ADD is appropriate, or define new role check
 import { ENTRY_CONFIG } from "./common/schemas/configmap";
 import { ALLOWED } from "./lib/bg-consts"; // For CORS
-import { estimateDetailsStateSchema } from "./common/schemas/estimate_schema"; // For type hint and calculation
+import {
+  estimateDetailsState,
+  estimateDetailsStateSchema,
+} from "./common/schemas/estimate_schema"; // For type hint and calculation
 // Removed: import { invoiceDetailsSchema } from "./common/schemas/invoice_schema";
 
 if (getApps().length === 0) {
@@ -46,33 +49,36 @@ export const convertEstimateToInvoiceFn = onCall(
     }
 
     const uid = request.auth.uid;
+    const estimateConfig = ENTRY_CONFIG.estimate;
+    const estimateRef = db
+      .collection(JOURNAL_COLLECTION)
+      .doc(journalId)
+      .collection(estimateConfig.subcollection)
+      .doc(estimateId);
 
     try {
-      const journalDocRef = db.collection(JOURNAL_COLLECTION).doc(journalId);
-      const journalDoc = await journalDocRef.get();
-
-      if (!journalDoc.exists) {
-        throw new HttpsError("not-found", `Journal ${journalId} not found.`);
-      }
-      const journalData = journalDoc.data() || {};
-      // Check user's role for permission (adjust role check as needed)
-      if (
-        !Object.prototype.hasOwnProperty.call(journalData.access ?? {}, uid) ||
-        !ROLES_THAT_ADD.has(journalData.access?.[uid]?.role) // Or a more specific role like 'editor' or 'admin'
-      ) {
-        throw new HttpsError(
-          "permission-denied",
-          "User does not have permission to convert estimates in this journal.",
+      const result = await db.runTransaction(async (transaction) => {
+        const journalDoc = await transaction.get(
+          db.collection(JOURNAL_COLLECTION).doc(journalId),
         );
-      }
+        if (!journalDoc.exists) {
+          throw new HttpsError("not-found", `Journal ${journalId} not found.`);
+        }
 
-      const estimateConfig = ENTRY_CONFIG.estimate; // Only need estimate config
+        const journalData = journalDoc.data()!;
+        if (
+          !Object.prototype.hasOwnProperty.call(
+            journalData.access ?? {},
+            uid,
+          ) ||
+          !ROLES_THAT_ADD.has(journalData.access?.[uid]?.role)
+        ) {
+          throw new HttpsError(
+            "permission-denied",
+            "User does not have permission to convert estimates.",
+          );
+        }
 
-      const estimateRef = journalDocRef
-        .collection(estimateConfig.subcollection)
-        .doc(estimateId);
-
-      return await db.runTransaction(async (transaction) => {
         const estimateDoc = await transaction.get(estimateRef);
         if (!estimateDoc.exists) {
           throw new HttpsError(
@@ -81,121 +87,50 @@ export const convertEstimateToInvoiceFn = onCall(
           );
         }
 
-        const estimateDetails = estimateDoc.data()?.details;
-        const initialParsedDetails =
-          estimateDetailsStateSchema.safeParse(estimateDetails);
+        const estimateData = estimateDoc.data()!;
+        const estimateDetails = estimateData.details as estimateDetailsState;
 
-        if (!initialParsedDetails.success) {
-          logger.error(
-            "Initial estimate details failed validation",
-            initialParsedDetails.error.format(),
-          );
+        // Validate status before conversion
+        if (estimateDetails.status !== "Accepted") {
           throw new HttpsError(
-            "internal",
-            "Estimate data is invalid before conversion.",
+            "failed-precondition",
+            `Estimate cannot be converted with status: ${estimateDetails.status}.`,
           );
         }
-        const currentDetails = initialParsedDetails.data;
 
-        // Idempotency check: If already an invoice (e.g. has invoice number and status is Pending/Paid/Overdue)
-        // and meets certain criteria, maybe just return existing data.
-        // For now, we allow re-running to ensure status/archival is set, but invoice number/due date are preserved if existing.
-        if (
-          currentDetails.status !== "Accepted" &&
-          currentDetails.status !== "Estimate" &&
-          currentDetails.status !== "Draft" &&
-          currentDetails.status !== "Pending"
-        ) {
-          // Allow conversion from Pending too, in case of re-trigger or specific flows.
-          // If it's already Paid, Rejected, Cancelled, etc., don't convert.
-          if (
-            currentDetails.invoiceNumber &&
-            (currentDetails.status === "Paid" ||
-              currentDetails.status === "Overdue" ||
-              currentDetails.status === "Cancelled" ||
-              currentDetails.status === "Rejected")
-          ) {
-            throw new HttpsError(
-              "failed-precondition",
-              `Estimate is already an invoice with status ${currentDetails.status} and cannot be re-converted this way.`,
-            );
-          }
-        }
-
-        const updatedDetails: any = { ...currentDetails }; // Create a mutable copy
-
-        // 1. Set Invoice Number
-        if (!updatedDetails.invoiceNumber) {
-          updatedDetails.invoiceNumber = generateInvoiceNumber();
-        }
-
-        // 2. Set Due Date
-        if (!updatedDetails.dueDate) {
+        const invoiceNumber =
+          estimateDetails.invoiceNumber || generateInvoiceNumber();
+        let dueDate = estimateDetails.dueDate;
+        if (!dueDate) {
           const newDueDate = new Date();
-          newDueDate.setDate(newDueDate.getDate() + 30); // Default 30 days from now
-          updatedDetails.dueDate = newDueDate; // Store as Date object, Firestore will convert to Timestamp
-        } else {
-          // Ensure existing dueDate is a Date object if it's a string/Timestamp
-          updatedDetails.dueDate = new Date(updatedDetails.dueDate);
+          newDueDate.setDate(newDueDate.getDate() + 30);
+          dueDate = newDueDate;
         }
 
-        // 3. Initialize Payments array
-        if (
-          updatedDetails.payments === undefined ||
-          updatedDetails.payments === null
-        ) {
-          updatedDetails.payments = [];
-        }
-
-        // 4. Set Status
-        updatedDetails.status = "Pending"; // New status for the invoice
-
-        // 5. Set is_archived (as per prompt, estimate aspect is archived)
-        // This field's meaning might need review in a unified schema.
-        // If it means "this estimate record is now an invoice and should not appear in 'estimates only' list", then true.
-        // If it means "this invoice is archived", then false.
-        // Following prompt's intention for "archiving the estimate aspect".
-        updatedDetails.is_archived = true;
-
-        // 6. Set invoiceId_ref (points to itself as it's now an invoice)
-        updatedDetails.invoiceId_ref = estimateId;
-
-        // Validate final details before saving
-        const finalParsedDetails =
-          estimateDetailsStateSchema.safeParse(updatedDetails);
-        if (!finalParsedDetails.success) {
-          logger.error(
-            "Updated invoice details failed validation",
-            finalParsedDetails.error.format(),
-          );
-          throw new HttpsError(
-            "internal",
-            "Failed to prepare valid invoice data.",
-          );
-        }
-
-        transaction.update(estimateRef, {
-          details: finalParsedDetails.data,
-          isActive: true, // Ensure the entry remains active as an invoice
+        const updatePayload = {
+          "details.status": "Pending",
+          "details.invoiceNumber": invoiceNumber,
+          "details.dueDate": dueDate,
+          "details.payments": estimateDetails.payments || [],
           updatedAt: FieldValue.serverTimestamp(),
-          // Optionally update 'name' if it should change, e.g., "Invoice #XYZ"
-          // name: `Invoice ${finalParsedDetails.data.invoiceNumber}`
-        });
+        };
 
-        logger.info(
-          `Estimate ${estimateId} successfully converted/updated to an Invoice. Invoice Number: ${finalParsedDetails.data.invoiceNumber}`,
-        );
+        transaction.update(estimateRef, updatePayload);
 
         return {
           success: true,
-          invoiceId: estimateId, // It's the same document ID
-          invoiceNumber: finalParsedDetails.data.invoiceNumber,
-          dueDate: (
-            finalParsedDetails.data?.dueDate ?? new Date()
-          ).toISOString(), // Return ISO string to frontend
-          status: finalParsedDetails.data.status,
+          invoiceId: estimateId,
+          invoiceNumber,
+          dueDate: dueDate.toISOString(),
+          status: "Pending",
         };
       });
+
+      logger.info(
+        `Estimate ${estimateId} successfully converted to an Invoice.`,
+        result,
+      );
+      return result;
     } catch (error) {
       logger.error("Error in convertEstimateToInvoiceFn:", error);
       if (error instanceof HttpsError) {
@@ -203,7 +138,7 @@ export const convertEstimateToInvoiceFn = onCall(
       }
       throw new HttpsError(
         "internal",
-        "An unexpected error occurred during estimate to invoice conversion.",
+        "An unexpected error occurred during the conversion.",
       );
     }
   },

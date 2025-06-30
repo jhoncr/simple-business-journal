@@ -84,7 +84,7 @@ export const estimateDetailsStateSchema = z.object({
     .max(250, { message: "Notes must be less than 250 characters" })
     .optional()
     .nullable(),
-  is_archived: z.boolean().optional().nullable(),
+  // is_archived: z.boolean().optional().nullable(), // This is no longer needed.
   // invoiceId_ref: z.string().optional().nullable(), // This is no longer needed.
 
   // Fields from invoice
