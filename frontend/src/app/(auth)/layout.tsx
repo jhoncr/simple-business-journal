@@ -32,7 +32,7 @@ function Header({
   // header is fixed at the top of the page with a shadow and border at the bottom
 
   return (
-    <header className="flex flex-row items-center justify-between w-full px-3 py-1 border-b-2 h-content">
+    <header className="flex flex-row items-center justify-between w-full px-3 py-1 border-b-2 h-content print:hidden">
       <Link href="/" className="text-xl font-semibold mr-4">
         <div className="flex items-center">
           <img src="/logo.svg" alt="logo" className="w-6 h-6" />

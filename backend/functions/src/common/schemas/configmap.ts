@@ -9,7 +9,7 @@ import * as z from "zod";
 import { cashFlowEntryDetailsSchema } from "./CashflowSchema";
 import { materialItemSchema } from "./InventorySchema";
 import { estimateDetailsStateSchema } from "./estimate_schema";
-import { invoiceDetailsSchema } from "./invoice_schema";
+// import { invoiceDetailsSchema } from "./invoice_schema";
 
 // Define an interface for entry configuration
 interface EntryConfig<T extends z.ZodTypeAny> {
@@ -17,7 +17,7 @@ interface EntryConfig<T extends z.ZodTypeAny> {
   schema: T;
   displayName?: string; // Optional human-readable name
   icon?: string; // Optional icon identifier
-  category: "business" | "baby" | "other";
+  category: "business";
   sortField?: string; // Optional sort field
 }
 

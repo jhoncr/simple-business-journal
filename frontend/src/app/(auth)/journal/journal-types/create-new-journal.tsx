@@ -217,7 +217,7 @@ export function CreateNewJournal({
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {trigger || (
-          <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-content h-content print-hide">
+          <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-content h-content print:hidden">
             <Button variant="brutalist" className="text-sm flex items-center">
               <Building2 className="pr-2" />
               New Business

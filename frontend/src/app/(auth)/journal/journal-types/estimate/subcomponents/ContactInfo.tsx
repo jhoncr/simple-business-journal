@@ -139,7 +139,7 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(handleSubmit)}
-                className="space-y-4 print-hide"
+                className="space-y-4 print:hidden"
               >
                 <FormField
                   control={form.control}

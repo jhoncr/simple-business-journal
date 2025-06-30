@@ -37,7 +37,7 @@ function JournalBreadcrumb() {
   if (!journal) return null; // Don't render breadcrumbs if no journal
 
   return (
-    <div className="pt-2">
+    <div className="pt-2 print:hidden">
       {/* TODO: improve these breadcrumbs for longer names */}
       <Breadcrumb className="ml-2 overflow-hidden whitespace-nowrap">
         <BreadcrumbList className="overflow-hidden whitespace-nowrap">

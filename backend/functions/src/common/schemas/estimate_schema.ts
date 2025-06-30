@@ -59,18 +59,20 @@ export const adjustmentSchema = z.object({
   description: z.string(),
 });
 
+export const StatusEnum = z.enum([
+  "Draft",
+  "Estimate",
+  "Accepted",
+  "Pending",
+  "Paid",
+  "Cancelled",
+  "Rejected",
+  "Overdue",
+]);
+
 export const estimateDetailsStateSchema = z.object({
   confirmedItems: z.array(lineItemSchema),
-  status: z.enum([
-    "Draft",
-    "Estimate",
-    "Accepted",
-    "Pending",
-    "Paid",
-    "Cancelled",
-    "Rejected",
-    "Overdue",
-  ]),
+  status: StatusEnum,
   customer: contactInfoSchema,
   supplier: contactInfoSchema,
   logo: z.string().nullable(),

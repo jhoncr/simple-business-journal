@@ -82,26 +82,44 @@ export const convertEstimateToInvoiceFn = onCall(
         }
 
         const estimateDetails = estimateDoc.data()?.details;
-        const initialParsedDetails = estimateDetailsStateSchema.safeParse(estimateDetails);
+        const initialParsedDetails =
+          estimateDetailsStateSchema.safeParse(estimateDetails);
 
         if (!initialParsedDetails.success) {
-          logger.error("Initial estimate details failed validation", initialParsedDetails.error.format());
-          throw new HttpsError("internal", "Estimate data is invalid before conversion.");
+          logger.error(
+            "Initial estimate details failed validation",
+            initialParsedDetails.error.format(),
+          );
+          throw new HttpsError(
+            "internal",
+            "Estimate data is invalid before conversion.",
+          );
         }
         const currentDetails = initialParsedDetails.data;
 
         // Idempotency check: If already an invoice (e.g. has invoice number and status is Pending/Paid/Overdue)
         // and meets certain criteria, maybe just return existing data.
         // For now, we allow re-running to ensure status/archival is set, but invoice number/due date are preserved if existing.
-        if (currentDetails.status !== 'Accepted' && currentDetails.status !== 'Estimate' && currentDetails.status !== 'Draft' && currentDetails.status !== 'Pending') {
+        if (
+          currentDetails.status !== "Accepted" &&
+          currentDetails.status !== "Estimate" &&
+          currentDetails.status !== "Draft" &&
+          currentDetails.status !== "Pending"
+        ) {
           // Allow conversion from Pending too, in case of re-trigger or specific flows.
           // If it's already Paid, Rejected, Cancelled, etc., don't convert.
-           if (currentDetails.invoiceNumber && (currentDetails.status === "Paid" || currentDetails.status === "Overdue" || currentDetails.status === "Cancelled" || currentDetails.status === "Rejected")) {
-             throw new HttpsError(
-                "failed-precondition",
-                `Estimate is already an invoice with status ${currentDetails.status} and cannot be re-converted this way.`
-             );
-           }
+          if (
+            currentDetails.invoiceNumber &&
+            (currentDetails.status === "Paid" ||
+              currentDetails.status === "Overdue" ||
+              currentDetails.status === "Cancelled" ||
+              currentDetails.status === "Rejected")
+          ) {
+            throw new HttpsError(
+              "failed-precondition",
+              `Estimate is already an invoice with status ${currentDetails.status} and cannot be re-converted this way.`,
+            );
+          }
         }
 
         const updatedDetails: any = { ...currentDetails }; // Create a mutable copy
@@ -117,12 +135,15 @@ export const convertEstimateToInvoiceFn = onCall(
           newDueDate.setDate(newDueDate.getDate() + 30); // Default 30 days from now
           updatedDetails.dueDate = newDueDate; // Store as Date object, Firestore will convert to Timestamp
         } else {
-           // Ensure existing dueDate is a Date object if it's a string/Timestamp
-           updatedDetails.dueDate = new Date(updatedDetails.dueDate);
+          // Ensure existing dueDate is a Date object if it's a string/Timestamp
+          updatedDetails.dueDate = new Date(updatedDetails.dueDate);
         }
 
         // 3. Initialize Payments array
-        if (updatedDetails.payments === undefined || updatedDetails.payments === null) {
+        if (
+          updatedDetails.payments === undefined ||
+          updatedDetails.payments === null
+        ) {
           updatedDetails.payments = [];
         }
 
@@ -140,10 +161,17 @@ export const convertEstimateToInvoiceFn = onCall(
         updatedDetails.invoiceId_ref = estimateId;
 
         // Validate final details before saving
-        const finalParsedDetails = estimateDetailsStateSchema.safeParse(updatedDetails);
+        const finalParsedDetails =
+          estimateDetailsStateSchema.safeParse(updatedDetails);
         if (!finalParsedDetails.success) {
-          logger.error("Updated invoice details failed validation", finalParsedDetails.error.format());
-          throw new HttpsError("internal", "Failed to prepare valid invoice data.");
+          logger.error(
+            "Updated invoice details failed validation",
+            finalParsedDetails.error.format(),
+          );
+          throw new HttpsError(
+            "internal",
+            "Failed to prepare valid invoice data.",
+          );
         }
 
         transaction.update(estimateRef, {
@@ -162,7 +190,9 @@ export const convertEstimateToInvoiceFn = onCall(
           success: true,
           invoiceId: estimateId, // It's the same document ID
           invoiceNumber: finalParsedDetails.data.invoiceNumber,
-          dueDate: finalParsedDetails.data.dueDate.toISOString(), // Return ISO string to frontend
+          dueDate: (
+            finalParsedDetails.data?.dueDate ?? new Date()
+          ).toISOString(), // Return ISO string to frontend
           status: finalParsedDetails.data.status,
         };
       });

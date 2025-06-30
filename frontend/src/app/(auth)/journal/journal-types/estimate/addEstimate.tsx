@@ -9,10 +9,18 @@ import React, {
   useMemo,
 } from "react";
 import { ChevronLeft, Printer, MinusCircle, FileCog } from "lucide-react";
+import { CalendarIcon } from "@radix-ui/react-icons";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input"; // Added Input
 import { Label } from "@/components/ui/label";
-import { DatePicker } from "@/components/ui/date-picker"; // Added DatePicker
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { ContactInfo, ContactInfoRef } from "./subcomponents/ContactInfo";
 import { NewItemForm } from "./subcomponents/NewItemForm";
 import {
@@ -84,7 +92,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
 }: EstimateDetailsProps) {
   const [confirmedItems, setConfirmedItems] = useState<LineItem[]>([]);
   const [status, setStatus] =
-    useState<estimateDetailsState["status"]>("pending");
+    useState<estimateDetailsState["status"]>("Pending");
   const [isArchived, setIsArchived] = useState<boolean | undefined>(undefined);
   const [invoiceIdRef, setInvoiceIdRef] = useState<string | undefined>(
     undefined,
@@ -95,9 +103,9 @@ export const EstimateDetails = React.memo(function EstimateDetails({
   const [notes, setNotes] = useState<string>("");
 
   // New state variables for invoice fields
-  const [invoiceNumber, setInvoiceNumber] = useState<string | null | undefined>(
-    null,
-  );
+  const [invoiceNumber, setInvoiceNumber] = useState<
+    string | null | undefined
+  >(null);
   const [dueDate, setDueDate] = useState<Date | null | undefined>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
 
@@ -111,17 +119,24 @@ export const EstimateDetails = React.memo(function EstimateDetails({
   const [entryError, setEntryError] = useState<string | null>(null);
 
   // State for the "Add Payment" form
-  const [newPaymentAmount, setNewPaymentAmount] = useState<number | string>("");
+  const [newPaymentAmount, setNewPaymentAmount] = useState<number | string>(
+    "",
+  );
   const [newPaymentDate, setNewPaymentDate] = useState<Date | undefined>(
     new Date(),
   );
   const [newPaymentMethod, setNewPaymentMethod] = useState<string>("");
+
+  const [dueDatePopoverOpen, setDueDatePopoverOpen] = useState(false);
+  const [paymentDatePopoverOpen, setPaymentDatePopoverOpen] = useState(false);
 
   const customerRef = useRef<ContactInfoRef>(null);
   const { toast } = useToast();
   const router = useRouter();
   const { authUser } = useAuth();
   const { journal } = useJournalContext();
+
+  const START_STATE = "Pending";
 
   const userRole: (typeof ROLES)[number] = useMemo(() => {
     if (!authUser || !journal || !journal.access) {
@@ -182,7 +197,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
             } else {
               const validData = validation.data;
               setConfirmedItems(validData.confirmedItems || []);
-              setStatus(validData.status || "pending");
+              setStatus(validData.status || "Pending");
               setCustomer(validData.customer || initInfo);
               setAdjustments(validData.adjustments || []);
               setTaxPercentage(validData.taxPercentage || 0);
@@ -213,7 +228,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
         }
       } else {
         setConfirmedItems([]);
-        setStatus("pending");
+        setStatus(START_STATE);
         setCustomer(initInfo);
         setAdjustments([]);
         setTaxPercentage(0);
@@ -273,10 +288,9 @@ export const EstimateDetails = React.memo(function EstimateDetails({
         // For now, clearing it if not provided.
         setDueDate(null);
       }
-      setStatus(resultData?.status || "Pending"); // Use status from backend or default to "Pending"
+      setStatus(resultData?.status || START_STATE); // Use status from backend or default to START_STATE
       setInvoiceIdRef(resultData?.invoiceId || undefined);
       setIsArchived(true); // Standard procedure after conversion
-
     } catch (error: any) {
       console.error("Error converting estimate to invoice:", error);
       toast({
@@ -455,6 +469,13 @@ export const EstimateDetails = React.memo(function EstimateDetails({
     ],
   );
 
+  const isInvoiceFlow = useMemo(() => {
+    // Statuses that indicate this is behaving like an invoice
+    // "Draft" and "Estimate" are pre-conversion, "Accepted" means it's ready to be an invoice or is one.
+    // "Pending", "Paid", "Overdue" are definite invoice statuses.
+    return ["Accepted", "Pending", "Paid", "Overdue"].includes(status);
+  }, [status]);
+
   // Function to handle adding a new payment
   const handleAddPayment = () => {
     if (
@@ -513,12 +534,6 @@ export const EstimateDetails = React.memo(function EstimateDetails({
       </div>
     );
   }
-  const isInvoiceFlow = useMemo(() => {
-    // Statuses that indicate this is behaving like an invoice
-    // "Draft" and "Estimate" are pre-conversion, "Accepted" means it's ready to be an invoice or is one.
-    // "Pending", "Paid", "Overdue" are definite invoice statuses.
-    return ["Accepted", "Pending", "Paid", "Overdue"].includes(status);
-  }, [status]);
 
   // --- JSX Structure ---
   return (
@@ -538,9 +553,11 @@ export const EstimateDetails = React.memo(function EstimateDetails({
                 type="text"
                 value={invoiceNumber || ""}
                 onChange={(e) => setInvoiceNumber(e.target.value)}
-                onBlur={() => { // Save on blur
-                  if(invoiceNumber !== (null || undefined)) { // Only save if there's a change to a non-empty/null value
-                     handleSave({ invoiceNumber: invoiceNumber });
+                onBlur={() => {
+                  // Save on blur
+                  if (invoiceNumber !== (null || undefined)) {
+                    // Only save if there's a change to a non-empty/null value
+                    handleSave({ invoiceNumber: invoiceNumber });
                   }
                 }}
                 disabled={isArchived || !!invoiceIdRef || isSaving} // Read-only if archived or already converted
@@ -549,15 +566,42 @@ export const EstimateDetails = React.memo(function EstimateDetails({
             </div>
             <div>
               <Label htmlFor="dueDate">Due Date</Label>
-              <DatePicker
-                selected={dueDate}
-                onSelect={(date) => {
-                  setDueDate(date);
-                  // Auto-save on date selection
-                  if (date) handleSave({ dueDate: date });
-                }}
-                disabled={isArchived || isSaving} // Allow editing dueDate unless archived/saving
-              />
+              <Popover
+                modal
+                open={dueDatePopoverOpen}
+                onOpenChange={setDueDatePopoverOpen}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !dueDate && "text-muted-foreground",
+                    )}
+                    disabled={isArchived || isSaving}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dueDate ? (
+                      format(dueDate, "PPP")
+                    ) : (
+                      <span>Pick a date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dueDate || undefined}
+                    onSelect={(date) => {
+                      setDueDate(date);
+                      if (date) handleSave({ dueDate: date });
+                      setDueDatePopoverOpen(false);
+                    }}
+                    disabled={isArchived || isSaving}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         )}
@@ -592,7 +636,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
                     <th className="text-right py-2 px-1 font-medium w-24">
                       Total
                     </th>
-                    <th className="w-8 print-hide"></th>
+                    <th className="w-8 print:hidden"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -642,7 +686,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
                           item.quantity * (item.material?.unitPrice || 0),
                         )}
                       </td>
-                      <td className="py-2 px-1 print-hide align-top">
+                      <td className="py-2 px-1 print:hidden align-top">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -755,11 +799,41 @@ export const EstimateDetails = React.memo(function EstimateDetails({
                     </div>
                     <div>
                       <Label htmlFor="paymentDate">Date</Label>
-                      <DatePicker
-                        selected={newPaymentDate}
-                        onSelect={setNewPaymentDate}
-                        disabled={isSaving}
-                      />
+                      <Popover
+                        modal
+                        open={paymentDatePopoverOpen}
+                        onOpenChange={setPaymentDatePopoverOpen}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !newPaymentDate && "text-muted-foreground",
+                            )}
+                            disabled={isSaving}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {newPaymentDate ? (
+                              format(newPaymentDate, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={newPaymentDate}
+                            onSelect={(date) => {
+                              setNewPaymentDate(date || undefined);
+                              setPaymentDatePopoverOpen(false);
+                            }}
+                            disabled={isSaving}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     <div>
                       <Label htmlFor="paymentMethod">Method (Optional)</Label>
@@ -789,7 +863,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
       </div>
       <div
         id="estimate-actions-bar"
-        className="print-hide flex justify-between items-center mt-6 px-2 md:px-4 sticky bottom-0 py-2 bg-background/90 backdrop-blur-sm border-t"
+        className="print:hidden flex justify-between items-center mt-6 px-2 md:px-4 sticky bottom-0 py-2 bg-background/90 backdrop-blur-sm border-t"
       >
         <Button
           variant="brutalist"
@@ -846,16 +920,17 @@ export const EstimateDetails = React.memo(function EstimateDetails({
                   {isConverting ? "Converting..." : "Convert to Invoice"}
                 </Button>
               )}
-              {(status === "Pending" || status === "Overdue") && invoiceIdRef && (
-                <Button
-                  variant="success"
-                  size="sm"
-                  onClick={() => handleSave({ status: "Paid" })}
-                  disabled={isSaving || isConverting}
-                >
-                  Mark as Paid
-                </Button>
-              )}
+              {(status === "Pending" || status === "Overdue") &&
+                invoiceIdRef && (
+                  <Button
+                    variant="success"
+                    size="sm"
+                    onClick={() => handleSave({ status: "Paid" })}
+                    disabled={isSaving || isConverting}
+                  >
+                    Mark as Paid
+                  </Button>
+                )}
             </>
           )}
           <Button

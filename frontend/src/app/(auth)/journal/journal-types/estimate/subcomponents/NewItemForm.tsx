@@ -733,7 +733,7 @@ export function NewItemForm({
       <div
         id="estimate-add-item-form"
         // Ensure fixed positioning doesn't overlap printable area
-        className="print-hide fixed bottom-4 right-4 z-50 bg-background border rounded-lg p-4 w-[400px] shadow-lg max-h-[calc(100vh-4rem)] flex flex-col" // Max height and flex column
+        className="print:hidden fixed bottom-4 right-4 z-50 bg-background border rounded-lg p-4 w-[400px] shadow-lg max-h-[calc(100vh-4rem)] flex flex-col" // Max height and flex column
       >
         <div className="mb-4 flex-shrink-0">
           {" "}
@@ -776,13 +776,13 @@ export function NewItemForm({
   return (
     <div
       id="estimate-add-item-form"
-      className="relative mb-6 print-hide print:m-0"
+      className="relative mb-6 print:hidden print:m-0"
     >
       <Drawer open={isOpen} onOpenChange={setIsOpen}>
         <DrawerTrigger asChild>
           <Button
             size="sm"
-            className="w-full gap-2 print-hide"
+            className="w-full gap-2 print:hidden"
             variant={"brutalist"}
             disabled={!canAdd} // Disable trigger button
             title={!canAdd ? "You don't have permission to add items" : ""} // Add tooltip

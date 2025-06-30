@@ -4,7 +4,6 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
 import { EstimateDetails } from "@/app/(auth)/journal/journal-types/estimate/addEstimate";
-import { InvoiceDetailsForm } from "@/app/(auth)/journal/journal-types/invoice/InvoiceDetails"; // Import InvoiceDetailsForm
 
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
@@ -121,7 +120,9 @@ function EntryDetailsPageContent() {
   if (journal.journalType !== JOURNAL_TYPES.BUSINESS) {
     return (
       <div className="p-4 text-center text-destructive">
-        <p>Error: This entry type can only be managed within Business journals.</p>
+        <p>
+          Error: This entry type can only be managed within Business journals.
+        </p>
         <Link href="/" className="text-primary underline mt-4 inline-block">
           Go Home
         </Link>
@@ -144,42 +145,17 @@ function EntryDetailsPageContent() {
   }
 
   // Conditional rendering based on jtype
-  if (jtype === "invoice") {
-    return (
-      <div className="w-full">
-        <InvoiceDetailsForm
-          journalId={journalId!}
-          entryId={entryId}
-          supplierInfo={supplierInfo}
-          supplierLogo={supplierLogo}
-          journalCurrency={journalCurrency}
-          journalInventoryCache={journalInventoryCache}
-          // InvoiceDetailsForm does not need jtype, it's specific to invoices
-        />
-      </div>
-    );
-  } else if (jtype === "estimate") {
-    return (
-      <div className="w-full">
-        <EstimateDetails
-          journalId={journalId!}
-          entryId={entryId}
-          supplierInfo={supplierInfo}
-          supplierLogo={supplierLogo}
-          journalCurrency={journalCurrency}
-          journalInventoryCache={journalInventoryCache}
-          jtype={jtype!} // Pass the validated jtype
-        />
-      </div>
-    );
-  }
-
-  // Fallback if jtype is invalid (should be caught by validationError earlier)
-  // Or if jtype is null/undefined and not defaulted, this state could be reached.
-  // The validation now ensures jtype is either 'estimate' or 'invoice'.
   return (
-    <div className="p-4 text-center text-muted-foreground">
-      Please specify a valid entry type ('estimate' or 'invoice') in the URL via the 'jtype' parameter.
+    <div className="w-full">
+      <EstimateDetails
+        journalId={journalId!}
+        entryId={entryId}
+        supplierInfo={supplierInfo}
+        supplierLogo={supplierLogo}
+        journalCurrency={journalCurrency}
+        journalInventoryCache={journalInventoryCache}
+        jtype={jtype!} // Pass the validated jtype
+      />
     </div>
   );
 }

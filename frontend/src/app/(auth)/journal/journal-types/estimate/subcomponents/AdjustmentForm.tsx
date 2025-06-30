@@ -148,7 +148,7 @@ export function AdjustmentForm({
     <form
       id="estimate-adjustments-form"
       onSubmit={handleSubmit}
-      className="space-y-4"
+      className="space-y-4 print:hidden"
       // No direct disable on form, disable inputs instead
     >
       {!isMobile && (
@@ -228,7 +228,7 @@ export function AdjustmentForm({
 
   if (isMobile) {
     return (
-      <div className="mobile-form print-hide">
+      <div className="mobile-form print:hidden">
         <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
           <DrawerTrigger asChild>
             <Button
@@ -264,5 +264,5 @@ export function AdjustmentForm({
     );
   }
 
-  return <div className="print-hide">{formContent}</div>;
+  return <div className="print:hidden">{formContent}</div>;
 }

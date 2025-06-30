@@ -34,12 +34,12 @@ export function TaxForm({ onSubmit, disabled }: TaxFormProps) {
         e.preventDefault();
         onSubmit(adjustmentTax);
       }}
-      className="space-y-4 print-hide"
+      className="space-y-4 print:hidden"
     >
       <div
         className={cn(
           "gap-4 items-center",
-          !isMobile && "grid grid-cols-[2fr_2fr_1fr_auto]" // Added auto column for button
+          !isMobile && "grid grid-cols-[2fr_2fr_1fr_auto]", // Added auto column for button
         )}
       >
         <div></div>
@@ -73,7 +73,7 @@ export function TaxForm({ onSubmit, disabled }: TaxFormProps) {
     </form>
   );
   if (!isMobile) {
-    return <div className="mobile-form print-hide">{taxFormFields}</div>;
+    return <div className="mobile-form print:hidden">{taxFormFields}</div>;
   }
   return (
     <Drawer open={isOpen} onOpenChange={setIsOpen}>
