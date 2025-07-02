@@ -4,7 +4,12 @@ import { EntryView } from "../../comp/EntryView";
 import { estimateDetailsState as EstimateDetails } from "@/../../backend/functions/src/common/schemas/estimate_schema";
 import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap";
 // --- Import frontend types ---
-import { DBentry, User } from "@/lib/custom_types";
+import {
+  DBentry,
+  AccessUser,
+  EstimateStatus,
+  InvoiceStatus,
+} from "@/lib/custom_types";
 import { formatCurrency, formattedDate } from "@/lib/utils";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -15,12 +20,41 @@ interface EstimateEntryProps {
   journalId: string;
   entry: DBentry;
   entryType: EntryType;
-  user: User;
+  user: AccessUser | null;
   role: string;
   removeFn: (entry: DBentry) => void;
 }
 
 // --- Main Component ---
+const getStatusBadgeVariant = (
+  currentStatus: EstimateStatus | InvoiceStatus,
+): "default" | "secondary" | "destructive" | "outline" => {
+  switch (currentStatus) {
+    case EstimateStatus.DRAFT:
+      return "default";
+    case EstimateStatus.SENT:
+      return "secondary";
+    case EstimateStatus.ACCEPTED:
+      return "secondary"; // Changed from "success" to "secondary"
+    case EstimateStatus.DECLINED:
+      return "destructive";
+    case EstimateStatus.VOID:
+      return "outline";
+    case InvoiceStatus.INVOICED:
+      return "secondary";
+    case InvoiceStatus.PAID:
+      return "secondary"; // Changed from "success" to "secondary"
+    case InvoiceStatus.PARTIALLY_PAID:
+      return "secondary"; // Changed from "warning" to "secondary"
+    case InvoiceStatus.OVERDUE:
+      return "destructive";
+    case InvoiceStatus.VOID:
+      return "outline";
+    default:
+      return "default";
+  }
+};
+
 export const EstimateEntry = React.memo(function EstimateEntry({
   journalId,
   entry,
@@ -42,9 +76,7 @@ export const EstimateEntry = React.memo(function EstimateEntry({
   const details = entry.details as EstimateDetails;
   const {
     customer,
-    invoiceNumber,
     dueDate,
-    status = "draft",
     confirmedItems = [],
     currency,
     notes,
@@ -59,62 +91,21 @@ export const EstimateEntry = React.memo(function EstimateEntry({
 
   const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
 
-  let calculatedPaymentStatus: string | null = null;
-  let paymentBadgeVariant: "success" | "warning" | "destructive" | "default" = "default";
+  // Get status from top-level entry, not from details
+  const currentStatus = entry.status || EstimateStatus.DRAFT;
+  const displayStatus =
+    currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1);
+  const displayBadgeVariant = getStatusBadgeVariant(currentStatus);
 
-  if (invoiceNumber || ["Pending", "Overdue", "Paid"].includes(status)) { // Consider it an invoice if it has an invoice number or relevant status
-    if (totalAmount > 0) {
-      if (totalPaid >= totalAmount) {
-        calculatedPaymentStatus = "Paid";
-        paymentBadgeVariant = "success";
-      } else if (totalPaid > 0 && totalPaid < totalAmount) {
-        calculatedPaymentStatus = "Partially Paid";
-        paymentBadgeVariant = "warning";
-      } else { // totalPaid === 0 or totalPaid < 0 (though amount is positive)
-        if (status === "Overdue"){
-          calculatedPaymentStatus = "Overdue & Unpaid";
-          paymentBadgeVariant = "destructive";
-        } else if (status === "Pending") {
-           calculatedPaymentStatus = "Unpaid";
-           paymentBadgeVariant = "warning"; // Or destructive if preferred for any unpaid
-        }
-        // If status is 'Paid' but totalPaid < totalAmount, it's a discrepancy,
-        // but we'll trust the main 'Paid' status for now, or this logic could override.
-        // For simplicity, if main status is "Paid", let it be "Paid".
-      }
-    } else if (status === "Paid" && totalAmount === 0) { // Paid but zero amount invoice
-        calculatedPaymentStatus = "Paid";
-        paymentBadgeVariant = "success";
-    }
-  }
+  // For invoice number, use entry ID when in invoice status, otherwise show estimate number
+  const isInvoiceStatus = [
+    InvoiceStatus.INVOICED,
+    InvoiceStatus.PAID,
+    InvoiceStatus.PARTIALLY_PAID,
+    InvoiceStatus.OVERDUE,
+  ].includes(currentStatus as InvoiceStatus);
 
-
-  // --- Determine Status Color for Badge ---
-  const getStatusBadgeVariant = (
-    currentStatus: EstimateDetails["status"],
-  ): "default" | "secondary" | "destructive" | "outline" | "success" => {
-    switch (currentStatus) {
-      case "Paid": // Match schema (capitalized)
-        return "success";
-      case "Pending": // Match schema
-      case "Accepted": // Match schema
-        return "secondary";
-      case "Overdue": // Match schema
-        return "destructive";
-      case "Rejected": // Match schema
-      case "Cancelled": // Match schema
-        return "outline";
-      case "Draft": // Match schema
-      case "Estimate": // Match schema
-      default:
-        return "default";
-    }
-  };
-
-  // Decide which status and variant to use
-  const displayStatus = calculatedPaymentStatus || (status.charAt(0).toUpperCase() + status.slice(1));
-  const displayBadgeVariant = calculatedPaymentStatus ? paymentBadgeVariant : getStatusBadgeVariant(status);
-
+  const displayNumber = isInvoiceStatus ? entry.id : null;
 
   return (
     <EntryView
@@ -139,9 +130,9 @@ export const EstimateEntry = React.memo(function EstimateEntry({
             >
               {customer?.name || "No Customer"}
             </span>
-            {invoiceNumber && (
+            {displayNumber && (
               <span className="text-xs text-muted-foreground">
-                #{invoiceNumber}
+                #{displayNumber}
               </span>
             )}
           </div>
@@ -157,7 +148,9 @@ export const EstimateEntry = React.memo(function EstimateEntry({
 
         {/* Middle Row: Due Date */}
         {/* Due Date - ensure it's displayed if available */}
-        {(dueDate || (status === "Overdue" && !calculatedPaymentStatus?.includes("Paid"))) && ( // Show if dueDate exists OR if Overdue and not Paid
+        {/* Middle Row: Due Date */}
+        {/* Due Date - ensure it's displayed if available */}
+        {dueDate && ( // Show if dueDate exists
           <div className="text-xs text-muted-foreground mt-1 mb-1">
             <span>
               Due: {dueDate ? formattedDate(new Date(dueDate)) : "N/A"}
@@ -168,23 +161,18 @@ export const EstimateEntry = React.memo(function EstimateEntry({
         {/* Bottom Row: Summary of items/notes */}
         <div className="text-xs text-muted-foreground space-y-1">
           {confirmedItems.length > 0 && (
-            <p className="truncate">
-              {confirmedItems.length} item(s)
-              {/* Optionally, show total paid vs total amount here if partially paid */}
-              {calculatedPaymentStatus === "Partially Paid" && (
-                <span className="ml-2">
-                  ({formatCurrency(totalPaid, currency || "USD")} / {formatCurrency(totalAmount, currency || "USD")})
-                </span>
-              )}
-            </p>
+            <p className="truncate">{confirmedItems.length} item(s)</p>
           )}
           {notes && <p className="truncate italic">Notes: {notes}</p>}
         </div>
 
         {/* Creator and Date Info */}
         <div className="text-xs text-muted-foreground mt-2 text-right">
-          {entry.createdByName || user?.displayName || user?.email || "Unknown User"} |{" "}
-          {formattedDate(entry.createdAt)}
+          {entry.createdBy ||
+            user?.displayName ||
+            user?.email ||
+            "Unknown User"}{" "}
+          | {formattedDate(entry.createdAt)}
         </div>
       </Link>
     </EntryView>

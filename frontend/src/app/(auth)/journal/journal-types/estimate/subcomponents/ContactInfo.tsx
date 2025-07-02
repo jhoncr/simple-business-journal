@@ -100,7 +100,7 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
         setIsSubmitting(true);
         setInfo(data);
         if (onSave) {
-          onSave({ customer: data });
+          onSave(data);
         }
         setIsEditing(false);
       } catch (error) {

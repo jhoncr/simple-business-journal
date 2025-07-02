@@ -23,6 +23,11 @@ import {
 } from "@/components/ui/popover";
 import { ContactInfo, ContactInfoRef } from "./subcomponents/ContactInfo";
 import { NewItemForm } from "./subcomponents/NewItemForm";
+import { EstimateStatusDropdown } from "./subcomponents/estimateStatus";
+import {
+  EstimateStatus as EstimateStatusEnum,
+  InvoiceStatus,
+} from "@/lib/custom_types";
 import {
   LineItem,
   Adjustment,
@@ -91,11 +96,8 @@ export const EstimateDetails = React.memo(function EstimateDetails({
   jtype, // Expect "estimate"
 }: EstimateDetailsProps) {
   const [confirmedItems, setConfirmedItems] = useState<LineItem[]>([]);
-  const [status, setStatus] =
-    useState<estimateDetailsState["status"]>("Pending");
-  const [isArchived, setIsArchived] = useState<boolean | undefined>(undefined);
-  const [invoiceIdRef, setInvoiceIdRef] = useState<string | undefined>(
-    undefined,
+  const [status, setStatus] = useState<EstimateStatusEnum | InvoiceStatus>(
+    EstimateStatusEnum.DRAFT,
   );
   const [customer, setCustomer] = useState<contactInfoSchemaType>(initInfo);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
@@ -103,9 +105,6 @@ export const EstimateDetails = React.memo(function EstimateDetails({
   const [notes, setNotes] = useState<string>("");
 
   // New state variables for invoice fields
-  const [invoiceNumber, setInvoiceNumber] = useState<
-    string | null | undefined
-  >(null);
   const [dueDate, setDueDate] = useState<Date | null | undefined>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
 
@@ -136,7 +135,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
   const { authUser } = useAuth();
   const { journal } = useJournalContext();
 
-  const START_STATE = "Pending";
+  const START_STATE = EstimateStatusEnum.DRAFT;
 
   const userRole: (typeof ROLES)[number] = useMemo(() => {
     if (!authUser || !journal || !journal.access) {
@@ -185,8 +184,26 @@ export const EstimateDetails = React.memo(function EstimateDetails({
           } else if (entry.details) {
             const details = entry.details; // No need to cast yet
 
+            // Convert Firestore Timestamps to Dates before validation
+            const processedDetails = {
+              ...details,
+              dueDate:
+                details.dueDate && typeof details.dueDate.toDate === "function"
+                  ? details.dueDate.toDate()
+                  : details.dueDate,
+              payments:
+                details.payments?.map((payment: any) => ({
+                  ...payment,
+                  date:
+                    payment.date && typeof payment.date.toDate === "function"
+                      ? payment.date.toDate()
+                      : payment.date,
+                })) || [],
+            };
+
             // Simplified: validate only against estimateDetailsStateSchema
-            const validation = estimateDetailsStateSchema.safeParse(details);
+            const validation =
+              estimateDetailsStateSchema.safeParse(processedDetails);
 
             if (!validation.success) {
               console.error(
@@ -197,19 +214,20 @@ export const EstimateDetails = React.memo(function EstimateDetails({
             } else {
               const validData = validation.data;
               setConfirmedItems(validData.confirmedItems || []);
-              setStatus(validData.status || "Pending");
+              setStatus(
+                validData.status.toUpperCase() as
+                  | EstimateStatusEnum
+                  | InvoiceStatus,
+              );
               setCustomer(validData.customer || initInfo);
               setAdjustments(validData.adjustments || []);
               setTaxPercentage(validData.taxPercentage || 0);
               setNotes(validData.notes || "");
-              setIsArchived(validData.is_archived);
-              setInvoiceIdRef(validData.invoiceId_ref); // This was already here
 
               // Load new invoice fields
-              setInvoiceNumber(validData.invoiceNumber || null);
               if (validData.dueDate) {
-                // Assuming dueDate might be a string or Timestamp from Firestore
-                setDueDate(new Date(validData.dueDate));
+                // dueDate should already be a Date object after processing
+                setDueDate(validData.dueDate);
               } else {
                 setDueDate(null);
               }
@@ -234,11 +252,8 @@ export const EstimateDetails = React.memo(function EstimateDetails({
         setTaxPercentage(0);
         setNotes("");
         // Reset new invoice fields for new entry
-        setInvoiceNumber(null);
         setDueDate(null);
         setPayments([]);
-        setIsArchived(undefined);
-        setInvoiceIdRef(undefined);
         setCreatedDate(formattedDate(new Date()));
         setLoading(false);
       }
@@ -246,62 +261,6 @@ export const EstimateDetails = React.memo(function EstimateDetails({
 
     loadEntryData();
   }, [journalId, initialEntryId, jtype]); // jtype added to dependency array
-
-  const handleConvertToInvoice = async () => {
-    if (!journalId || !entryId) {
-      toast({
-        title: "Error",
-        description: "Journal ID or Estimate ID is missing. Cannot convert.",
-        variant: "destructive",
-      });
-      return;
-    }
-    setIsConverting(true);
-    try {
-      const convertEstimateFn = httpsCallable(
-        functions,
-        "convertEstimateToInvoice",
-      );
-      // Removed duplicated declaration of convertEstimateFn
-      const result = await convertEstimateFn({
-        journalId: journalId,
-        estimateId: entryId,
-      });
-
-      // Assuming backend returns { invoiceNumber, dueDate, status, invoiceId }
-      const resultData = result.data as any; // Cast for now, define interface later
-
-      toast({
-        title: "Success",
-        description: `Estimate converted to Invoice ${
-          resultData?.invoiceNumber || ""
-        }.`,
-      });
-
-      // Update state based on backend response
-      setInvoiceNumber(resultData?.invoiceNumber || null);
-      if (resultData?.dueDate) {
-        // Ensure dueDate from backend (string/Timestamp) is converted to Date
-        setDueDate(new Date(resultData.dueDate));
-      } else {
-        // If backend doesn't provide a due date, clear it or set a default
-        // For now, clearing it if not provided.
-        setDueDate(null);
-      }
-      setStatus(resultData?.status || START_STATE); // Use status from backend or default to START_STATE
-      setInvoiceIdRef(resultData?.invoiceId || undefined);
-      setIsArchived(true); // Standard procedure after conversion
-    } catch (error: any) {
-      console.error("Error converting estimate to invoice:", error);
-      toast({
-        title: "Conversion Failed",
-        description: error.message || "Could not convert the estimate.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsConverting(false);
-    }
-  };
 
   const addConfirmedItem = (items: LineItem[]) => {
     const newItems = [...confirmedItems, ...items];
@@ -378,7 +337,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
 
       const estimateDetailsData: estimateDetailsState = {
         confirmedItems: updates.confirmedItems ?? confirmedItems,
-        status: updates.status ?? status,
+        status: updates.status ?? status ?? EstimateStatusEnum.DRAFT, // Ensure status is always set
         customer: updates.customer ?? customer,
         supplier: supplierInfo || initInfo,
         logo: supplierLogo || null,
@@ -386,11 +345,8 @@ export const EstimateDetails = React.memo(function EstimateDetails({
         taxPercentage: updates.taxPercentage ?? taxPercentage,
         currency: journalCurrency,
         notes: updates.notes ?? notes,
-        is_archived: updates.is_archived ?? isArchived,
-        invoiceId_ref: updates.invoiceId_ref ?? invoiceIdRef,
 
         // Add new invoice fields to the save payload
-        invoiceNumber: updates.invoiceNumber ?? invoiceNumber,
         dueDate: updates.dueDate ?? dueDate,
         payments: updates.payments ?? payments,
       };
@@ -400,7 +356,8 @@ export const EstimateDetails = React.memo(function EstimateDetails({
       if (!detailsValidation.success) {
         console.error(
           "Estimate details validation failed before save:",
-          detailsValidation.error.format(),
+          detailsValidation.error.message || detailsValidation.error.format(),
+          estimateDetailsData,
         );
         toast({
           title: "Invalid Estimate Data",
@@ -458,10 +415,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
       taxPercentage,
       notes,
       entryId,
-      isArchived,
-      invoiceIdRef,
       // Add new state variables to dependency array of handleSave
-      invoiceNumber,
       dueDate,
       payments,
       toast,
@@ -470,10 +424,12 @@ export const EstimateDetails = React.memo(function EstimateDetails({
   );
 
   const isInvoiceFlow = useMemo(() => {
-    // Statuses that indicate this is behaving like an invoice
-    // "Draft" and "Estimate" are pre-conversion, "Accepted" means it's ready to be an invoice or is one.
-    // "Pending", "Paid", "Overdue" are definite invoice statuses.
-    return ["Accepted", "Pending", "Paid", "Overdue"].includes(status);
+    return [
+      InvoiceStatus.INVOICED,
+      InvoiceStatus.PAID,
+      InvoiceStatus.PARTIALLY_PAID,
+      InvoiceStatus.OVERDUE,
+    ].includes(status as InvoiceStatus);
   }, [status]);
 
   // Function to handle adding a new payment
@@ -521,6 +477,13 @@ export const EstimateDetails = React.memo(function EstimateDetails({
     });
   };
 
+  const handleStatusChange = (
+    newStatus: EstimateStatusEnum | InvoiceStatus,
+  ) => {
+    setStatus(newStatus);
+    handleSave({ status: newStatus });
+  };
+
   if (loading) {
     return <div className="text-center p-10">Loading estimate details...</div>;
   }
@@ -542,27 +505,24 @@ export const EstimateDetails = React.memo(function EstimateDetails({
       className="w-full print:max-w-none mx-auto p-2 border-none relative pb-20 md:pb-4 lg:pr-[430px]"
     >
       <EstimateHeader logo={supplierLogo} contactInfo={supplierInfo} />
+      <div className="flex justify-end">
+        <EstimateStatusDropdown
+          qstatus={status}
+          setStatus={handleStatusChange}
+        />
+      </div>
       <div className="space-y-4 px-2 md:px-4">
         {/* Invoice Number and Due Date Fields */}
-        {(isInvoiceFlow || invoiceNumber || dueDate) && ( // Show if in invoice flow or if values exist
+        {(isInvoiceFlow || dueDate) && ( // Show if in invoice flow or if due date exists
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 border-b pb-4">
             <div>
-              <Label htmlFor="invoiceNumber">Invoice Number</Label>
-              <Input
+              <Label>Invoice Number</Label>
+              <div
                 id="invoiceNumber"
-                type="text"
-                value={invoiceNumber || ""}
-                onChange={(e) => setInvoiceNumber(e.target.value)}
-                onBlur={() => {
-                  // Save on blur
-                  if (invoiceNumber !== (null || undefined)) {
-                    // Only save if there's a change to a non-empty/null value
-                    handleSave({ invoiceNumber: invoiceNumber });
-                  }
-                }}
-                disabled={isArchived || !!invoiceIdRef || isSaving} // Read-only if archived or already converted
-                placeholder="e.g., INV-00123"
-              />
+                className="text-sm font-medium text-muted-foreground"
+              >
+                {isInvoiceFlow && entryId ? entryId : "Not yet invoiced"}
+              </div>
             </div>
             <div>
               <Label htmlFor="dueDate">Due Date</Label>
@@ -578,7 +538,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
                       "w-full justify-start text-left font-normal",
                       !dueDate && "text-muted-foreground",
                     )}
-                    disabled={isArchived || isSaving}
+                    disabled={isSaving}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {dueDate ? (
@@ -597,7 +557,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
                       if (date) handleSave({ dueDate: date });
                       setDueDatePopoverOpen(false);
                     }}
-                    disabled={isArchived || isSaving}
+                    disabled={isSaving}
                     initialFocus
                   />
                 </PopoverContent>
@@ -614,7 +574,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
             setInfo={(newInfo) => {
               setCustomer(newInfo);
             }}
-            onSave={() => handleSave({ customer })}
+            onSave={(newInfo) => handleSave({ customer: newInfo })}
           />
         </div>
         <div>
@@ -782,7 +742,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
               )}
 
               {/* Add Payment Form - only if not archived and in invoice flow */}
-              {!isArchived && isInvoiceFlow && (
+              {isInvoiceFlow && (
                 <div className="pt-4 border-t">
                   <h4 className="text-md font-semibold mb-2">Add Payment</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
@@ -876,63 +836,6 @@ export const EstimateDetails = React.memo(function EstimateDetails({
           </Link>
         </Button>
         <div className="flex items-center space-x-2">
-          {/* Updated Status Action Buttons */}
-          {entryId && !isArchived && (
-            <>
-              {status === "Draft" && !invoiceIdRef && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleSave({ status: "Estimate" })}
-                  disabled={isSaving || isConverting}
-                >
-                  Finalize Estimate
-                </Button>
-              )}
-              {status === "Estimate" && !invoiceIdRef && (
-                <>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleSave({ status: "Rejected" })}
-                    disabled={isSaving || isConverting}
-                  >
-                    <MinusCircle className="h-4 w-4 mr-2" /> Reject
-                  </Button>
-                  <Button
-                    variant="success"
-                    size="sm"
-                    onClick={() => handleSave({ status: "Accepted" })}
-                    disabled={isSaving || isConverting}
-                  >
-                    <FileCog className="h-4 w-4 mr-2" /> Accept
-                  </Button>
-                </>
-              )}
-              {status === "Accepted" && !invoiceIdRef && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={handleConvertToInvoice}
-                  disabled={isConverting || isSaving}
-                >
-                  <FileCog className="h-4 w-4 mr-2" />
-                  {isConverting ? "Converting..." : "Convert to Invoice"}
-                </Button>
-              )}
-              {(status === "Pending" || status === "Overdue") &&
-                invoiceIdRef && (
-                  <Button
-                    variant="success"
-                    size="sm"
-                    onClick={() => handleSave({ status: "Paid" })}
-                    disabled={isSaving || isConverting}
-                  >
-                    Mark as Paid
-                  </Button>
-                )}
-            </>
-          )}
           <Button
             variant="brutalist"
             size="sm"

@@ -59,20 +59,11 @@ export const adjustmentSchema = z.object({
   description: z.string(),
 });
 
-export const StatusEnum = z.enum([
-  "Draft",
-  "Estimate",
-  "Accepted",
-  "Pending",
-  "Paid",
-  "Cancelled",
-  "Rejected",
-  "Overdue",
-]);
+import { EstimateStatus, InvoiceStatus } from "../common_types";
 
 export const estimateDetailsStateSchema = z.object({
   confirmedItems: z.array(lineItemSchema),
-  status: StatusEnum,
+  status: z.union([z.nativeEnum(EstimateStatus), z.nativeEnum(InvoiceStatus)]),
   customer: contactInfoSchema,
   supplier: contactInfoSchema,
   logo: z.string().nullable(),
@@ -84,11 +75,8 @@ export const estimateDetailsStateSchema = z.object({
     .max(250, { message: "Notes must be less than 250 characters" })
     .optional()
     .nullable(),
-  // is_archived: z.boolean().optional().nullable(), // This is no longer needed.
-  // invoiceId_ref: z.string().optional().nullable(), // This is no longer needed.
 
   // Fields from invoice
-  invoiceNumber: z.string().optional().nullable(),
   dueDate: z.coerce.date().optional().nullable(),
   payments: z.array(paymentSchema).optional(),
 });

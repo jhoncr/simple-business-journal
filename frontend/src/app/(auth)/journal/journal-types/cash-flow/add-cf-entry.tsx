@@ -90,7 +90,7 @@ export function AddLogEntryForm({
     if (activeCurrency) {
       form.setValue("currency", activeCurrency, { shouldValidate: true });
     }
-  }, [activeCurrency, form.setValue]);
+  }, [activeCurrency, form]);
 
   const onSubmit = async (data: CashFlowFormValues) => {
     if (!journalId) {

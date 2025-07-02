@@ -5,77 +5,93 @@ import {
   DropdownMenuTrigger,
   DropdownMenu,
 } from "@/components/ui/dropdown-menu";
-import { StatusEnum } from "@/../../backend/functions/src/common/schemas/estimate_schema";
-import { z } from "zod";
+import { EstimateStatus, InvoiceStatus } from "@/lib/custom_types";
 
-type StatusType = z.infer<typeof StatusEnum>;
-
-const statusStyles: Record<StatusType, string> = {
-  Draft:
+const statusStyles: Record<EstimateStatus | InvoiceStatus, string> = {
+  [EstimateStatus.DRAFT]:
     "bg-gray-100 border-gray-500 hover:bg-gray-100 dark:bg-gray-900/50 dark:border-gray-500 dark:hover:bg-gray-900/50",
-  Estimate:
+  [EstimateStatus.SENT]:
     "bg-blue-100 border-blue-500 hover:bg-blue-100 dark:bg-blue-900/50 dark:border-blue-500 dark:hover:bg-blue-900/50",
-  Accepted:
+  [EstimateStatus.ACCEPTED]:
     "bg-green-100 border-green-500 hover:bg-green-100 dark:bg-green-900/50 dark:border-green-500 dark:hover:bg-green-900/50",
-  Pending:
-    "bg-yellow-100 border-yellow-500 hover:bg-yellow-100 dark:bg-yellow-900/50 dark:border-yellow-500 dark:hover:bg-yellow-900/50",
-  Paid: "bg-green-100 border-green-500 hover:bg-green-100 dark:bg-green-900/50 dark:border-green-500 dark:hover:bg-green-900/50",
-  Cancelled:
-    "bg-gray-100 border-gray-500 hover:bg-gray-100 dark:bg-gray-900/50 dark:border-gray-500 dark:hover:bg-gray-900/50",
-  Rejected:
+  [EstimateStatus.DECLINED]:
     "bg-red-100 border-red-500 hover:bg-red-100 dark:bg-red-900/50 dark:border-red-500 dark:hover:bg-red-900/50",
-  Overdue:
+  [EstimateStatus.VOID]:
+    "bg-gray-100 border-gray-500 hover:bg-gray-100 dark:bg-gray-900/50 dark:border-gray-500 dark:hover:bg-gray-900/50",
+  [InvoiceStatus.INVOICED]:
+    "bg-yellow-100 border-yellow-500 hover:bg-yellow-100 dark:bg-yellow-900/50 dark:border-yellow-500 dark:hover:bg-yellow-900/50",
+  [InvoiceStatus.PAID]:
+    "bg-green-100 border-green-500 hover:bg-green-100 dark:bg-green-900/50 dark:border-green-500 dark:hover:bg-green-900/50",
+  [InvoiceStatus.PARTIALLY_PAID]:
+    "bg-yellow-100 border-yellow-500 hover:bg-yellow-100 dark:bg-yellow-900/50 dark:border-yellow-500 dark:hover:bg-yellow-900/50",
+  [InvoiceStatus.OVERDUE]:
     "bg-red-100 border-red-500 hover:bg-red-100 dark:bg-red-900/50 dark:border-red-500 dark:hover:bg-red-900/50",
 };
 
 interface EstimateStatusProps {
-  qstatus: StatusType;
-  setStatus: (status: StatusType) => void;
+  qstatus: EstimateStatus | InvoiceStatus;
+  setStatus: (status: EstimateStatus | InvoiceStatus) => void;
 }
 
-export function EstimateStatus({ qstatus, setStatus }: EstimateStatusProps) {
+export function EstimateStatusDropdown({
+  qstatus,
+  setStatus,
+}: EstimateStatusProps) {
+  const availableStatuses = () => {
+    console.log("Current qstatus:", qstatus);
+    switch (qstatus) {
+      case EstimateStatus.DRAFT:
+        return [EstimateStatus.SENT, EstimateStatus.VOID];
+      case EstimateStatus.SENT:
+        return [
+          EstimateStatus.ACCEPTED,
+          EstimateStatus.DECLINED,
+          EstimateStatus.VOID,
+        ];
+      case EstimateStatus.ACCEPTED:
+        return [InvoiceStatus.INVOICED];
+      case EstimateStatus.DECLINED:
+        return [];
+      case InvoiceStatus.INVOICED:
+        return [
+          InvoiceStatus.PAID,
+          InvoiceStatus.PARTIALLY_PAID,
+          InvoiceStatus.OVERDUE,
+          InvoiceStatus.VOID,
+        ];
+      case InvoiceStatus.PARTIALLY_PAID:
+        return [InvoiceStatus.PAID, InvoiceStatus.OVERDUE, InvoiceStatus.VOID];
+      case InvoiceStatus.OVERDUE:
+        return [
+          InvoiceStatus.PAID,
+          InvoiceStatus.PARTIALLY_PAID,
+          InvoiceStatus.VOID,
+        ];
+      default:
+        return [];
+    }
+  };
+
   return (
     qstatus && (
-      <div className="flex items-center gap-2">
-        <div className="hidden md:flex gap-2">
-          {(Object.keys(statusStyles) as StatusType[]).map((status) => (
-            <Button
-              key={status}
-              variant="outline"
-              size="sm"
-              className={`rounded-full ${
-                qstatus === status ? statusStyles[status] : ""
-              }`}
-              onClick={() => setStatus(status)}
-            >
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size="sm"
+            className={`rounded-full ${statusStyles[qstatus]}`}
+          >
+            {qstatus}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {availableStatuses().map((status) => (
+            <DropdownMenuItem key={status} onClick={() => setStatus(status)}>
               {status}
-            </Button>
+            </DropdownMenuItem>
           ))}
-        </div>
-        <div className="md:hidden">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className={`rounded-full ${statusStyles[qstatus]}`}
-              >
-                {qstatus}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {(Object.keys(statusStyles) as StatusType[]).map((status) => (
-                <DropdownMenuItem
-                  key={status}
-                  onClick={() => setStatus(status)}
-                >
-                  {status}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
     )
   );
 }

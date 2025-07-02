@@ -98,7 +98,7 @@ export const useFirebaseAuth = () => {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(handleAuthStateChanged);
     return () => unsubscribe();
-  }, []);
+  }, [auth]);
 
   return {
     authUser,
