@@ -18,7 +18,7 @@ import {
   DocumentData,
   Timestamp, // Import Timestamp
 } from "firebase/firestore";
-import { app } from "@/lib/auth_handler";
+import { app, emulatorIP } from "@/lib/auth_handler";
 import { DBentry, DBentryMap, Journal } from "./custom_types"; // Use updated types
 // --- Import Shared Constants ---
 import {
@@ -44,7 +44,7 @@ export const db = getFirestore(app);
 
 if (process.env.NODE_ENV === "development") {
   console.log("Firestore connected to emulator");
-  connectFirestoreEmulator(db, "localhost", 8080);
+  connectFirestoreEmulator(db, emulatorIP, 8080);
 }
 
 // Helper to get subcollection config

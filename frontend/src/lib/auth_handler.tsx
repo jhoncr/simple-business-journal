@@ -23,6 +23,7 @@ import prodConfig from "./config.json";
 const config = process.env.NODE_ENV === "development" ? devConfig : prodConfig;
 
 const firebaseConfig = config.firebaseConfig;
+export const emulatorIP =  process.env.NODE_ENV === "development" ? devConfig.emulatorIP : 'localhost';
 
 export const app = initializeApp(firebaseConfig);
 
@@ -33,11 +34,11 @@ if (process.env.NODE_ENV === "development") {
     `node_env: ${process.env.NODE_ENV} -- hitting local auth and firestore emulators`,
   );
   console.log("testing locally -- hitting local auth and firestore emulators");
-  connectAuthEmulator(getAuth(), "http://localhost:9099", {
+  connectAuthEmulator(getAuth(), `http://${emulatorIP}:9099`, {
     disableWarnings: true,
   });
 
-  connectFunctionsEmulator(functions, "localhost", 5001);
+  connectFunctionsEmulator(functions, emulatorIP, 5001);
 }
 
 // Initialize App Check directly after Firebase app setup and emulator connections,

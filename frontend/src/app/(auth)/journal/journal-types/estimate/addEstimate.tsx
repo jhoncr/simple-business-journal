@@ -571,7 +571,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
           <ContactInfo
             ref={customerRef}
             info={customer}
-            setInfo={(newInfo) => {
+            setInfo={(newInfo) => { 
               setCustomer(newInfo);
             }}
             onSave={(newInfo) => handleSave({ customer: newInfo })}
