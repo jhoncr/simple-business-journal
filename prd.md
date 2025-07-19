@@ -207,6 +207,10 @@ Event:
     details: map # Additional details about the event, for example the uri and body of the request
 ```
 
+- All writes will be done using a Firestore callable function instead of the client writing directly to the database.
+
+- every edit (write) call to the backend that is committed will be recorded in a /business/{businessId}/events subcollection
+
 ## 6. Firestore Rules
 ```sh
 rules_version = '2';
