@@ -67,6 +67,16 @@ export const contactInfoSchema = z.object({
       .nullable(),
   }),
 });
+
+export const traceSchema = z.object({
+  createdBy: z.string(),
+  createdAt: z.date(),
+  updatedBy: z.string(),
+  updatedAt: z.date(),
+  deletedBy: z.string().optional(),
+  deletedAt: z.date().optional(),
+});
+
 export type contactInfoSchemaType = z.infer<typeof contactInfoSchema>;
 
 export type AccessMap = z.infer<typeof AccessSchema>;

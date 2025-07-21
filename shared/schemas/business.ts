@@ -1,8 +1,7 @@
+import { z } from "zod";
+import { contactInfoSchema, traceSchema } from "./common";
 
-import { z } from 'zod';
-import { contactInfoSchema, traceSchema } from './common';
-
-export const roleSchema = z.enum(['Admin', 'Staff', 'Viewer']);
+export const roleSchema = z.enum(["Admin", "Staff", "Viewer"]);
 
 export const userAccessSchema = z.object({
   displayName: z.string(),
@@ -11,16 +10,21 @@ export const userAccessSchema = z.object({
   role: roleSchema,
 });
 
-export const businessSchema = z.object({
+export const BaseCollectionSchema = z.object({
   id: z.string(),
   name: z.string(),
   tags: z.array(z.string()),
   access: z.record(userAccessSchema),
   access_array: z.array(z.string()),
   pendingAccess: z.record(roleSchema),
-  currency: z.string().default('USD'),
-  contactInfo: contactInfoSchema,
-  logo: z.string().url().optional(),
   trace: traceSchema,
   isActive: z.boolean().default(true),
+});
+
+export const businessSchema = BaseCollectionSchema.extend({
+  details: z.object({
+    currency: z.string().default("USD"),
+    contactInfo: contactInfoSchema,
+    logo: z.string().url().optional(),
+  }),
 });

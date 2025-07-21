@@ -5,9 +5,9 @@ import * as logger from "firebase-functions/logger";
 import * as z from "zod";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
-import { JOURNAL_COLLECTION } from "./common/const";
+import { BUSINESS_COLLECTION } from "@shared/const";
 import { ALLOWED } from "./lib/bg-consts";
-import { JournalSchemaType } from "./common/schemas/JournalSchema";
+import { businessSchema } from "@shared/schemas/business";
 
 if (getApps().length === 0) {
   initializeApp();
@@ -17,7 +17,7 @@ const db = getFirestore();
 
 const schema = z
   .object({
-    journalID: z.string(),
+    businessID: z.string(),
     operation: z.enum(["accept", "ignore", "check"]),
   })
   .strict();
@@ -45,36 +45,36 @@ export const acceptShare = onCall(
         );
       }
 
-      const { journalID: journalId, operation } = result.data; // Use journalId for consistency with original code
+      const { businessID: businessId, operation } = result.data; // Use businessId for consistency with original code
       const uid = request.auth.uid;
       const email = request.auth.token?.email;
 
       if (operation === "ignore") {
         // Optionally: You could add logic here to record the ignore action if needed
         logger.info(
-          `User ${uid} (${email}) ignored share for journal ${journalId}`,
+          `User ${uid} (${email}) ignored share for business ${businessId}`,
         );
         return { result: "ok", message: "Ignored grant to access log" };
       }
 
-      // Transaction to modify the journal document
+      // Transaction to modify the business document
       await db.runTransaction(async (transaction) => {
-        const logDocRef = db.collection(JOURNAL_COLLECTION).doc(journalId);
+        const logDocRef = db.collection(BUSINESS_COLLECTION).doc(businessId);
         const logDoc = await transaction.get(logDocRef);
 
         if (!logDoc.exists) {
           throw new HttpsError(
             "not-found",
-            "The journal document does not exist or you do not have access.", // Simplified message
+            "The business document does not exist or you do not have access.", // Simplified message
           );
         }
 
-        // Type assertion for convenience, ensure JournalSchemaType is imported
-        const logData = logDoc.data() as JournalSchemaType;
+        // Type assertion for convenience, ensure businessSchema is imported
+        const logData = logDoc.data() as z.infer<typeof businessSchema>;
 
         // Check if user already has access
         if (logData.access && logData.access[uid]) {
-          logger.info(`User ${uid} already has access to journal ${journalId}`);
+          logger.info(`User ${uid} already has access to business ${businessId}`);
           // No error needed, just inform the user
           return null; // Exit transaction successfully
         }
@@ -84,7 +84,7 @@ export const acceptShare = onCall(
           if (email && logData.pendingAccess && logData.pendingAccess[email]) {
             const role = logData.pendingAccess[email];
             logger.info(
-              `Access check successful for ${email} on journal ${journalId}. Role: ${role}`,
+              `Access check successful for ${email} on business ${businessId}. Role: ${role}`,
             );
             // Message now includes the role.
             // This return is inside the transaction, so the main return after transaction won't be hit for "check".
@@ -94,11 +94,11 @@ export const acceptShare = onCall(
             };
           } else {
             logger.warn(
-              `Access check failed for ${email} on journal ${journalId}. No pending access found.`,
+              `Access check failed for ${email} on business ${businessId}. No pending access found.`,
             );
             throw new HttpsError(
               "not-found", // Or 'permission-denied'
-              "You have not been invited to access this journal or the invitation was revoked.",
+              "You have not been invited to access this business or the invitation was revoked.",
             );
           }
         }
@@ -112,7 +112,7 @@ export const acceptShare = onCall(
           logData.pendingAccess &&
           Object.prototype.hasOwnProperty.call(logData.pendingAccess, email)
         ) {
-          logger.info(`Accepting share for ${email} on journal ${journalId}.`);
+          logger.info(`Accepting share for ${email} on business ${businessId}.`);
           const role = logData.pendingAccess[email];
 
           // Prepare updates
@@ -136,16 +136,16 @@ export const acceptShare = onCall(
 
           transaction.update(logDocRef, updates);
           logger.info(
-            `User ${uid} (${email}) successfully added to journal ${journalId} with role ${role}.`,
+            `User ${uid} (${email}) successfully added to business ${businessId} with role ${role}.`,
           );
           return null;
         } else {
           logger.warn(
-            `Accept operation failed for ${email} on journal ${journalId}. No pending access found.`,
+            `Accept operation failed for ${email} on business ${businessId}. No pending access found.`,
           );
           throw new HttpsError(
             "permission-denied",
-            "You have not been invited to access this journal or the invitation may have been withdrawn.",
+            "You have not been invited to access this business or the invitation may have been withdrawn.",
           );
         }
       }); // End transaction
@@ -157,11 +157,11 @@ export const acceptShare = onCall(
       // that object will be returned by the onCall function.
       // If the transaction promise resolves to undefined (normal successful transaction for "accept"),
       // then the specific message for "accept" is returned.
-      return { result: "ok", message: "Accepted grant to access journal" };
+      return { result: "ok", message: "Accepted grant to access business" };
     } catch (error) {
       // If HttpsError was thrown from within the transaction for "check" (e.g. "not-found"),
       // it will be caught here and re-thrown.
-      logger.error("Error accepting share for journal:", error);
+      logger.error("Error accepting share for business:", error);
       if (error instanceof HttpsError) {
         throw error;
       }
