@@ -6,7 +6,7 @@ This document outlines the product requirements for a web application designed t
 
 ## 2. Tech Stack
 
-*   **Frontend:** Next.js with shadcn/ui and Tremor components and tailwindcss for styling.
+*   **Frontend:** Next.js with shadcn/ui components and tailwindcss for styling.
 *   **Backend:** Firebase (Callable Functions, Firestore, Storage, Hosting).
 
 ## 3. Core Features
@@ -36,182 +36,70 @@ This document outlines the product requirements for a web application designed t
 *   **Staff:** Can create and manage business entries (Estimates, Invoices, etc.).
 *   **Viewer:** Read-only access to business entries and reports.
 
-## 5. Firestore Data Model
+## 5. Firestore 
 
-The following YAML structure outlines the collections and documents in Firestore.
+This project will use Firestore as the primary database. For development, there is a local emulator setup, and for production, it will use Firestore in Native mode. The local emulator is running on devmachine:8080 or 192.168.1.202:8080
+
+### 5.1 Data Model
+
+The following path structure outlines the collections and documents in Firestore.
 
 ```yaml
-# /businesses/{businessId}
-# Represents a single business entity.
-Business:
-    id: string # Document ID
-    name: string # Name of the business
-    tags: array # e.g., ["FLOORING", "GENERAL_CONTRACTOR"]
-    access: map # Defines user roles for access control.
-        user123:
-            displayName: Alice
-            email: alice@example.com
-            photoURL: string
-            role: Admin
-        user456:
-            displayName: Bob
-            email: bob@example.com
-            photoURL: string
-            role: Staff
-        anotherKey:
-            displayName: Charlie
-            email: charlie@example.com
-            photoURL: string
-            role: Viewer
-
-    # {userId}: "admin" | "staff" | "viewer"
-    access_array: array # An array of user UIDs for efficient querying.
-    pendingAccess: map # Stores invitations for users who have not yet accepted.
-        example@example.com: admin
-        example2@example.com: viewer
-    # {email}: "admin" | "staff" | "viewer"
-    currency: string # Default currency for the business (e.g., "USD").
-    contactInfo:
-        name: string
-        email: string
-        phone: string
-        address: string
-    logo: string # URL to the business logo in Firebase Storage.
-    trace: map # Audit trail information
-        createdBy: string
-        createdAt: timestamp
-        updatedBy: string
-        updatedAt: timestamp
-        deletedBy: string
-        deletedAt: timestamp
-
-# /businesses/{businessId}/orders/{orderId}
-# Represents an order within a business, such as an estimate or invoice.
-Order:
-  id: string # Document ID
-  name: string # Title of the order (e.g., "Estimate #1001").
-  status: string # DRAFT, SENT, ACCEPTED, INVOICED, PAID, VOIDED, etc.
-  details:
-    # Details vary by order type. For an estimate/invoice:
-    customer: string # customerId
-    notes: string
-    dueDate: timestamp
-    payments: array
-      - amount: number
-        date: timestamp
-        method: string
-        transactionId: string
-        notes: string
-    adjustments: array
-      - type: string # "addPercent", "addFixed", "discountPercent", "discountFixed", "taxPercent"
-        value: number
-        description: string
-    items: array # Line items for the estimate/invoice.
-      - description: string
-        dimensions: 
-          length: number
-          width: number
-        quantity: number # Quantity of the item, e.g., number of units or area in m².
-        item:
-          id: string # could be a UUID of an inventory Item, or a temporary ID for custom items
-          name: string
-          description: string
-          tags: array # e.g., ["wood", "tile", "service"]
-          unitPrice: number
-          currency: string # "USD", "BRL"
-          unitLabel: string # "m²", "ft²", "unit"
-          labor: # Optional labor details
-            laborRate: number
-            laborType: string # "per-unit", "fixed", "percentage"
-            description: string # Description of the labor, if applicable.
-    isActive: boolean
-    trace: map # Audit trail information
-        createdBy: string
-        createdAt: timestamp
-        updatedBy: string
-        updatedAt: timestamp
-        deletedBy: string
-        deletedAt: timestamp
-
-# /businesses/{businessId}/inventory/{itemId}
-# Represents an item in the business's inventory.
-InventoryItem:
-    id: string # could be a UUID of an inventory Item, or a temporary ID for custom items
-    name: string
-    description: string
-    tags: array # e.g., ["wood", "tile", "service"]
-    unitPrice: number
-    currency: string # "USD", "BRL"
-    unitLabel: string # "m²", "ft²", "unit"
-    labor: # Optional labor details
-        laborRate: number
-        laborType: string # "per-unit", "fixed", "percentage"
-        description: string # Description of the labor, if applicable.
-    isActive: boolean
-    trace: map # Audit trail information
-        createdBy: string
-        createdAt: timestamp
-        updatedBy: string
-        updatedAt: timestamp
-        deletedBy: string
-        deletedAt: timestamp
-
-# /businesses/{businessId}/cashflows/{entryId}
-# Represents a cash flow transaction.
-CashflowEntry:
-    id: string # Document ID
-    description: string
-    eventDate: timestamp
-    type: string # "received" or "paid"
-    amount: number
-    currency: string # "USD", "BRL"
-    isActive: boolean
-    trace: map # Audit trail information
-        createdBy: string
-        createdAt: timestamp
-        updatedBy: string
-        updatedAt: timestamp
-        deletedBy: string
-        deletedAt: timestamp
-
-# /businesses/{businessId}/customers/{customerId}
-# Represents a customer associated with the business.
-Customer:
-    id: string # Document ID
-    name: string
-    email: array [string] # Support multiple emails
-    phone: array [string] # Support multiple phone numbers
-    address: map
-        street: string
-        city: string
-        state: string
-        zip: string
-        country: string
-    notes: string
-    isActive: boolean
-    trace: map # Audit trail information
-        createdBy: string
-        createdAt: timestamp
-        updatedBy: string
-        updatedAt: timestamp
-        deletedBy: string
-        deletedAt: timestamp
-
-# /businesses/{businessId}/events/{eventId}
-# Represents an event log for auditing purposes.
-Event:
-    id: string # Document ID
-    type: string # e.g., "ORDER_CREATED", "ORDER_UPDATED", "USER_INVITED"
-    userId: string # ID of the user who performed the action
-    timestamp: timestamp
-    details: map # Additional details about the event, for example the uri and body of the request
+/businesses/{businessId}
+/businesses/{businessId}/orders/{orderId}
+/businesses/{businessId}/inventory/{itemId}
+/businesses/{businessId}/cashflows/{entryId}
+/businesses/{businessId}/customers/{customerId}
+/businesses/{businessId}/events/{eventId}
 ```
 
-- All writes will be done using a Firestore callable function instead of the client writing directly to the database.
+The data schema for each collection is defined using Zod schemas in the `shared/schemas` directory.
+```ts
+// shared/schemas/common.ts
+...
+export const contactInfoSchema = z.object({
+  phone: z.string().min(10).max(15).optional(),
+  email: z.string().email().optional(),
+  address: z.string().max(200).optional(),
+});
 
-- every edit (write) call to the backend that is committed will be recorded in a /business/{businessId}/events subcollection
+// Example: shared/schemas/business.ts
+...
+export const businessSchema = z.object({
+  id: z.string().optional(), // Firestore will auto-generate this
+  name: z.string().min(1).max(100),
+  logoUrl: z.string().url().optional(),
+  contactInfo: contactInfoSchema,
+  access: z.record(
+    z.object({
+      role: z.enum(["Admin", "Staff", "Viewer"]),
+      addedAt: z.date(),
+    }),
+  ),
+  pendingAccess: z.record(
+    z.object({
+      email: z.string().email(),
+      role: z.enum(["Admin", "Staff", "Viewer"]),
+      invitedAt: z.date(),
+    }),
+  ).default({}),
+  isActive: z.boolean().default(true),
+  trace: traceSchema,
+});
+```
+
+
+### Data Structures:
+
+* both frontend and backend will be written in Typescript, they will share many data structures (Types, Interfaces and Zod schemas ) that can be used for data validation. For those structures, keep them in a file where both the backend and the frontend can access.
+
+when defining the data structures, consider the following:
+* Use enums for fields with a limited set of values (e.g., order status, user roles).
+* reuse common structures (e.g., trace, contactInfo, inventoryItem, payment, adjustment, lineItem)
+* Some types can be infered from zod schemas, use zod's `z.infer` to extract types from zod schemas when possible.
 
 ## 6. Firestore Rules
+
 ```sh
 rules_version = '2';
 service cloud.firestore {
@@ -236,4 +124,166 @@ service cloud.firestore {
 }
 ```
 
+## 7. Other Considerations
+* All writes will be done using a Firestore callable function instead of the client writing directly to the database.
+* Every edit (write) call to the backend that is committed will be recorded in a /business/{businessId}/events subcollection
+```ts
+// /apps/backend/src/helpers/audited-function.ts
+import * as functions from "firebase-functions";
+import { getFirestore } from "firebase-admin/firestore";
+import { z } from "zod";
 
+// Wrapper for creating secure, audited callable functions
+export const createAuditedCallable = (
+  allowedRoles: ("Admin" | "Staff")[],
+  inputSchema: z.ZodType,
+  handler: (
+    data: any,
+    context: functions.https.CallableContext,
+  ) => Promise<any>,
+) => {
+  return functions.https.onCall(async (data, context) => {
+    // 1. Authentication Check
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        "unauthenticated",
+        "You must be logged in.",
+      );
+    }
+
+    // 2. Input Validation
+    const validationResult = inputSchema.safeParse(data);
+    if (!validationResult.success) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Invalid data provided.",
+      );
+    }
+
+    const { businessId } = data;
+    const db = getFirestore();
+    const businessRef = db.collection("businesses").doc(businessId);
+    const businessDoc = await businessRef.get();
+
+    if (!businessDoc.exists) {
+      throw new functions.https.HttpsError("not-found", "Business not found.");
+    }
+
+    // 3. Authorization (RBAC) Check
+    const userRole = businessDoc.data()?.access[context.auth.uid]?.role;
+    const isAuthorized = userRole && allowedRoles.includes(userRole);
+    if (!isAuthorized) {
+      throw new functions.https.HttpsError(
+        "permission-denied",
+        "You do not have permission.",
+      );
+    }
+
+    // 4. Execute Core Logic
+    const result = await handler(data, context);
+
+    // 5. Log Audit Event
+    const eventRef = businessRef.collection("events").doc();
+    await eventRef.set({
+      type: `FUNCTION_CALL_${handler.name.toUpperCase()}`,
+      userId: context.auth.uid,
+      timestamp: new Date(),
+      details: { input: data },
+    });
+
+    return result;
+  });
+};
+```
+* Use Firebase Storage to store business logos and any other media assets.
+
+
+### Project Initialization
+The project has already been initialized using:
+```sh
+# Initialize a new Firebase project
+firebase init
+
+# Initialize a new Next.js app with TypeScript
+npx create-next-app@latest -e with-tailwindcss simple-business
+cd simple-business
+npm run dev
+
+# initialized shadcn/ui
+npx shadcn-ui@latest init
+npx shadcn@latest add --all
+```
+
+### Directory Structure
+```
+simple-business
+├── backend
+│   └── functions
+│       └── src
+├── frontend
+│   ├── public
+│   └── src
+│       └── app
+└── shared
+    ├── schemas
+    ├── types
+    └── utils
+```
+
+## 8. Local Development
+* Use the Firebase Emulator Suite for local development and testing. A local emulaor is available at devmachine (192.168.1.202)
+```json
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint",
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ],
+  "emulators": {
+    "auth": {
+      "port": 9099,
+      "host": "0.0.0.0"
+    },
+    "functions": {
+      "port": 5001,
+      "host": "0.0.0.0"
+    },
+    "firestore": {
+      "port": 8080,
+      "host": "0.0.0.0"
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000,
+      "host": "0.0.0.0"
+    },
+    "singleProjectMode": true,
+    "storage": {
+      "port": 9199,
+      "host": "0.0.0.0"
+    }
+  },
+  "storage": {
+    "rules": "storage.rules"
+  }
+}
+```
+
+
+## 9. Security
+* Use app-check to protect the backend from abuse.
