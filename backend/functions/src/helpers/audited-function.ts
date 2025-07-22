@@ -2,7 +2,10 @@ import * as functions from "firebase-functions";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
 
+
+
 const db = getFirestore();
+const ALLOWED =  ["*"]; // Adjust CORS settings as needed
 
 type AuditedCallableOptions = {
   isCreateOperation?: boolean;
@@ -16,7 +19,10 @@ export const createAuditedCallable = <T extends z.ZodType>(
   handler: (request: functions.https.CallableRequest) => Promise<any>,
   options: AuditedCallableOptions = {},
 ) => {
-  return functions.https.onCall(async (request) => {
+  return functions.https.onCall({
+    cors: ALLOWED,
+    enforceAppCheck: true,
+  },async (request) => {
     // 1. Authentication Check
     if (!request.auth) {
       throw new functions.https.HttpsError(

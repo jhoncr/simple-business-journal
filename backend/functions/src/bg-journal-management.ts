@@ -1,13 +1,12 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { HttpsError } from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { JOURNAL_COLLECTION, JOURNAL_TYPES } from "./common/const";
 import {
-  JournalCreateBaseSchema,
+  JournalSchema,
   businessDetailsSchema,
 } from "./common/schemas/JournalSchema";
-import { ALLOWED } from "./lib/bg-consts";
 import * as z from "zod";
 import { createAuditedCallable } from "./helpers/audited-function";
 
@@ -17,7 +16,15 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 
-const CreateJournalPayloadSchema = JournalCreateBaseSchema.extend({
+
+const CreateJournalPayloadSchema = JournalSchema.omit({
+  id: true,
+  access: true,
+  access_array: true,
+  pendingAccess: true,
+  createdAt: true,
+  isActive: true,
+}).extend({
   details: businessDetailsSchema,
 }).refine(
   (data) => {
@@ -85,29 +92,11 @@ export const createJournal = createAuditedCallable(
   { isCreateOperation: true },
 );
 
-const UpdateJournalPayloadSchema = JournalCreateBaseSchema.partial()
-  .extend({
+const UpdateJournalPayloadSchema = CreateJournalPayloadSchema.extend({
     id: z.string().min(1),
     details: businessDetailsSchema.partial().optional(),
-  })
-  .refine(
-    (data) => {
-      const details = data.details;
-      if (details) {
-        if (
-          data.journalType === JOURNAL_TYPES.BUSINESS &&
-          !businessDetailsSchema.partial().safeParse(details).success
-        ) {
-          return false;
-        }
-      }
-      return true;
-    },
-    {
-      message: "Details must match the specified journal type.",
-      path: ["details"],
-    },
-  );
+  }).partial();
+// .refine(
 
 // type UpdateJournalPayloadType = z.infer<typeof UpdateJournalPayloadSchema>;
 

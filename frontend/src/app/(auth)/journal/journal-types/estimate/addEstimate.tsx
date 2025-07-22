@@ -54,6 +54,8 @@ import { useRouter } from "next/navigation";
 import { EntryItf } from "@/../../backend/functions/src/common/common_types";
 import { useAuth } from "@/lib/auth_handler";
 import { useJournalContext } from "@/context/JournalContext";
+import { log } from "console";
+import { tr } from "date-fns/locale";
 
 // --- Constants ---
 const ADD_LOG_FN_NAME = "addLogFn";
@@ -100,6 +102,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
     EstimateStatusEnum.DRAFT,
   );
   const [customer, setCustomer] = useState<contactInfoSchemaType>(initInfo);
+  const [canUpdate, setCanUpdate] = useState(false); // New state to manage form interactivity
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [taxPercentage, setTaxPercentage] = useState(0);
   const [notes, setNotes] = useState<string>("");
@@ -223,6 +226,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
               setAdjustments(validData.adjustments || []);
               setTaxPercentage(validData.taxPercentage || 0);
               setNotes(validData.notes || "");
+              setCanUpdate(true);
 
               // Load new invoice fields
               if (validData.dueDate) {
@@ -294,6 +298,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
 
   const handleSave = useCallback(
     async (updates: Partial<estimateDetailsState> = {}) => {
+      console.log("handleSave called with updates:", updates);
       if (jtype !== ESTIMATE_ENTRY_TYPE) {
         toast({
           title: "Save Error",
@@ -317,15 +322,18 @@ export const EstimateDetails = React.memo(function EstimateDetails({
       if (customerRef.current) {
         const isValid = await customerRef.current.validate();
         if (!isValid) {
+          console.warn("Customer info validation failed on save", customer);
           toast({
             title: "Invalid Customer Info",
             description: "Please correct customer details before saving.",
             variant: "destructive",
           });
           setIsSaving(false);
+          setCanUpdate(true);
           return;
         }
       } else {
+        console.error("CustomerRef is null, cannot validate customer info.");
         toast({
           title: "Save Error",
           description: "Could not validate customer info.",
@@ -505,13 +513,14 @@ export const EstimateDetails = React.memo(function EstimateDetails({
       className="w-full print:max-w-none mx-auto p-2 border-none relative pb-20 md:pb-4 lg:pr-[430px]"
     >
       <EstimateHeader logo={supplierLogo} contactInfo={supplierInfo} />
-      <div className="flex justify-end">
-        <EstimateStatusDropdown
-          qstatus={status}
-          setStatus={handleStatusChange}
-        />
-      </div>
-      <div className="space-y-4 px-2 md:px-4">
+      
+      <div className="space-y-4 px-2 md:px-4 mt-2">
+        <div className="flex justify-end items-center space-x-2 print:hidden">
+          <EstimateStatusDropdown
+            qstatus={status}
+            setStatus={handleStatusChange}
+          />
+        </div>
         {/* Invoice Number and Due Date Fields */}
         {(isInvoiceFlow || dueDate) && ( // Show if in invoice flow or if due date exists
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 border-b pb-4">
@@ -577,99 +586,99 @@ export const EstimateDetails = React.memo(function EstimateDetails({
             onSave={(newInfo) => handleSave({ customer: newInfo })}
           />
         </div>
-        <div>
+        <fieldset disabled={!canUpdate} className={!canUpdate ? "opacity-50" : ""}>
           <h3 className="text-lg font-semibold pt-4 mb-2">Items</h3>
           <div className="border rounded-md p-2">
             <div className="space-y-2">
               <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs text-muted-foreground border-b">
-                    <th className="text-left py-2 px-1 font-medium w-20">
-                      Qty
-                    </th>
-                    <th className="text-left py-2 px-1 font-medium">
-                      Description
-                    </th>
-                    <th className="text-right py-2 px-2 font-medium w-24">
-                      Price
-                    </th>
-                    <th className="text-right py-2 px-1 font-medium w-24">
-                      Total
-                    </th>
-                    <th className="w-8 print:hidden"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {confirmedItems.map((item) => (
-                    <tr
-                      key={item.id}
-                      className={`border-b border-dashed last:border-0 ${
-                        item.parentId === "root" ? "bg-secondary/30" : ""
-                      }`}
-                    >
-                      <td className="py-2 px-1 text-left align-top">
-                        <div className="flex flex-col items-center w-min">
-                          {item.quantity}
-                          <div className="text-xs text-muted-foreground">
-                            {item.material?.dimensions?.unitLabel || ""}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-2 px-1 align-top">
-                        {item.description && (
-                          <div className="text-sm">{item.description}</div>
-                        )}
-                        <div className="text-xs text-muted-foreground flex flex-row items-center gap-1">
-                          {item.material?.description || "N/A"}
-                          {item.material?.dimensions?.type === "area" &&
-                            item.dimensions && (
-                              <div className="">
-                                : {item.dimensions.length} ×{" "}
-                                {item.dimensions.width}{" "}
-                                {item.material.dimensions.unitLabel}
-                              </div>
-                            )}
-                        </div>
-                      </td>
-                      <td className="py-2 px-1 align-top">
-                        <div className="text-right pr-2">
-                          {currencyFormat(item.material?.unitPrice || 0)}
-                          <div className="text-xs text-muted-foreground">
-                            {`/${
-                              item.material?.dimensions?.unitLabel || "unit"
-                            }`}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-2 px-1 text-right align-top">
-                        {currencyFormat(
-                          item.quantity * (item.material?.unitPrice || 0),
-                        )}
-                      </td>
-                      <td className="py-2 px-1 print:hidden align-top">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeConfirmedItem(item.id)}
-                          disabled={isSaving}
-                          className="h-8 w-8"
-                        >
-                          <MinusCircle className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                  {confirmedItems.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="text-center py-4 text-sm text-muted-foreground"
-                      >
-                        Add items using the form below.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
+          <thead>
+            <tr className="text-xs text-muted-foreground border-b">
+              <th className="text-left py-2 px-1 font-medium w-20">
+                Qty
+              </th>
+              <th className="text-left py-2 px-1 font-medium">
+                Description
+              </th>
+              <th className="text-right py-2 px-2 font-medium w-24">
+                Price
+              </th>
+              <th className="text-right py-2 px-1 font-medium w-24">
+                Total
+              </th>
+              <th className="w-8 print:hidden"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {confirmedItems.map((item) => (
+              <tr
+                key={item.id}
+                className={`border-b border-dashed last:border-0 ${
+            item.parentId === "root" ? "bg-secondary/30" : ""
+                }`}
+              >
+                <td className="py-2 px-1 text-left align-top">
+            <div className="flex flex-col items-center w-min">
+              {item.quantity}
+              <div className="text-xs text-muted-foreground">
+                {item.material?.dimensions?.unitLabel || ""}
+              </div>
+            </div>
+                </td>
+                <td className="py-2 px-1 align-top">
+            {item.description && (
+              <div className="text-sm">{item.description}</div>
+            )}
+            <div className="text-xs text-muted-foreground flex flex-row items-center gap-1">
+              {item.material?.description || "N/A"}
+              {item.material?.dimensions?.type === "area" &&
+                item.dimensions && (
+                  <div className="">
+              : {item.dimensions.length} ×{" "}
+              {item.dimensions.width}{" "}
+              {item.material.dimensions.unitLabel}
+                  </div>
+                )}
+            </div>
+                </td>
+                <td className="py-2 px-1 align-top">
+            <div className="text-right pr-2">
+              {currencyFormat(item.material?.unitPrice || 0)}
+              <div className="text-xs text-muted-foreground">
+                {`/${
+                  item.material?.dimensions?.unitLabel || "unit"
+                }`}
+              </div>
+            </div>
+                </td>
+                <td className="py-2 px-1 text-right align-top">
+            {currencyFormat(
+              item.quantity * (item.material?.unitPrice || 0),
+            )}
+                </td>
+                <td className="py-2 px-1 print:hidden align-top">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => removeConfirmedItem(item.id)}
+              disabled={isSaving || !canUpdate}
+              className="h-8 w-8"
+            >
+              <MinusCircle className="h-4 w-4 text-muted-foreground" />
+            </Button>
+                </td>
+              </tr>
+            ))}
+            {confirmedItems.length === 0 && (
+              <tr>
+                <td
+            colSpan={5}
+            className="text-center py-4 text-sm text-muted-foreground"
+                >
+            Add items using the form below.
+                </td>
+              </tr>
+            )}
+          </tbody>
               </table>
             </div>
             <NewItemForm
@@ -682,19 +691,18 @@ export const EstimateDetails = React.memo(function EstimateDetails({
               itemSubtotal={calculateSubtotal()}
               adjustments={adjustments}
               setAdjustments={(newAdjustments) => {
-                setAdjustments(newAdjustments);
-                handleSave({ adjustments: newAdjustments });
+          setAdjustments(newAdjustments);
+          handleSave({ adjustments: newAdjustments });
               }}
               taxPercentage={taxPercentage}
               setTaxPercentage={(newTaxPercentage) => {
-                setTaxPercentage(newTaxPercentage);
-                handleSave({ taxPercentage: newTaxPercentage });
+          setTaxPercentage(newTaxPercentage);
+          handleSave({ taxPercentage: newTaxPercentage });
               }}
               currency={journalCurrency}
               userRole={userRole}
             />
           </div>
-        </div>
         <div className="space-y-2">
           <Label htmlFor="notes">Notes</Label>
           <InlineEditTextarea
@@ -705,8 +713,11 @@ export const EstimateDetails = React.memo(function EstimateDetails({
             }}
             placeholder="Add any additional notes..."
             disabled={isSaving}
+            id="notes"
           />
         </div>
+        </fieldset>
+
 
         {/* Payments Section - Conditionally Rendered */}
         {(isInvoiceFlow || payments.length > 0) && (
@@ -743,7 +754,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
 
               {/* Add Payment Form - only if not archived and in invoice flow */}
               {isInvoiceFlow && (
-                <div className="pt-4 border-t">
+                <div className="pt-4 border-t print:hidden">
                   <h4 className="text-md font-semibold mb-2">Add Payment</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
                     <div>

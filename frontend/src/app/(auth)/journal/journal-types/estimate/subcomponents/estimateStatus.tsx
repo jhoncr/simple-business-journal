@@ -77,9 +77,9 @@ export function EstimateStatusDropdown({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
-            variant="outline"
+            variant="brutalist"
             size="sm"
-            className={`rounded-full ${statusStyles[qstatus]}`}
+            className={`${statusStyles[qstatus]}`}
           >
             {qstatus}
           </Button>

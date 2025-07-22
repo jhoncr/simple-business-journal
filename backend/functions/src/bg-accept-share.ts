@@ -5,9 +5,9 @@ import * as logger from "firebase-functions/logger";
 import * as z from "zod";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
 import { initializeApp, getApps } from "firebase-admin/app";
-import { BUSINESS_COLLECTION } from "@shared/const";
+import { JOURNAL_COLLECTION } from "./common/const";
 import { ALLOWED } from "./lib/bg-consts";
-import { businessSchema } from "@shared/schemas/business";
+import { JournalSchema } from "./common/schemas/JournalSchema";
 
 if (getApps().length === 0) {
   initializeApp();
@@ -59,7 +59,7 @@ export const acceptShare = onCall(
 
       // Transaction to modify the business document
       await db.runTransaction(async (transaction) => {
-        const logDocRef = db.collection(BUSINESS_COLLECTION).doc(businessId);
+        const logDocRef = db.collection(JOURNAL_COLLECTION).doc(businessId);
         const logDoc = await transaction.get(logDocRef);
 
         if (!logDoc.exists) {
@@ -69,8 +69,8 @@ export const acceptShare = onCall(
           );
         }
 
-        // Type assertion for convenience, ensure businessSchema is imported
-        const logData = logDoc.data() as z.infer<typeof businessSchema>;
+        // Type assertion for convenience, ensure JournalSchema is imported
+        const logData = logDoc.data() as z.infer<typeof JournalSchema>;
 
         // Check if user already has access
         if (logData.access && logData.access[uid]) {
