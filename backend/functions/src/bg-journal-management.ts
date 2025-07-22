@@ -17,7 +17,7 @@ if (getApps().length === 0) {
 const db = getFirestore();
 
 
-const CreateJournalPayloadSchema = JournalSchema.omit({
+const _CreateJournalPayloadSchema = JournalSchema.omit({
   id: true,
   access: true,
   access_array: true,
@@ -26,7 +26,9 @@ const CreateJournalPayloadSchema = JournalSchema.omit({
   isActive: true,
 }).extend({
   details: businessDetailsSchema,
-}).refine(
+});
+
+const CreateJournalPayloadSchema = _CreateJournalPayloadSchema.refine(
   (data) => {
     return (
       data.journalType === JOURNAL_TYPES.BUSINESS &&
@@ -92,10 +94,12 @@ export const createJournal = createAuditedCallable(
   { isCreateOperation: true },
 );
 
-const UpdateJournalPayloadSchema = CreateJournalPayloadSchema.extend({
+const UpdateJournalPayloadSchema = _CreateJournalPayloadSchema
+  .extend({
     id: z.string().min(1),
     details: businessDetailsSchema.partial().optional(),
-  }).partial();
+  })
+  .partial();
 // .refine(
 
 // type UpdateJournalPayloadType = z.infer<typeof UpdateJournalPayloadSchema>;

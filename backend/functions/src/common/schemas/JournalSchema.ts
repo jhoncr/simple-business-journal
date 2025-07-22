@@ -37,4 +37,3 @@ export type JournalSchemaType = z.infer<typeof JournalSchema>;
 export type BusinessDetailsType = z.infer<typeof businessDetailsSchema>;
 export type AccessMap = z.infer<typeof AccessSchema>;
 export type PendingAccess = z.infer<typeof JournalSchema>["pendingAccess"];
-export type JournalCreateBaseType = z.infer<typeof JournalCreateBaseSchema>;
