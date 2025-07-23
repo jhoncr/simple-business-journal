@@ -25,7 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { toast } from "@/components/ui/sonner"; // Import toast from sonner
+import { toast } from "sonner"; // Import toast from sonner
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { useRouter } from "next/navigation";
 // --- Import specific types ---

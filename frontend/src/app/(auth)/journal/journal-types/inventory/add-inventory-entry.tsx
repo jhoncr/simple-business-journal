@@ -17,7 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogTrigger,
@@ -139,7 +139,7 @@ AddInventoryEntryFormProps) {
 
   const onSubmit = async (data: InventoryFormValues) => {
     if (!activeCurrency) {
-      toast.error("Cannot add item. Business currency is not set.");
+      toast.error("Active currency is not set. Cannot add item.");
       return;
     }
     setPending(true);
@@ -158,16 +158,14 @@ AddInventoryEntryFormProps) {
       const result = await addLogFn(payload);
       console.log("addLogFn result:", result);
 
-      toast.success(`Inventory item "${payload.name}" added.`);
+      toast.success("Inventory item added successfully.");
 
       form.reset(defaultValues);
       setIsOpen(false);
     } catch (error: any) {
       console.error("Error adding inventory entry:", error);
       toast.error(
-        `Error Adding Item: ${
-          error.message || "Failed to add inventory item."
-        }`,
+        error?.message || "An error occurred while adding the item.",
       );
     } finally {
       setPending(false);
@@ -175,61 +173,60 @@ AddInventoryEntryFormProps) {
   };
 
   const handleOpenChange = (nextOpen: boolean) => {
-    setIsOpen(nextOpen);
-    // Reset form when dialog is closed
-    if (!nextOpen) {
+    if (nextOpen === false) {
       form.reset(defaultValues);
     }
+    setIsOpen(nextOpen);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="icon" className="mr-2">
-          <PackagePlus className="h-4 w-4" />
-          <span className="sr-only">Add Inventory Item</span>
+        <Button
+          variant="brutalist"
+          className="text-sm flex items-center"
+          // Disable if journalId OR activeCurrency is missing
+          disabled={!journalId || !activeCurrency}
+        >
+          <PackagePlus className="pr-2" />
+          Add Item
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent>
         <DialogTitle>Add Inventory Item</DialogTitle>
         <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-4"
-            noValidate
-          >
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* --- Name Field --- */}
             <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>Item Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Item name" {...field} />
+                    <Input placeholder="e.g., Premium Widget" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            {/* --- Details: Description --- */}
             <FormField
               control={form.control}
               name="details.description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description</FormLabel>
+                  <FormLabel>Description (Optional)</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="Item description"
-                      {...field}
-                      //   variant="outline"
-                    />
+                    <Input placeholder="Additional details..." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            {/* --- Details: Unit Price --- */}
             <FormField
               control={form.control}
               name="details.unitPrice"
@@ -238,9 +235,15 @@ AddInventoryEntryFormProps) {
                   <FormLabel>Unit Price</FormLabel>
                   <FormControl>
                     <NumericInput
+                      // Use activeCurrency prop for symbol
+                      prefix={currencyToSymbol(activeCurrency || "")}
                       placeholder="0.00"
-                      {...field}
-                      //   variant="outline"
+                      className="peer text-center"
+                      value={field.value.toString()}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        const value = parseFloat(e.target.value);
+                        field.onChange(isNaN(value) || value < 0 ? 0 : value);
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
@@ -248,42 +251,47 @@ AddInventoryEntryFormProps) {
               )}
             />
 
+            {/* --- Details: Dimensions Type --- */}
             <FormField
               control={form.control}
               name="details.dimensions"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="space-y-3">
                   <FormLabel>Dimensions</FormLabel>
                   <FormControl>
                     <RadioGroup
-                      {...field}
-                      onValueChange={(value) => {
-                        const selectedOption = dimensionOptions.find(
-                          (option) => option.id === value,
-                        );
-                        if (selectedOption) {
-                          form.setValue(
-                            "details.dimensions",
-                            selectedOption.value,
+                      onValueChange={(valueString) => {
+                        try {
+                          const selectedOption = dimensionOptions.find(
+                            (opt) => JSON.stringify(opt.value) === valueString,
                           );
+                          if (selectedOption) {
+                            field.onChange(selectedOption.value);
+                          }
+                        } catch (e) {
+                          console.error("Error parsing dimension value", e);
                         }
                       }}
+                      defaultValue={JSON.stringify(field.value)}
+                      className="flex flex-wrap gap-2"
                     >
-                      <div className="flex gap-2">
-                        {dimensionOptions.map((option) => (
-                          <FormItem
-                            key={option.id}
-                            className="flex-1 rounded-md border"
+                      {dimensionOptions.map((option) => (
+                        <div
+                          key={option.id}
+                          className="flex items-center space-x-2 border p-2 rounded-md has-[[data-state=checked]]:border-primary has-[[data-state=checked]]:bg-secondary/50"
+                        >
+                          <RadioGroupItem
+                            value={JSON.stringify(option.value)}
+                            id={`${id}-dim-${option.id}`} // Use generated id
+                          />
+                          <Label
+                            htmlFor={`${id}-dim-${option.id}`} // Use generated id
+                            className="font-normal cursor-pointer"
                           >
-                            <FormControl>
-                              <RadioGroupItem value={option.id} />
-                            </FormControl>
-                            <div className="flex-1 p-2 text-center">
-                              {option.label}
-                            </div>
-                          </FormItem>
-                        ))}
-                      </div>
+                            {option.label}
+                          </Label>
+                        </div>
+                      ))}
                     </RadioGroup>
                   </FormControl>
                   <FormMessage />
@@ -291,47 +299,97 @@ AddInventoryEntryFormProps) {
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="details.labor"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Labor</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Labor cost"
-                      {...field}
-                      //   variant="outline"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+            {/* --- Details: Labor --- */}
+            <div className="grid grid-cols-2 gap-4 border-t pt-4">
+              {/* Labor Type Select */}
+              <FormField
+                control={form.control}
+                name="details.labor.laborType"
+                render={({ field: typeField }) => (
+                  <FormItem>
+                    <FormLabel>Labor Type</FormLabel>
+                    <FormControl>
+                      <select
+                        className="w-full h-10 px-3 rounded-md border border-input bg-background"
+                        value={labor?.laborType ?? "null"}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === "null") {
+                            form.setValue("details.labor", null);
+                          } else {
+                            form.setValue("details.labor", {
+                              id: crypto.randomUUID(),
+                              description: "↳ Labor",
+                              laborRate:
+                                form.getValues("details.labor.laborRate") || 0, // Keep existing rate if possible
+                              laborType: value as any, // Cast needed
+                            });
+                          }
+                        }}
+                      >
+                        <option value="null">No Labor</option>
+                        <option value="percentage">Percentage</option>
+                        <option value="fixed">Fixed Rate</option>
+                        <option value="quantity">Per Unit</option>
+                      </select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Labor Rate Input (Conditional) */}
+              {labor && (
+                <FormField
+                  control={form.control}
+                  name="details.labor.laborRate"
+                  render={({ field: rateField }) => (
+                    <FormItem>
+                      <FormLabel>
+                        {labor.laborType === "percentage"
+                          ? "Labor %"
+                          : "Labor Rate"}
+                      </FormLabel>
+                      <FormControl>
+                        <NumericInput
+                          prefix={
+                            labor.laborType === "percentage"
+                              ? ""
+                              : currencyToSymbol(activeCurrency || "")
+                          }
+                          suffix={labor.laborType === "percentage" ? "%" : ""}
+                          placeholder="0.00"
+                          className="peer text-center"
+                          value={rateField.value?.toString() ?? "0"}
+                          onChange={(
+                            e: React.ChangeEvent<HTMLInputElement>,
+                          ) => {
+                            const value = parseFloat(e.target.value);
+                            rateField.onChange(
+                              isNaN(value) || value < 0 ? 0 : value,
+                            );
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
-            />
+            </div>
 
-            {/* Currency selection is now handled by the parent component (journal context) */}
-
-            <DialogFooter>
+            <DialogFooter className="pt-4">
+              <DialogClose asChild>
+                <Button type="button" variant="secondary">
+                  {" "}
+                  Cancel{" "}
+                </Button>
+              </DialogClose>
               <Button
                 type="submit"
-                className="w-full"
-                disabled={pending}
-                variant="primary"
+                disabled={pending || !activeCurrency}
+                variant={"brutalist"}
               >
-                {pending && (
-                  <svg
-                    aria-hidden="true"
-                    className="mr-2 h-5 w-5 animate-spin fill-current text-white"
-                    viewBox="0 0 100 101"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M50.5 0C22.387 0 0 22.387 0 50.5S22.387 101 50.5 101 101 78.613 101 50.5 78.613 0 50.5 0zm0 90.909c-22.173 0-40.409-18.236-40.409-40.409S28.327 10.091 50.5 10.091 90.909 28.327 90.909 50.5 72.673 90.909 50.5 90.909z"
-                      opacity="0.4"
-                    />
-                    <path d="M93.967 28.084a1.75 1.75 0 0 0-2.45-.318A42.662 42.662 0 0 1 50.5 15.909C28.327 15.909 10.091 34.136 10.091 50.5S28.327 85.091 50.5 85.091c11.64 0 22.2-4.54 30.084-11.967a1.75 1.75 0 0 0 .318-2.45l-7.5-7.5a1.75 1.75 0 0 0-2.45.318A32.662 32.662 0 0 1 50.5 78.409c-15.873 0-28.909-13.036-28.909-28.909S34.627 20.591 50.5 20.591c7.64 0 14.7 2.93 20.086 8.086a1.75 1.75 0 0 0 2.45-.318l7.5-7.5z" />
-                  </svg>
-                )}
                 {pending ? "Adding..." : "Add Item"}
               </Button>
             </DialogFooter>
@@ -341,3 +399,4 @@ AddInventoryEntryFormProps) {
     </Dialog>
   );
 }
+// --- End of Component ---

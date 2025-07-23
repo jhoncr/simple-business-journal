@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { MinusCircle, UploadCloud } from "lucide-react";
-import { toast } from "@/components/ui/sonner"; // Import toast from sonner
+import { toast } from "sonner"; // Import toast from sonner
 interface LogoUploadProps {
   setLogo?: (logo: string | null) => void;
   logo?: string | null;

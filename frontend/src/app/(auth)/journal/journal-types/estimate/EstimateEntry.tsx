@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { EntryView } from "../../comp/EntryView";
 // --- Import backend schema/types ---
 import { estimateDetailsState as EstimateDetails } from "@/../../backend/functions/src/common/schemas/estimate_schema";

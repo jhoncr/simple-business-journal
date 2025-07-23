@@ -38,7 +38,7 @@ import {
 import { JOURNAL_TYPES } from "@/../../backend/functions/src/common/const"; // Import JOURNAL_TYPES
 import { LogoUpload } from "@/components/LogoUpload";
 import { useRouter } from "next/navigation";
-import { toast } from "@/components/ui/sonner"; // Import toast from sonner
+import { toast } from "sonner"; // Import toast from sonner
 // --- Define Frontend Schema for the Form ---
 // This schema matches the structure needed for the 'business' journal type details
 const BusinessFormSchema = z.object({

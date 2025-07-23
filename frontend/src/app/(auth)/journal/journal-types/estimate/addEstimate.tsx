@@ -54,8 +54,6 @@ import { useRouter } from "next/navigation";
 import { EntryItf } from "@/../../backend/functions/src/common/common_types";
 import { useAuth } from "@/lib/auth_handler";
 import { useJournalContext } from "@/context/JournalContext";
-import { log } from "console";
-import { tr } from "date-fns/locale";
 
 // --- Constants ---
 const ADD_LOG_FN_NAME = "addLogFn";

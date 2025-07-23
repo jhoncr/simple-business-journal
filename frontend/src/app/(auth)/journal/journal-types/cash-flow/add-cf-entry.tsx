@@ -34,7 +34,7 @@ import { Send, Download, Upload, MessageSquarePlus } from "lucide-react";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/auth_handler";
 import { cashFlowEntryDetailsSchema } from "@/../../backend/functions/src/common/schemas/CashflowSchema";
-import { toast } from "@/components/ui/sonner";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogTrigger,
