@@ -33,13 +33,8 @@ import { Separator } from "@/components/ui/separator";
 import { Send, Download, Upload, MessageSquarePlus } from "lucide-react";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/auth_handler";
-import {
-  cashFlowEntryDetailsSchema,
-  CashFlowEntryDetailsType,
-} from "@/../../backend/functions/src/common/schemas/CashflowSchema";
-import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap";
-import { useToast } from "@/hooks/use-toast";
-
+import { cashFlowEntryDetailsSchema } from "@/../../backend/functions/src/common/schemas/CashflowSchema";
+import { toast } from "@/components/ui/sonner";
 import {
   Dialog,
   DialogTrigger,
@@ -67,7 +62,6 @@ export function AddLogEntryForm({
   const [pending, setPending] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const { toast } = useToast();
   const { journal, loading, error } = useJournalContext();
 
   const activeCurrency =
@@ -94,20 +88,12 @@ export function AddLogEntryForm({
 
   const onSubmit = async (data: CashFlowFormValues) => {
     if (!journalId) {
-      toast({
-        title: "Error",
-        description: "Journal ID is missing.",
-        variant: "destructive",
-      });
+      toast.error("Journal ID is missing.");
       return;
     }
 
     if (!data.currency) {
-      toast({
-        title: "Error",
-        description: "Currency information is missing from the journal.",
-        variant: "destructive",
-      });
+      toast.error("Currency information is missing from the journal.");
       return;
     }
 
@@ -126,10 +112,7 @@ export function AddLogEntryForm({
       const result = await addLogFn(payload);
       console.log("addLogFn result:", result);
 
-      toast({
-        title: "Entry Added",
-        description: `Cash flow entry "${payload.name}" saved.`,
-      });
+      toast.success(`Cash flow entry "${payload.name}" saved.`);
 
       form.reset({
         description: "",
@@ -141,11 +124,7 @@ export function AddLogEntryForm({
       setIsOpen(false);
     } catch (error: any) {
       console.error("Error adding cash flow entry:", error);
-      toast({
-        title: "Error Adding Entry",
-        description: error.message || "Failed to save cash flow entry.",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Failed to save cash flow entry.");
     } finally {
       setPending(false);
     }

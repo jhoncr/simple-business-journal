@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { EntryView } from "../../comp/EntryView";
 // --- Import backend schema/types ---
 import { estimateDetailsState as EstimateDetails } from "@/../../backend/functions/src/common/schemas/estimate_schema";
@@ -92,7 +92,7 @@ export const EstimateEntry = React.memo(function EstimateEntry({
   const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
 
   // Get status from top-level entry, not from details
-  const currentStatus = entry.status || EstimateStatus.DRAFT;
+  const currentStatus = entry.details.status || EstimateStatus.DRAFT;
   const displayStatus =
     currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1);
   const displayBadgeVariant = getStatusBadgeVariant(currentStatus);

@@ -49,7 +49,7 @@ import { formattedDate, formatCurrency } from "@/lib/utils";
 import { EstimateHeader } from "./subcomponents/header";
 import { InlineEditTextarea } from "./subcomponents/EditNotes";
 import Link from "next/link";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { EntryItf } from "@/../../backend/functions/src/common/common_types";
 import { useAuth } from "@/lib/auth_handler";
@@ -133,7 +133,6 @@ export const EstimateDetails = React.memo(function EstimateDetails({
   const [paymentDatePopoverOpen, setPaymentDatePopoverOpen] = useState(false);
 
   const customerRef = useRef<ContactInfoRef>(null);
-  const { toast } = useToast();
   const router = useRouter();
   const { authUser } = useAuth();
   const { journal } = useJournalContext();
@@ -265,12 +264,15 @@ export const EstimateDetails = React.memo(function EstimateDetails({
     }
 
     loadEntryData();
-  }, [journalId, initialEntryId, jtype]); // jtype added to dependency array
+  }, [journalId, initialEntryId, jtype, START_STATE]); // jtype added to dependency array
 
-  const addConfirmedItem = (items: LineItem[]) => {
+  const addConfirmedItem = async (items: LineItem[]) => {
     const newItems = [...confirmedItems, ...items];
-    setConfirmedItems(newItems);
-    handleSave({ confirmedItems: newItems });
+    const success = await handleSave({ confirmedItems: newItems });
+    if (success) {
+      setConfirmedItems(newItems);
+    }
+    return success; // Return success status
   };
 
   const removeConfirmedItem = (id: string) => {
@@ -298,55 +300,36 @@ export const EstimateDetails = React.memo(function EstimateDetails({
   );
 
   const handleSave = useCallback(
-    async (updates: Partial<estimateDetailsState> = {}) => {
-      console.log("handleSave called with updates:", updates);
+    async (updates: Partial<estimateDetailsState> = {}): Promise<boolean> => {
       if (jtype !== ESTIMATE_ENTRY_TYPE) {
-        toast({
-          title: "Save Error",
-          description: "Cannot save, incorrect form type.",
-          variant: "destructive",
-        });
-        return;
+        toast.error("Cannot save, incorrect form type.");
+        return false;
       }
       if (isSaving || !journalId || !journalCurrency) {
         if (!journalCurrency) {
-          toast({
-            title: "Missing Currency",
-            description: "Cannot save estimate, journal currency is not set.",
-            variant: "destructive",
-          });
+          toast.error("Cannot save estimate, journal currency is not set.");
         }
-        return;
+        return false;
       }
       setIsSaving(true);
 
       if (customerRef.current) {
         const isValid = await customerRef.current.validate();
         if (!isValid) {
-          console.warn("Customer info validation failed on save", customer);
-          toast({
-            title: "Invalid Customer Info",
-            description: "Please correct customer details before saving.",
-            variant: "destructive",
-          });
+          toast.error("Please correct customer details before saving.");
           setIsSaving(false);
           setCanUpdate(true);
-          return;
+          return false;
         }
       } else {
-        console.error("CustomerRef is null, cannot validate customer info.");
-        toast({
-          title: "Save Error",
-          description: "Could not validate customer info.",
-          variant: "destructive",
-        });
+        toast.error("Could not validate customer info.");
         setIsSaving(false);
-        return;
+        return false;
       }
 
       const estimateDetailsData: estimateDetailsState = {
         confirmedItems: updates.confirmedItems ?? confirmedItems,
-        status: updates.status ?? status ?? EstimateStatusEnum.DRAFT, // Ensure status is always set
+        status: updates.status ?? status ?? EstimateStatusEnum.DRAFT,
         customer: updates.customer ?? customer,
         supplier: supplierInfo || initInfo,
         logo: supplierLogo || null,
@@ -354,8 +337,6 @@ export const EstimateDetails = React.memo(function EstimateDetails({
         taxPercentage: updates.taxPercentage ?? taxPercentage,
         currency: journalCurrency,
         notes: updates.notes ?? notes,
-
-        // Add new invoice fields to the save payload
         dueDate: updates.dueDate ?? dueDate,
         payments: updates.payments ?? payments,
       };
@@ -365,22 +346,20 @@ export const EstimateDetails = React.memo(function EstimateDetails({
       if (!detailsValidation.success) {
         console.error(
           "Estimate details validation failed before save:",
-          detailsValidation.error.message || detailsValidation.error.format(),
+          detailsValidation.error.format(),
           estimateDetailsData,
         );
-        toast({
-          title: "Invalid Estimate Data",
-          description: "Could not save estimate. Check console.",
-          variant: "destructive",
-        });
+        toast.error(
+          "Invalid Estimate Data: Please check the console for details.",
+        );
         setIsSaving(false);
-        return;
+        return false;
       }
       const validatedDetails = detailsValidation.data;
 
       const payload = {
         journalId: journalId,
-        entryType: ESTIMATE_ENTRY_TYPE, // Ensures it only saves as estimate
+        entryType: ESTIMATE_ENTRY_TYPE,
         name: `Estimate for ${validatedDetails.customer.name || "Unknown"}`,
         details: validatedDetails,
         ...(entryId && { entryId }),
@@ -395,23 +374,20 @@ export const EstimateDetails = React.memo(function EstimateDetails({
           url.searchParams.set("eid", returnedId);
           router.replace(url.toString(), { scroll: false });
         }
-        toast({
-          title: entryId ? "Estimate Updated" : "Estimate Saved",
-          description: `Estimate for ${validatedDetails.customer.name} saved.`,
-        });
+        toast.success(`Estimate for ${validatedDetails.customer.name} saved.`);
+        setIsSaving(false);
+        return true; // Indicate success
       } catch (error: any) {
         console.error("Error saving estimate:", error);
-        toast({
-          title: "Save Failed",
-          description: error.message || "Could not save estimate.",
-          variant: "destructive",
-        });
-      } finally {
+        toast.error(
+          `Save Failed: ${error.message || "Could not save estimate."}`,
+        );
         setIsSaving(false);
+        return false; // Indicate failure
       }
     },
     [
-      jtype, // Added jtype to ensure it's checked on save
+      jtype,
       isSaving,
       journalId,
       journalCurrency,
@@ -424,10 +400,8 @@ export const EstimateDetails = React.memo(function EstimateDetails({
       taxPercentage,
       notes,
       entryId,
-      // Add new state variables to dependency array of handleSave
       dueDate,
       payments,
-      toast,
       router,
     ],
   );
@@ -448,19 +422,11 @@ export const EstimateDetails = React.memo(function EstimateDetails({
       isNaN(Number(newPaymentAmount)) ||
       Number(newPaymentAmount) <= 0
     ) {
-      toast({
-        title: "Invalid Amount",
-        description: "Payment amount must be a positive number.",
-        variant: "destructive",
-      });
+      toast.error("Payment amount must be a positive number.");
       return;
     }
     if (!newPaymentDate) {
-      toast({
-        title: "Invalid Date",
-        description: "Please select a date for the payment.",
-        variant: "destructive",
-      });
+      toast.error("Please select a date for the payment.");
       return;
     }
 
@@ -480,10 +446,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
     setNewPaymentAmount("");
     setNewPaymentDate(new Date());
     setNewPaymentMethod("");
-    toast({
-      title: "Payment Added",
-      description: "The new payment has been added locally and saved.",
-    });
+    toast.success("The new payment has been saved.");
   };
 
   const handleStatusChange = (
@@ -633,7 +596,12 @@ export const EstimateDetails = React.memo(function EstimateDetails({
                           <div className="text-sm">{item.description}</div>
                         )}
                         <div className="text-xs text-muted-foreground flex flex-row items-center gap-1">
-                          {item.material?.description || "N/A"}
+                          {item.material?.description &&
+                            item.description !== item.material.description && (
+                              <div className="">
+                                {item.material.description}
+                              </div>
+                            )}
                           {item.material?.dimensions?.type === "area" &&
                             item.dimensions && (
                               <div className="">

@@ -38,8 +38,7 @@ import {
 import { JOURNAL_TYPES } from "@/../../backend/functions/src/common/const"; // Import JOURNAL_TYPES
 import { LogoUpload } from "@/components/LogoUpload";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/hooks/use-toast"; // Import useToast
-
+import { toast } from "@/components/ui/sonner"; // Import toast from sonner
 // --- Define Frontend Schema for the Form ---
 // This schema matches the structure needed for the 'business' journal type details
 const BusinessFormSchema = z.object({
@@ -78,9 +77,7 @@ export function CreateNewJournal({
 }: CreateNewJournalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [pending, setPending] = useState(false);
-  const { authUser } = useAuth();
   const router = useRouter();
-  const { toast } = useToast(); // Initialize toast
 
   // --- Initialize Form ---
   // Setup default values, mapping from potentially different initialData structure if needed
@@ -164,11 +161,11 @@ export function CreateNewJournal({
       const result = await callable(payload);
       console.log(`${functionName} successful:`, result.data);
 
-      toast({
-        // Add toast notification
-        title: isEdit ? "Business Updated" : "Business Created",
-        description: `Your business "${data.title}" has been saved successfully.`,
-      });
+      toast.success(
+        `Business "${data.title}" has been ${
+          isEdit ? "updated" : "created"
+        } successfully.`,
+      );
 
       form.reset(defaultValues); // Reset form to defaults after success
       setIsOpen(false);
@@ -184,12 +181,11 @@ export function CreateNewJournal({
       }
     } catch (error: any) {
       console.error(`${functionName} failed:`, error);
-      toast({
-        // Add error toast
-        title: `Error ${isEdit ? "Updating" : "Creating"} Business`,
-        description: error.message || "An unexpected error occurred.",
-        variant: "destructive",
-      });
+      toast.error(
+        `Error ${isEdit ? "Updating" : "Creating"} Business: ${
+          error.message || "An unexpected error occurred."
+        }`,
+      );
     } finally {
       setPending(false);
     }
