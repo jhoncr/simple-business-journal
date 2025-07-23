@@ -1,11 +1,11 @@
-import * as z from "zod";
+import * as z from 'zod';
 import {
   AccessSchema,
   ROLES,
   allowedCurrencySchema,
   contactInfoSchema,
-} from "./common_schemas";
-import { JOURNAL_TYPES } from "../const";
+} from './common_schemas';
+import { JOURNAL_TYPES } from '../const';
 
 export const journalTypeSchema = z.nativeEnum(JOURNAL_TYPES);
 
@@ -32,8 +32,7 @@ export const JournalSchema = z
   .strict();
 
 
-
 export type JournalSchemaType = z.infer<typeof JournalSchema>;
 export type BusinessDetailsType = z.infer<typeof businessDetailsSchema>;
 export type AccessMap = z.infer<typeof AccessSchema>;
-export type PendingAccess = z.infer<typeof JournalSchema>["pendingAccess"];
+export type PendingAccess = z.infer<typeof JournalSchema>['pendingAccess'];

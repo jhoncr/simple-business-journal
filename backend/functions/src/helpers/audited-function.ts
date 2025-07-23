@@ -1,11 +1,10 @@
-import * as functions from "firebase-functions";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { z } from "zod";
-
+import * as functions from 'firebase-functions';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { z } from 'zod';
 
 
 const db = getFirestore();
-const ALLOWED =  ["*"]; // Adjust CORS settings as needed
+const ALLOWED = ['*']; // Adjust CORS settings as needed
 
 type AuditedCallableOptions = {
   isCreateOperation?: boolean;
@@ -14,7 +13,7 @@ type AuditedCallableOptions = {
 export const createAuditedCallable = <T extends z.ZodType>(
   functionName: string,
   collectionName: string,
-  allowedRoles: ("admin" | "staff")[],
+  allowedRoles: ('admin' | 'staff')[],
   inputSchema: T,
   handler: (request: functions.https.CallableRequest) => Promise<any>,
   options: AuditedCallableOptions = {},
@@ -22,12 +21,12 @@ export const createAuditedCallable = <T extends z.ZodType>(
   return functions.https.onCall({
     cors: ALLOWED,
     enforceAppCheck: true,
-  },async (request) => {
+  }, async (request) => {
     // 1. Authentication Check
     if (!request.auth) {
       throw new functions.https.HttpsError(
-        "unauthenticated",
-        "You must be logged in.",
+        'unauthenticated',
+        'You must be logged in.',
       );
     }
 
@@ -35,8 +34,8 @@ export const createAuditedCallable = <T extends z.ZodType>(
     const validationResult = inputSchema.safeParse(request.data);
     if (!validationResult.success) {
       throw new functions.https.HttpsError(
-        "invalid-argument",
-        "Invalid data provided.",
+        'invalid-argument',
+        'Invalid data provided.',
         validationResult.error.flatten(),
       );
     }
@@ -48,8 +47,8 @@ export const createAuditedCallable = <T extends z.ZodType>(
     if (allowedRoles.length > 0 && !options.isCreateOperation) {
       if (!baseId) {
         throw new functions.https.HttpsError(
-          "invalid-argument",
-          "Business ID is required for this operation.",
+          'invalid-argument',
+          'Business ID is required for this operation.',
         );
       }
 
@@ -58,8 +57,8 @@ export const createAuditedCallable = <T extends z.ZodType>(
 
       if (!businessDoc.exists) {
         throw new functions.https.HttpsError(
-          "not-found",
-          "Business not found.",
+          'not-found',
+          'Business not found.',
         );
       }
 
@@ -67,16 +66,16 @@ export const createAuditedCallable = <T extends z.ZodType>(
       const businessData = businessDoc.data();
       if (businessData?.isActive === false) {
         throw new functions.https.HttpsError(
-          "permission-denied",
-          "This business is not active.",
+          'permission-denied',
+          'This business is not active.',
         );
       }
       const userRole = businessData?.access[request.auth.uid]?.role;
       const isAuthorized = userRole && allowedRoles.includes(userRole);
       if (!isAuthorized) {
         throw new functions.https.HttpsError(
-          "permission-denied",
-          "You do not have permission to perform this action.",
+          'permission-denied',
+          'You do not have permission to perform this action.',
         );
       }
     }
@@ -88,7 +87,7 @@ export const createAuditedCallable = <T extends z.ZodType>(
     if (id) {
       const db = getFirestore();
       const docRef = db.collection(collectionName).doc(id);
-      const eventRef = docRef.collection("events").doc();
+      const eventRef = docRef.collection('events').doc();
       await eventRef.set({
         type: `FUNCTION_CALL_${functionName.toUpperCase()}`,
         userId: request.auth.uid,

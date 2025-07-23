@@ -1,6 +1,6 @@
 // frontend/src/app/(auth)/journal/journal-types/cash-flow/CashFlowEntry.tsx
 import React, { memo } from "react";
-import { DBentry, User } from "../../../../../lib/custom_types"; // Adjusted path
+import { DBentry, AccessUser as User } from "../../../../../lib/custom_types"; // Adjusted path
 import { formattedDate, formatCurrency } from "@/lib/utils"; // Adjusted path
 import {
   EntryView,

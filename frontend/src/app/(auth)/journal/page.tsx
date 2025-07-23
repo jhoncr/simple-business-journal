@@ -82,7 +82,7 @@ export default function ListJournalPage() {
   const params = useSearchParams();
   const router = useRouter();
   const journalId = params.get("jid");
-  const typeParam = params.get("type");
+  const typeParam = params.get("type") || "inventory"; // Default to "inventory" if not present
   // --- State for the currently selected tab/entryType ---
   const [displayEntryType, setDisplayEntryType] = useState<EntryType | null>(
     null,
@@ -135,18 +135,11 @@ export default function ListJournalPage() {
     if (journal) {
       // Determine available entry types based on journal type
       if (journal.journalType === JOURNAL_TYPES.BUSINESS) {
-        typesForJournal = (Object.keys(ENTRY_CONFIG).filter(
+        typesForJournal = Object.keys(ENTRY_CONFIG).filter(
           (key) =>
             ENTRY_CONFIG[key as keyof typeof ENTRY_CONFIG].category ===
             "business",
-        ) as EntryType[]).filter(type => type !== "invoice"); // Filter out 'invoice'
-        defaultType = "estimate"; // Default to estimate for business now
-      } else if (journal.journalType === JOURNAL_TYPES.BABY) {
-        typesForJournal = Object.keys(ENTRY_CONFIG).filter(
-          (key) =>
-            ENTRY_CONFIG[key as keyof typeof ENTRY_CONFIG].category === "baby",
         ) as EntryType[];
-        defaultType = "feed"; // Default to feed for baby
       }
       setAvailableEntryTypes(typesForJournal);
 
@@ -154,7 +147,7 @@ export default function ListJournalPage() {
       const validTypeParam =
         typeParam && typesForJournal.includes(typeParam as EntryType)
           ? (typeParam as EntryType)
-          : null;
+          : "inventory"; // Default to "inventory" if invalid
 
       // Set display type based on: URL parameter > default type
       if (!displayEntryType) {
@@ -208,7 +201,7 @@ export default function ListJournalPage() {
               journal.access[authUser?.uid]?.role === "admin" && (
                 <AddContributers
                   journalId={journal.id} // Use currentJournal.id directly
-                  access={journal.access}
+                  access={journal.access as any}
                   pendingAccess={
                     (journal.pendingAccess || {}) as pendingAccessSchemaType
                   }
@@ -342,7 +335,7 @@ export default function ListJournalPage() {
                 <ChatBox
                   journalId={journalId}
                   entryType={type} // Pass the specific type for this tab
-                  access={journal.access}
+                  access={journal.access as any}
                   actionButton={
                     dateRange ? (
                       <ExportToCSV
@@ -353,7 +346,7 @@ export default function ListJournalPage() {
                           dateRange.to,
                           "yyyyMMdd",
                         )}.csv`}
-                        access={journal.access}
+                        access={journal.access as any}
                       />
                     ) : (
                       actionButton // Action button is specific to the active tab type

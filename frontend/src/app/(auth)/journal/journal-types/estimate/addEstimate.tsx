@@ -144,7 +144,8 @@ export const EstimateDetails = React.memo(function EstimateDetails({
     if (!authUser || !journal || !journal.access) {
       return "viewer";
     }
-    return journal.access[authUser.uid]?.role || "viewer";
+    return (journal.access[authUser.uid]?.role ||
+      "viewer") as (typeof ROLES)[number];
   }, [authUser, journal]);
 
   useEffect(() => {
@@ -513,7 +514,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
       className="w-full print:max-w-none mx-auto p-2 border-none relative pb-20 md:pb-4 lg:pr-[430px]"
     >
       <EstimateHeader logo={supplierLogo} contactInfo={supplierInfo} />
-      
+
       <div className="space-y-4 px-2 md:px-4 mt-2">
         <div className="flex justify-end items-center space-x-2 print:hidden">
           <EstimateStatusDropdown
@@ -580,105 +581,108 @@ export const EstimateDetails = React.memo(function EstimateDetails({
           <ContactInfo
             ref={customerRef}
             info={customer}
-            setInfo={(newInfo) => { 
+            setInfo={(newInfo) => {
               setCustomer(newInfo);
             }}
             onSave={(newInfo) => handleSave({ customer: newInfo })}
           />
         </div>
-        <fieldset disabled={!canUpdate} className={!canUpdate ? "opacity-50" : ""}>
+        <fieldset
+          disabled={!canUpdate}
+          className={!canUpdate ? "opacity-50" : ""}
+        >
           <h3 className="text-lg font-semibold pt-4 mb-2">Items</h3>
           <div className="border rounded-md p-2">
             <div className="space-y-2">
               <table className="w-full text-sm">
-          <thead>
-            <tr className="text-xs text-muted-foreground border-b">
-              <th className="text-left py-2 px-1 font-medium w-20">
-                Qty
-              </th>
-              <th className="text-left py-2 px-1 font-medium">
-                Description
-              </th>
-              <th className="text-right py-2 px-2 font-medium w-24">
-                Price
-              </th>
-              <th className="text-right py-2 px-1 font-medium w-24">
-                Total
-              </th>
-              <th className="w-8 print:hidden"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {confirmedItems.map((item) => (
-              <tr
-                key={item.id}
-                className={`border-b border-dashed last:border-0 ${
-            item.parentId === "root" ? "bg-secondary/30" : ""
-                }`}
-              >
-                <td className="py-2 px-1 text-left align-top">
-            <div className="flex flex-col items-center w-min">
-              {item.quantity}
-              <div className="text-xs text-muted-foreground">
-                {item.material?.dimensions?.unitLabel || ""}
-              </div>
-            </div>
-                </td>
-                <td className="py-2 px-1 align-top">
-            {item.description && (
-              <div className="text-sm">{item.description}</div>
-            )}
-            <div className="text-xs text-muted-foreground flex flex-row items-center gap-1">
-              {item.material?.description || "N/A"}
-              {item.material?.dimensions?.type === "area" &&
-                item.dimensions && (
-                  <div className="">
-              : {item.dimensions.length} ×{" "}
-              {item.dimensions.width}{" "}
-              {item.material.dimensions.unitLabel}
-                  </div>
-                )}
-            </div>
-                </td>
-                <td className="py-2 px-1 align-top">
-            <div className="text-right pr-2">
-              {currencyFormat(item.material?.unitPrice || 0)}
-              <div className="text-xs text-muted-foreground">
-                {`/${
-                  item.material?.dimensions?.unitLabel || "unit"
-                }`}
-              </div>
-            </div>
-                </td>
-                <td className="py-2 px-1 text-right align-top">
-            {currencyFormat(
-              item.quantity * (item.material?.unitPrice || 0),
-            )}
-                </td>
-                <td className="py-2 px-1 print:hidden align-top">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => removeConfirmedItem(item.id)}
-              disabled={isSaving || !canUpdate}
-              className="h-8 w-8"
-            >
-              <MinusCircle className="h-4 w-4 text-muted-foreground" />
-            </Button>
-                </td>
-              </tr>
-            ))}
-            {confirmedItems.length === 0 && (
-              <tr>
-                <td
-            colSpan={5}
-            className="text-center py-4 text-sm text-muted-foreground"
-                >
-            Add items using the form below.
-                </td>
-              </tr>
-            )}
-          </tbody>
+                <thead>
+                  <tr className="text-xs text-muted-foreground border-b">
+                    <th className="text-left py-2 px-1 font-medium w-20">
+                      Qty
+                    </th>
+                    <th className="text-left py-2 px-1 font-medium">
+                      Description
+                    </th>
+                    <th className="text-right py-2 px-2 font-medium w-24">
+                      Price
+                    </th>
+                    <th className="text-right py-2 px-1 font-medium w-24">
+                      Total
+                    </th>
+                    <th className="w-8 print:hidden"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {confirmedItems.map((item) => (
+                    <tr
+                      key={item.id}
+                      className={`border-b border-dashed last:border-0 ${
+                        item.parentId === "root" ? "bg-secondary/30" : ""
+                      }`}
+                    >
+                      <td className="py-2 px-1 text-left align-top">
+                        <div className="flex flex-col items-center w-min">
+                          {item.quantity}
+                          <div className="text-xs text-muted-foreground">
+                            {item.material?.dimensions?.unitLabel || ""}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-2 px-1 align-top">
+                        {item.description && (
+                          <div className="text-sm">{item.description}</div>
+                        )}
+                        <div className="text-xs text-muted-foreground flex flex-row items-center gap-1">
+                          {item.material?.description || "N/A"}
+                          {item.material?.dimensions?.type === "area" &&
+                            item.dimensions && (
+                              <div className="">
+                                : {item.dimensions.length} ×{" "}
+                                {item.dimensions.width}{" "}
+                                {item.material.dimensions.unitLabel}
+                              </div>
+                            )}
+                        </div>
+                      </td>
+                      <td className="py-2 px-1 align-top">
+                        <div className="text-right pr-2">
+                          {currencyFormat(item.material?.unitPrice || 0)}
+                          <div className="text-xs text-muted-foreground">
+                            {`/${
+                              item.material?.dimensions?.unitLabel || "unit"
+                            }`}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-2 px-1 text-right align-top">
+                        {currencyFormat(
+                          item.quantity * (item.material?.unitPrice || 0),
+                        )}
+                      </td>
+                      <td className="py-2 px-1 print:hidden align-top">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeConfirmedItem(item.id)}
+                          disabled={isSaving || !canUpdate}
+                          className="h-8 w-8"
+                        >
+                          <MinusCircle className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                  {confirmedItems.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="text-center py-4 text-sm text-muted-foreground"
+                      >
+                        Add items using the form below.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
               </table>
             </div>
             <NewItemForm
@@ -691,33 +695,31 @@ export const EstimateDetails = React.memo(function EstimateDetails({
               itemSubtotal={calculateSubtotal()}
               adjustments={adjustments}
               setAdjustments={(newAdjustments) => {
-          setAdjustments(newAdjustments);
-          handleSave({ adjustments: newAdjustments });
+                setAdjustments(newAdjustments);
+                handleSave({ adjustments: newAdjustments });
               }}
               taxPercentage={taxPercentage}
               setTaxPercentage={(newTaxPercentage) => {
-          setTaxPercentage(newTaxPercentage);
-          handleSave({ taxPercentage: newTaxPercentage });
+                setTaxPercentage(newTaxPercentage);
+                handleSave({ taxPercentage: newTaxPercentage });
               }}
               currency={journalCurrency}
               userRole={userRole}
             />
           </div>
-        <div className="space-y-2">
-          <Label htmlFor="notes">Notes</Label>
-          <InlineEditTextarea
-            initialValue={notes}
-            onSave={(value) => {
-              setNotes(value);
-              handleSave({ notes: value });
-            }}
-            placeholder="Add any additional notes..."
-            disabled={isSaving}
-            id="notes"
-          />
-        </div>
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes</Label>
+            <InlineEditTextarea
+              initialValue={notes}
+              onSave={(value) => {
+                setNotes(value);
+                handleSave({ notes: value });
+              }}
+              placeholder="Add any additional notes..."
+              disabled={isSaving}
+            />
+          </div>
         </fieldset>
-
 
         {/* Payments Section - Conditionally Rendered */}
         {(isInvoiceFlow || payments.length > 0) && (

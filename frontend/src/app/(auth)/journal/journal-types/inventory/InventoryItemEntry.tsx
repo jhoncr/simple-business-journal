@@ -1,6 +1,6 @@
 import React from "react";
 import { EntryView, EntryViewProps } from "../../comp/EntryView";
-import { DBentry, User } from "@/lib/custom_types";
+import { DBentry, AccessMap as User } from "@/lib/custom_types";
 import { formattedDate, formatCurrency } from "@/lib/utils";
 import { Hammer, Package } from "lucide-react";
 // No schema imports needed here if structure is assumed correct via props

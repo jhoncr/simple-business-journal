@@ -1,4 +1,11 @@
-import { Coins, Package, List, FileText, PencilRuler, Receipt } from "lucide-react";
+import {
+  Coins,
+  Package,
+  List,
+  FileText,
+  PencilRuler,
+  Receipt,
+} from "lucide-react";
 import { CashFlowEntry } from "./cash-flow/CashFlowEntry";
 import { InventoryItemEntry } from "./inventory/InventoryItemEntry";
 import { AddInventoryEntryForm } from "./inventory/add-inventory-entry";
@@ -28,7 +35,7 @@ const JOURNAL_CONFIG: {
   inventory: {
     icon: <Package className="h-4 w-4" />,
     title: "Inventory",
-    entryComponent: InventoryItemEntry,
+    entryComponent: InventoryItemEntry as any,
     addEntryForm: AddInventoryEntryForm,
   },
   estimate: {

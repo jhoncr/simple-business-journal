@@ -57,22 +57,6 @@ function DisplayJournalList({ journals }: { journals: Journal[] }) {
                 return acc;
               }, {} as Record<string, any>),
           };
-        } else if (journal.journalType === JOURNAL_TYPES.BABY) {
-          // --- Handle Baby Journal Type ---
-          // You'll need a specific BabyInfoCard or adapt JournalInfoCard
-          // For now, use JournalInfoCard with baby-specific details extraction
-          const details = journal.details as any; // Replace 'any' with BabyDetailsType later
-          cardProps = {
-            ...cardProps,
-            // No currency for baby?
-            contactInfo: { name: journal.title, address: {} }, // Just use title as name
-            logo: null, // No logo for baby?
-            journalSubcollections: Object.entries(ENTRY_CONFIG)
-              .filter(([_, config]) => config.category === "baby")
-              .map(([key, config]) => ({ key, ...config })),
-          };
-          // Consider a different Card component for Baby type
-          // return <BabyInfoCard key={journal.id} {...babyProps} />;
         } else {
           // Handle other types or skip rendering
           console.warn(

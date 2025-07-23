@@ -1,14 +1,14 @@
-import { HttpsError } from "firebase-functions/v2/https";
-import * as logger from "firebase-functions/logger";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { initializeApp, getApps } from "firebase-admin/app";
-import { JOURNAL_COLLECTION, JOURNAL_TYPES } from "./common/const";
+import { HttpsError } from 'firebase-functions/v2/https';
+import * as logger from 'firebase-functions/logger';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { JOURNAL_COLLECTION, JOURNAL_TYPES } from './common/const';
 import {
   JournalSchema,
   businessDetailsSchema,
-} from "./common/schemas/JournalSchema";
-import * as z from "zod";
-import { createAuditedCallable } from "./helpers/audited-function";
+} from './common/schemas/JournalSchema';
+import * as z from 'zod';
+import { createAuditedCallable } from './helpers/audited-function';
 
 if (getApps().length === 0) {
   initializeApp();
@@ -37,15 +37,15 @@ const CreateJournalPayloadSchema = _CreateJournalPayloadSchema.refine(
     );
   },
   {
-    message: "Details must match the specified journal type.",
-    path: ["details"],
+    message: 'Details must match the specified journal type.',
+    path: ['details'],
   },
 );
 
 // type CreateJournalPayloadType = z.infer<typeof CreateJournalPayloadSchema>;
 
 export const createJournal = createAuditedCallable(
-  "createJournal",
+  'createJournal',
   JOURNAL_COLLECTION,
   [],
   CreateJournalPayloadSchema,
@@ -53,7 +53,7 @@ export const createJournal = createAuditedCallable(
     const uid = request.auth!.uid;
     const access = {
       [uid]: {
-        role: "admin",
+        role: 'admin',
         email: request.auth!.token.email || null,
         displayName: request.auth!.token.name || null,
         photoURL: request.auth!.token.picture || null,
@@ -84,9 +84,9 @@ export const createJournal = createAuditedCallable(
         response: { journalId: journalDocRef.id },
       };
     } catch (error: any) {
-      logger.error("Journal creation failed", error);
+      logger.error('Journal creation failed', error);
       throw new HttpsError(
-        "internal",
+        'internal',
         `Journal creation failed: ${error.message || error}`,
       );
     }
@@ -105,9 +105,9 @@ const UpdateJournalPayloadSchema = _CreateJournalPayloadSchema
 // type UpdateJournalPayloadType = z.infer<typeof UpdateJournalPayloadSchema>;
 
 export const updateJournal = createAuditedCallable(
-  "updateJournal",
+  'updateJournal',
   JOURNAL_COLLECTION,
-  ["admin"],
+  ['admin'],
   UpdateJournalPayloadSchema,
   async (request) => {
     const { id: journalId, title, details } = request.data;
@@ -129,10 +129,10 @@ export const updateJournal = createAuditedCallable(
 
       return { id: journalId, response: { success: true } };
     } catch (error: any) {
-      logger.error("Update failed", error);
+      logger.error('Update failed', error);
       if (error instanceof HttpsError) throw error;
       throw new HttpsError(
-        "internal",
+        'internal',
         `Update failed: ${error.message || error}`,
       );
     }

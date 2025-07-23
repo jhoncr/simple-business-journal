@@ -1,13 +1,13 @@
 // backend/functions/src/bg-accept-share.ts
 
-import { onCall, HttpsError } from "firebase-functions/v2/https";
-import * as logger from "firebase-functions/logger";
-import * as z from "zod";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { initializeApp, getApps } from "firebase-admin/app";
-import { JOURNAL_COLLECTION } from "./common/const";
-import { ALLOWED } from "./lib/bg-consts";
-import { JournalSchema } from "./common/schemas/JournalSchema";
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import * as logger from 'firebase-functions/logger';
+import * as z from 'zod';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { JOURNAL_COLLECTION } from './common/const';
+import { ALLOWED } from './lib/bg-consts';
+import { JournalSchema } from './common/schemas/JournalSchema';
 
 if (getApps().length === 0) {
   initializeApp();
@@ -18,7 +18,7 @@ const db = getFirestore();
 const schema = z
   .object({
     businessID: z.string(),
-    operation: z.enum(["accept", "ignore", "check"]),
+    operation: z.enum(['accept', 'ignore', 'check']),
   })
   .strict();
 
@@ -29,18 +29,18 @@ export const acceptShare = onCall(
   },
   async (request) => {
     try {
-      logger.info("acceptShare called");
+      logger.info('acceptShare called');
       if (!request.auth || !request.auth.uid || !request.auth.token?.email) {
         throw new HttpsError(
-          "unauthenticated",
-          "You must be signed in to manage sharing.",
+          'unauthenticated',
+          'You must be signed in to manage sharing.',
         );
       }
 
       const result = schema.safeParse(request.data);
       if (!result.success) {
         throw new HttpsError(
-          "invalid-argument",
+          'invalid-argument',
           result.error.message, // Simplified error message
         );
       }
@@ -49,12 +49,12 @@ export const acceptShare = onCall(
       const uid = request.auth.uid;
       const email = request.auth.token?.email;
 
-      if (operation === "ignore") {
+      if (operation === 'ignore') {
         // Optionally: You could add logic here to record the ignore action if needed
         logger.info(
           `User ${uid} (${email}) ignored share for business ${businessId}`,
         );
-        return { result: "ok", message: "Ignored grant to access log" };
+        return { result: 'ok', message: 'Ignored grant to access log' };
       }
 
       // Transaction to modify the business document
@@ -64,8 +64,8 @@ export const acceptShare = onCall(
 
         if (!logDoc.exists) {
           throw new HttpsError(
-            "not-found",
-            "The business document does not exist or you do not have access.", // Simplified message
+            'not-found',
+            'The business document does not exist or you do not have access.', // Simplified message
           );
         }
 
@@ -80,7 +80,7 @@ export const acceptShare = onCall(
         }
 
         // Check operation: Verify invitation exists
-        if (operation === "check") {
+        if (operation === 'check') {
           if (email && logData.pendingAccess && logData.pendingAccess[email]) {
             const role = logData.pendingAccess[email];
             logger.info(
@@ -89,7 +89,7 @@ export const acceptShare = onCall(
             // Message now includes the role.
             // This return is inside the transaction, so the main return after transaction won't be hit for "check".
             return {
-              result: "ok",
+              result: 'ok',
               message: `You have a pending invitation as a ${role}.`,
             };
           } else {
@@ -97,8 +97,8 @@ export const acceptShare = onCall(
               `Access check failed for ${email} on business ${businessId}. No pending access found.`,
             );
             throw new HttpsError(
-              "not-found", // Or 'permission-denied'
-              "You have not been invited to access this business or the invitation was revoked.",
+              'not-found', // Or 'permission-denied'
+              'You have not been invited to access this business or the invitation was revoked.',
             );
           }
         }
@@ -121,8 +121,8 @@ export const acceptShare = onCall(
             [`access.${uid}`]: {
               role: role,
               email: email,
-              displayName: request?.auth?.token?.name || "",
-              photoURL: request?.auth?.token?.picture || "",
+              displayName: request?.auth?.token?.name || '',
+              photoURL: request?.auth?.token?.picture || '',
             },
             // Remove from pendingAccess map, only if email is not null
             [`pendingAccess.${email}`]: FieldValue.delete(),
@@ -144,8 +144,8 @@ export const acceptShare = onCall(
             `Accept operation failed for ${email} on business ${businessId}. No pending access found.`,
           );
           throw new HttpsError(
-            "permission-denied",
-            "You have not been invited to access this business or the invitation may have been withdrawn.",
+            'permission-denied',
+            'You have not been invited to access this business or the invitation may have been withdrawn.',
           );
         }
       }); // End transaction
@@ -157,17 +157,17 @@ export const acceptShare = onCall(
       // that object will be returned by the onCall function.
       // If the transaction promise resolves to undefined (normal successful transaction for "accept"),
       // then the specific message for "accept" is returned.
-      return { result: "ok", message: "Accepted grant to access business" };
+      return { result: 'ok', message: 'Accepted grant to access business' };
     } catch (error) {
       // If HttpsError was thrown from within the transaction for "check" (e.g. "not-found"),
       // it will be caught here and re-thrown.
-      logger.error("Error accepting share for business:", error);
+      logger.error('Error accepting share for business:', error);
       if (error instanceof HttpsError) {
         throw error;
       }
       throw new HttpsError(
-        "internal",
-        "Error accepting share. Please try again later.",
+        'internal',
+        'Error accepting share. Please try again later.',
       );
     }
   },

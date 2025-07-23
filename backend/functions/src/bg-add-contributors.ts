@@ -1,12 +1,12 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
-import * as logger from "firebase-functions/logger";
-import * as z from "zod";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { initializeApp, getApps } from "firebase-admin/app";
-import { JOURNAL_COLLECTION } from "./common/const";
-import { JournalSchemaType } from "./common/schemas/JournalSchema";
-import { ALLOWED } from "./lib/bg-consts";
-import { ROLES } from "./common/schemas/common_schemas";
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import * as logger from 'firebase-functions/logger';
+import * as z from 'zod';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { JOURNAL_COLLECTION } from './common/const';
+import { JournalSchemaType } from './common/schemas/JournalSchema';
+import { ALLOWED } from './lib/bg-consts';
+import { ROLES } from './common/schemas/common_schemas';
 
 if (getApps().length === 0) {
   initializeApp();
@@ -14,13 +14,13 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 
-const SHARE_ROLES = new Set(["admin"]);
+const SHARE_ROLES = new Set(['admin']);
 
 const updateShareRequest = z
   .object({
     email: z.string().email(),
     role: z.enum(ROLES),
-    operation: z.enum(["add", "remove"]),
+    operation: z.enum(['add', 'remove']),
     journalId: z.string(),
   })
   .strict();
@@ -41,12 +41,12 @@ export const addContributor = onCall(
   },
   async (request) => {
     try {
-      logger.info("addContributor called");
+      logger.info('addContributor called');
       // return error if not authenticated
       if (!request.auth) {
         throw new HttpsError(
-          "unauthenticated",
-          "You must be signed in to add a message",
+          'unauthenticated',
+          'You must be signed in to add a message',
         );
       }
 
@@ -54,7 +54,7 @@ export const addContributor = onCall(
       const result = updateShareRequest.safeParse(request.data);
       if (!result.success) {
         throw new HttpsError(
-          "invalid-argument",
+          'invalid-argument',
           result.error.message, // Simplified error message
         );
       }
@@ -72,8 +72,8 @@ export const addContributor = onCall(
         // check if the log document exists
         if (!logDoc.exists) {
           throw new HttpsError(
-            "not-found",
-            "The log document does not exist or you do not have access to it.",
+            'not-found',
+            'The log document does not exist or you do not have access to it.',
           );
         }
 
@@ -83,23 +83,23 @@ export const addContributor = onCall(
         const hasAccess: { [uid: string]: Contributor } = logData?.access ?? {};
         if (!(uid in hasAccess) || !SHARE_ROLES.has(hasAccess[uid].role)) {
           throw new HttpsError(
-            "permission-denied",
-            "You do not have permission to add or remove contributors to this log entry.",
+            'permission-denied',
+            'You do not have permission to add or remove contributors to this log entry.',
           );
         }
 
-        logger.info("User is allowed to share this journal");
-        logger.debug("logData", logData);
-        logger.debug("result.data.", result.data);
+        logger.info('User is allowed to share this journal');
+        logger.debug('logData', logData);
+        logger.debug('result.data.', result.data);
 
-        if (result.data.operation === "add") {
+        if (result.data.operation === 'add') {
           handleAddOperation(
             transaction,
             logDocRef,
             result.data,
             logData as JournalSchemaType,
           );
-        } else if (result.data.operation === "remove") {
+        } else if (result.data.operation === 'remove') {
           handleRemoveOperation(
             transaction,
             logDocRef,
@@ -110,19 +110,19 @@ export const addContributor = onCall(
       });
       // return success
     } catch (error) {
-      logger.log("Error adding contributors", error);
+      logger.log('Error adding contributors', error);
       // check if errors is a https error
       if (error instanceof HttpsError) {
         throw error;
       }
       throw new HttpsError(
-        "internal",
-        "Error adding contributors. Please try again later.",
+        'internal',
+        'Error adding contributors. Please try again later.',
       );
     }
 
     // return ok
-    return { result: "ok", message: "operation completed successfully" };
+    return { result: 'ok', message: 'operation completed successfully' };
   },
 );
 
@@ -142,7 +142,7 @@ const handleAddOperation = async (
     const [uid, contributorData] = cur;
     // If user is already an admin, prevent role change via this function.
     // Admin role changes should be handled by a dedicated admin management function.
-    if (contributorData.role === "admin") {
+    if (contributorData.role === 'admin') {
       logger.warn(
         `Attempt to change role of admin ${data.email} was blocked.`,
       );
@@ -185,10 +185,10 @@ const handleRemoveOperation = async (
     const [uid, contributorData] = contributorEntry;
 
     // Prevent admin from removing themselves if they are the sole admin
-    if (contributorData.role === "admin") {
-      const adminCount = Object.values(access).filter(c => c.role === "admin").length;
+    if (contributorData.role === 'admin') {
+      const adminCount = Object.values(access).filter((c) => c.role === 'admin').length;
       if (adminCount <= 1) {
-        throw new HttpsError("permission-denied", "Cannot remove the sole admin.");
+        throw new HttpsError('permission-denied', 'Cannot remove the sole admin.');
       }
     }
 

@@ -155,7 +155,7 @@ export async function fetchOlderEntrys(
       return {};
     }
 
-    const queryConstraints = [
+    const queryConstraints: any[] = [
       where("isActive", "==", true),
       orderBy(primarySortField, "desc"),
       // orderBy("createdAt", "desc"), // Consider if this secondary sort is always needed/reliable

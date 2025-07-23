@@ -1,19 +1,16 @@
 // backend/functions/src/bg-add-log-entry.ts
-import { onCall, HttpsError } from "firebase-functions/v2/https";
-import * as logger from "firebase-functions/logger";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { initializeApp, getApps } from "firebase-admin/app";
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import * as logger from 'firebase-functions/logger';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { JOURNAL_COLLECTION, ROLES_THAT_ADD } from './common/const';
 import {
-  JOURNAL_COLLECTION,
-  ROLES_THAT_ADD,
-} from "./common/const";
-import { ENTRY_CONFIG,
+  ENTRY_CONFIG,
   entrySchema,
   EntryType,
-} from "./common/schemas/configmap";
-import { ALLOWED, handleSchemaValidationError } from "./lib/bg-consts";
-import { EntryItf } from "./common/common_types";
-
+} from './common/schemas/configmap';
+import { ALLOWED, handleSchemaValidationError } from './lib/bg-consts';
+import { EntryItf } from './common/common_types';
 
 if (getApps().length === 0) {
   initializeApp();
@@ -28,11 +25,11 @@ export const addLogFn = onCall(
   },
   async (request) => {
     try {
-      logger.info("addLogFn called");
+      logger.info('addLogFn called');
       if (!request.auth) {
         throw new HttpsError(
-          "unauthenticated",
-          "You must be signed in to add an entry",
+          'unauthenticated',
+          'You must be signed in to add an entry',
         );
       }
 
@@ -40,11 +37,11 @@ export const addLogFn = onCall(
       if (!requestResult.success) {
         // Use format() for better error logging
         logger.error(
-          "Invalid request data format:",
+          'Invalid request data format:',
           requestResult.error.format(),
         );
         throw new HttpsError(
-          "invalid-argument",
+          'invalid-argument',
           `Invalid request data: ${requestResult.error.message}`,
         );
       }
@@ -62,7 +59,7 @@ export const addLogFn = onCall(
       const journalDocRef = db.collection(JOURNAL_COLLECTION).doc(journalId);
       const journalDoc = await journalDocRef.get();
       if (!journalDoc.exists) {
-        throw new HttpsError("not-found", "Journal not found or no access.");
+        throw new HttpsError('not-found', 'Journal not found or no access.');
       }
       const journalData = journalDoc.data() || {};
       const journalType = journalData.journalType;
@@ -72,15 +69,15 @@ export const addLogFn = onCall(
         !ROLES_THAT_ADD.has(journalData?.access?.[uid]?.role)
       ) {
         throw new HttpsError(
-          "permission-denied",
-          "No access to add entries to this journal.",
+          'permission-denied',
+          'No access to add entries to this journal.',
         );
       }
 
       const config = ENTRY_CONFIG[entryType as EntryType];
       if (!config) {
         throw new HttpsError(
-          "invalid-argument",
+          'invalid-argument',
           `Unsupported entryType: ${entryType}`,
         );
       }
@@ -103,7 +100,7 @@ export const addLogFn = onCall(
       // Construct the base entry object (timestamps and details added below)
       const baseEntry: Omit<
         EntryItf,
-        "createdAt" | "updatedAt" | "details" | "createdBy"
+        'createdAt' | 'updatedAt' | 'details' | 'createdBy'
       > = {
         name: name,
         isActive: true,
@@ -133,22 +130,36 @@ export const addLogFn = onCall(
         );
       }
     } catch (error) {
-      logger.error("Error in addLogFn: ", error);
+      logger.error('Error in addLogFn: ', error);
       if (error instanceof HttpsError) {
         throw error;
       }
       throw new HttpsError(
-        "internal",
-        "An unexpected error occurred. Please try again later.",
+        'internal',
+        'An unexpected error occurred. Please try again later.',
       );
     }
   },
 );
 
 // --- Helper function to add a new entry ---
+/**
+ * Adds a new entry to the specified journal.
+ * @param entriesColRef - The Firestore collection reference for the journal's entries.
+ * @param baseEntry - The base entry data (excluding timestamps and details).
+ * @param validatedDetails - The validated details for the entry.
+ * @param uid - The user ID of the entry creator.
+ * @param entryType - The type of the entry (for logging purposes).
+ * @param journalId - The ID of the journal (for logging purposes).
+ * @param targetSubcollectionName - The name of the subcollection where the entry will be added.
+ * @returns A promise that resolves with the result of the add operation.
+ */
 async function _addEntry(
   entriesColRef: FirebaseFirestore.CollectionReference,
-  baseEntry: Omit<EntryItf, "createdAt" | "updatedAt" | "details" | "createdBy">,
+  baseEntry: Omit<
+    EntryItf,
+    'createdAt' | 'updatedAt' | 'details' | 'createdBy'
+  >,
   validatedDetails: any, // eslint-disable-line @typescript-eslint/no-explicit-any
   uid: string,
   entryType: string, // For logging
@@ -167,25 +178,38 @@ async function _addEntry(
       `${entryType} entry successfully added to ${targetSubcollectionName} in journal ${journalId}`,
     );
     return {
-      result: "ok",
-      message: "Entry added successfully",
+      result: 'ok',
+      message: 'Entry added successfully',
       id: docRef.id,
     };
   } catch (error) {
-    logger.error("Error adding entry: ", error);
+    logger.error('Error adding entry: ', error);
     throw new HttpsError(
-      "internal",
-      "Failed to add entry. Please try again later.",
+      'internal',
+      'Failed to add entry. Please try again later.',
     );
   }
 }
 
 // --- Helper function to update an existing entry ---
+/**
+ * Updates an existing entry in the specified journal.
+ * @param db - The Firestore database instance.
+ * @param entriesColRef - The Firestore collection reference for the journal's entries.
+ * @param entryId - The ID of the entry to update.
+ * @param baseEntry - The base entry data (excluding timestamps and details).
+ * @param validatedDetails - The validated details for the entry.
+ * @param targetSubcollectionName - The name of the subcollection where the entry is located.
+ * @returns A promise that resolves with the result of the update operation.
+ */
 async function _updateEntry(
   db: FirebaseFirestore.Firestore,
   entriesColRef: FirebaseFirestore.CollectionReference,
   entryId: string,
-  baseEntry: Omit<EntryItf, "createdAt" | "updatedAt" | "details" | "createdBy">,
+  baseEntry: Omit<
+    EntryItf,
+    'createdAt' | 'updatedAt' | 'details' | 'createdBy'
+  >,
   validatedDetails: any, // eslint-disable-line @typescript-eslint/no-explicit-any
   targetSubcollectionName: string, // For logging
 ) {
@@ -195,7 +219,7 @@ async function _updateEntry(
       const existingEntryDoc = await transaction.get(entryDocRef);
       if (!existingEntryDoc.exists) {
         throw new HttpsError(
-          "not-found",
+          'not-found',
           `Entry ${entryId} not found in ${targetSubcollectionName}.`,
         );
       }
@@ -212,16 +236,16 @@ async function _updateEntry(
       `Entry ${entryId} in ${targetSubcollectionName} updated successfully`,
     );
     return {
-      result: "ok",
-      message: "Entry updated successfully",
+      result: 'ok',
+      message: 'Entry updated successfully',
       id: entryId,
     };
   } catch (error) {
-    logger.error("Transaction failed during update: ", error);
+    logger.error('Transaction failed during update: ', error);
     if (error instanceof HttpsError) throw error;
     throw new HttpsError(
-      "internal",
-      "Failed to update entry. Please try again later.",
+      'internal',
+      'Failed to update entry. Please try again later.',
     );
   }
 }

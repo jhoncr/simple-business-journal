@@ -1,10 +1,10 @@
-import * as z from "zod";
-import { contactInfoSchema, allowedCurrencySchema } from "./common_schemas";
+import * as z from 'zod';
+import { contactInfoSchema, allowedCurrencySchema } from './common_schemas';
 import {
   materialItemSchema,
   laborItemSchema,
   dimensionConfigSchema,
-} from "./InventorySchema";
+} from './InventorySchema';
 
 export const currencyCodeSchema = allowedCurrencySchema; // ISO 4217 currency codes are 3 letters
 // Add this near the top of the file, before the schemas
@@ -18,7 +18,7 @@ export const currencySchema = z
 
 export const paymentSchema = z.object({
   id: z.string().cuid().optional(),
-  amount: z.number().positive("Payment amount must be positive."),
+  amount: z.number().positive('Payment amount must be positive.'),
   date: z.coerce.date(),
   method: z.string().optional().nullable(),
   transactionId: z.string().optional().nullable(),
@@ -39,27 +39,27 @@ export const lineItemSchema = z.object({
   description: z
     .string()
     .min(3, {
-      message: "The description must be at least 3 characters.",
+      message: 'The description must be at least 3 characters.',
     })
     .max(254, {
-      message: "A max of 254 characters is allowed in the description.",
+      message: 'A max of 254 characters is allowed in the description.',
     }),
   material: materialItemSchema,
 });
 
 export const adjustmentSchema = z.object({
   type: z.enum([
-    "addPercent",
-    "addFixed",
-    "discountPercent",
-    "discountFixed",
-    "taxPercent",
+    'addPercent',
+    'addFixed',
+    'discountPercent',
+    'discountFixed',
+    'taxPercent',
   ]),
   value: z.number().nonnegative(),
   description: z.string(),
 });
 
-import { EstimateStatus, InvoiceStatus } from "../common_types";
+import { EstimateStatus, InvoiceStatus } from '../common_types';
 
 export const estimateDetailsStateSchema = z.object({
   confirmedItems: z.array(lineItemSchema),
@@ -72,7 +72,7 @@ export const estimateDetailsStateSchema = z.object({
   currency: currencyCodeSchema,
   notes: z
     .string()
-    .max(250, { message: "Notes must be less than 250 characters" })
+    .max(250, { message: 'Notes must be less than 250 characters' })
     .optional()
     .nullable(),
 
