@@ -8,6 +8,7 @@ import { MinusCircle } from "lucide-react";
 import { allowedCurrencySchemaType } from "@/../../backend/functions/src/common/schemas/common_schemas";
 import { ROLES_THAT_ADD } from "@/../../backend/functions/src/common/const"; // Import ROLES_THAT_ADD
 import { ROLES } from "@/../../backend/functions/src/common/schemas/common_schemas"; // Import ROLES type
+import { Payment } from "@/../../backend/functions/src/common/schemas/estimate_schema";
 
 interface InvoiceBottomLinesProps {
   itemSubtotal: number;
@@ -18,6 +19,7 @@ interface InvoiceBottomLinesProps {
   currency: allowedCurrencySchemaType;
   onSave?: (updates: any) => void; // Add this new prop
   userRole: (typeof ROLES)[number]; // Add userRole prop
+  payments: Payment[];
 }
 
 const currencyFormat = (
@@ -41,6 +43,7 @@ export function InvoiceBottomLines({
   currency,
   onSave, // Add this new prop
   userRole, // Use prop
+  payments,
 }: InvoiceBottomLinesProps) {
   // Check if user has permission to modify
   const canModify = React.useMemo(
@@ -83,6 +86,16 @@ export function InvoiceBottomLines({
       grandTotal: totalBeforeTax + taxAmount,
     };
   }, [itemSubtotal, totalAdjustments, taxPercentage]);
+
+  const totalPayments = React.useMemo(
+    () => payments.reduce((sum, payment) => sum + (payment.amount || 0), 0),
+    [payments],
+  );
+
+  const balanceDue = React.useMemo(
+    () => grandTotal - totalPayments,
+    [grandTotal, totalPayments],
+  );
 
   const handleAddAdjustment = (newAdjustment: Adjustment) => {
     setAdjustments([...adjustments, newAdjustment]);
@@ -202,11 +215,29 @@ export function InvoiceBottomLines({
           </>
         )}
         <div className="flex justify-between pt-4 mt-2 items-center border-t-4 border-double">
-          <span className="text-md font-medium">Grand Total</span>
+          <span className="text-md font-medium">Total</span>
           <h1 className="pr-10 print:pr-0 text-xl font-bold text-primary">
             {currencyFormat(grandTotal, currency)}
           </h1>
         </div>
+        {payments.length > 0 && (
+          <>
+            <div className="flex justify-between items-center pt-2 border-t">
+              <span className="font-medium text-muted-foreground">
+                Payments Total
+              </span>
+              <div className="pr-10 print:pr-0 text-muted-foreground">
+                - {currencyFormat(totalPayments, currency)}
+              </div>
+            </div>
+            <div className="flex justify-between pt-2 mt-2 items-center border-t-2">
+              <span className="text-md font-medium">Balance Due</span>
+              <h1 className="pr-10 print:pr-0 text-xl font-bold text-primary">
+                {currencyFormat(balanceDue, currency)}
+              </h1>
+            </div>
+          </>
+        )}
       </div>
       <div className="print:hidden space-y-2">
         <AdjustmentForm

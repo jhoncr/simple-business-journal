@@ -22,9 +22,9 @@ const buttonVariants = cva(
           "bg-background border-2 border-foreground text-foreground shadow-[2px_2px_0px_0px] shadow-foreground hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-[0px_0px_0px_0px] active:translate-x-[4px] active:translate-y-[4px] active:shadow-[0px_0px_0px_0px]",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
+        default: "h-10 px-6 py-2",
+        sm: "h-9 rounded-md px-4",
+        lg: "h-12 rounded-md px-10",
         icon: "h-10 w-10",
       },
     },

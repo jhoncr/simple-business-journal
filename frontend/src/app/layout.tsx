@@ -27,7 +27,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <AuthUserProvider>{children}</AuthUserProvider>
+          <AuthUserProvider>
+            <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              {children}
+            </main>
+          </AuthUserProvider>
           <Toaster position="top-center" />
         </ThemeProvider>
       </body>

@@ -73,10 +73,32 @@ module.exports = {
             height: 0,
           },
         },
+        "dialog-content-show": {
+          from: {
+            opacity: 0,
+            transform: "translate(-50%, -48%) scale(0.96)",
+          },
+          to: {
+            opacity: 1,
+            transform: "translate(-50%, -50%) scale(1)",
+          },
+        },
+        "dialog-content-hide": {
+          from: {
+            opacity: 1,
+            transform: "translate(-50%, -50%) scale(1)",
+          },
+          to: {
+            opacity: 0,
+            transform: "translate(-50%, -48%) scale(0.96)",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "dialog-content-show": "dialog-content-show 0.2s ease-out",
+        "dialog-content-hide": "dialog-content-hide 0.2s ease-in",
       },
     },
   },

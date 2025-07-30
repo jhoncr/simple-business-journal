@@ -299,13 +299,11 @@ export default function ListJournalPage() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-start w-full px-1">
-      {/* --- Journal Info Card (Optional based on type) --- */}
-
+    <div className="flex flex-col items-center justify-start w-full px-4 sm:px-6 lg:px-8">
       {/* --- Filter Badges --- */}
       <div
         id="filter-badges"
-        className="flex flex-row items-center justify-center space-x-2 my-2"
+        className="flex flex-row items-center justify-center space-x-2 my-4"
       >
         <FilterRangeBadge dateRange={dateRange} setdateRange={setDateRange} />
       </div>
@@ -315,11 +313,9 @@ export default function ListJournalPage() {
         <Tabs
           value={displayEntryType} // Controlled by state
           onValueChange={handleTabChange} // Use our new handler function here
-          className="w-full max-w-2xl mx-auto" // Center tabs and content
+          className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-3 mb-4">
-            {" "}
-            {/* Adjust grid-cols based on number of types */}
+          <TabsList className="grid w-full grid-cols-3 mb-4 border-b-2 border-gray-200 dark:border-gray-700">
             {availableEntryTypes.map((type) => (
               <TabsTrigger key={type} value={type}>
                 {getTabDisplayName(type)}
