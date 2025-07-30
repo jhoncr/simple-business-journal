@@ -15,6 +15,7 @@ export function formattedDate(entryDate: Timestamp | Date) {
   let options: Intl.DateTimeFormatOptions = {
     month: "short",
     day: "numeric",
+    year: "numeric",
   };
   // Corrected logic: Display the year if the entry's year is different from the current year.
   if (date.getFullYear() !== new Date().getFullYear()) {
@@ -48,7 +49,11 @@ export const currencyToSymbol = (currency: string): string => {
     return symbol || "$";
   } catch (error) {
     // Added console.warn for better error visibility during development
-    console.warn("Invalid currency code for currencyToSymbol:", currency, error);
+    console.warn(
+      "Invalid currency code for currencyToSymbol:",
+      currency,
+      error,
+    );
     // Return default USD symbol if currency code is invalid
     return "$";
   }

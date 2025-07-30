@@ -472,7 +472,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
   return (
     <div
       id="estimate-printable-container"
-      className="w-full print:max-w-none mx-auto p-2 border-none relative pb-20 md:pb-4 lg:pr-[430px]"
+      className="w-full print:max-w-none mx-auto   border-none relative pb-20 md:pb-4 lg:pr-[430px]"
     >
       <EstimateHeader logo={supplierLogo} contactInfo={supplierInfo} />
 
@@ -692,7 +692,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
 
         {/* Payments Section - Conditionally Rendered */}
         {(isInvoiceFlow || payments.length > 0) && (
-          <div>
+          <div className="break-before-page">
             <h3 className="text-lg font-semibold pt-4 mb-2">Payments</h3>
             <div className="border rounded-md p-4 space-y-4">
               {payments.length > 0 ? (
@@ -830,101 +830,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
       </div>
       <style jsx global>{`
         @media print {
-          body {
-            -webkit-print-color-adjust: exact;
-            color-adjust: exact;
-          }
-          #estimate-printable-container {
-            padding: 1rem 0.5rem;
-            margin: 0;
-            border: none;
-            box-shadow: none;
-            width: 100%;
-            max-width: 100%;
-            min-height: 90vh; /* Try to fit to one page */
-          }
-          .page-break {
-            page-break-before: always;
-          }
-          h1,
-          h2,
-          h3,
-          h4,
-          h5,
-          h6 {
-            page-break-after: avoid;
-          }
-          p,
-          blockquote,
-          table,
-          ul,
-          ol,
-          dl {
-            page-break-inside: avoid;
-          }
-          tr {
-            page-break-inside: avoid;
-          }
-          .bg-secondary\/30 {
-            background-color: #f1f5f9 !important; /* slate-100 */
-          }
-
-          /* Reduce spacing and font sizes for print */
-          #estimate-printable-container .space-y-4 > * + * {
-            margin-top: 0.75rem;
-          }
-          #estimate-printable-container .p-2 {
-            padding: 0.25rem;
-          }
-          #estimate-printable-container .px-2 {
-            padding-left: 0.25rem;
-            padding-right: 0.25rem;
-          }
-          #estimate-printable-container .md\:px-4 {
-            padding-left: 0.5rem;
-            padding-right: 0.5rem;
-          }
-          #estimate-printable-container .mt-2 {
-            margin-top: 0.5rem;
-          }
-          #estimate-printable-container .mt-4 {
-            margin-top: 1rem;
-          }
-          #estimate-printable-container .mb-2 {
-            margin-bottom: 0.5rem;
-          }
-          #estimate-printable-container .py-2 {
-            padding-top: 0.25rem;
-            padding-bottom: 0.25rem;
-          }
-          #estimate-printable-container .px-1 {
-            padding-left: 0.125rem;
-            padding-right: 0.125rem;
-          }
-          #estimate-printable-container .text-lg {
-            font-size: 1rem; /* smaller headings */
-          }
-          #estimate-printable-container .text-sm {
-            font-size: 0.8rem; /* smaller text */
-          }
-          #estimate-printable-container .text-xs {
-            font-size: 0.7rem; /* even smaller text */
-          }
-          #estimate-printable-container .border {
-            border: 1px solid #e2e8f0; /* Light border for tables etc */
-          }
-          #estimate-printable-container .rounded-md {
-            border-radius: 0.25rem;
-          }
-          #estimate-printable-container .p-4 {
-            padding: 0.5rem;
-          }
-          #estimate-printable-container .gap-4 {
-            gap: 0.75rem;
-          }
-          #estimate-printable-container .pb-4 {
-            padding-bottom: 1rem;
-          }
+          /* Hide non-print elements */
         }
       `}</style>
     </div>
