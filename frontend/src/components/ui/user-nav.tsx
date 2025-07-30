@@ -10,13 +10,13 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User } from "@/lib/custom_types";
+import { AccessUser } from "@/lib/custom_types";
 
 export function UserNav({
   user,
   signOut,
 }: {
-  user: User;
+  user: AccessUser;
   signOut: () => void;
 }) {
   return (

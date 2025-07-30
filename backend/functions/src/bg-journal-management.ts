@@ -1,14 +1,14 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
-import * as logger from "firebase-functions/logger";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { initializeApp, getApps } from "firebase-admin/app";
-import { JOURNAL_COLLECTION, JOURNAL_TYPES } from "./common/const";
+import { HttpsError } from 'firebase-functions/v2/https';
+import * as logger from 'firebase-functions/logger';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { JOURNAL_COLLECTION, JOURNAL_TYPES } from './common/const';
 import {
-  JournalCreateBaseSchema,
+  JournalSchema,
   businessDetailsSchema,
-} from "./common/schemas/JournalSchema";
-import { ALLOWED } from "./lib/bg-consts";
-import * as z from "zod";
+} from './common/schemas/JournalSchema';
+import * as z from 'zod';
+import { createAuditedCallable } from './helpers/audited-function';
 
 if (getApps().length === 0) {
   initializeApp();
@@ -16,9 +16,19 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 
-const CreateJournalPayloadSchema = JournalCreateBaseSchema.extend({
+
+const _CreateJournalPayloadSchema = JournalSchema.omit({
+  id: true,
+  access: true,
+  access_array: true,
+  pendingAccess: true,
+  createdAt: true,
+  isActive: true,
+}).extend({
   details: businessDetailsSchema,
-}).refine(
+});
+
+const CreateJournalPayloadSchema = _CreateJournalPayloadSchema.refine(
   (data) => {
     return (
       data.journalType === JOURNAL_TYPES.BUSINESS &&
@@ -27,45 +37,30 @@ const CreateJournalPayloadSchema = JournalCreateBaseSchema.extend({
     );
   },
   {
-    message: "Details must match the specified journal type.",
-    path: ["details"],
+    message: 'Details must match the specified journal type.',
+    path: ['details'],
   },
 );
 
 // type CreateJournalPayloadType = z.infer<typeof CreateJournalPayloadSchema>;
 
-export const createJournal = onCall(
-  {
-    cors: ALLOWED,
-    enforceAppCheck: true,
-  },
+export const createJournal = createAuditedCallable(
+  'createJournal',
+  JOURNAL_COLLECTION,
+  [],
+  CreateJournalPayloadSchema,
   async (request) => {
-    logger.info("createJournal called");
-
-    if (!request.auth) {
-      throw new HttpsError(
-        "unauthenticated",
-        "You must be signed in to perform this operation.",
-      );
-    }
-
-    const result = CreateJournalPayloadSchema.safeParse(request.data);
-    if (!result.success) {
-      logger.error("Invalid request data", result.error.format());
-      throw new HttpsError("invalid-argument", result.error.message);
-    }
-
-    const uid = request.auth.uid;
+    const uid = request.auth!.uid;
     const access = {
       [uid]: {
-        role: "admin",
-        email: request.auth.token.email || null,
-        displayName: request.auth.token.name || null,
-        photoURL: request.auth.token.picture || null,
+        role: 'admin',
+        email: request.auth!.token.email || null,
+        displayName: request.auth!.token.name || null,
+        photoURL: request.auth!.token.picture || null,
       },
     };
 
-    const { title, journalType, details } = result.data;
+    const { title, journalType, details } = request.data;
 
     try {
       const journalDocRef = db.collection(JOURNAL_COLLECTION).doc();
@@ -84,86 +79,41 @@ export const createJournal = onCall(
       logger.info(
         `Journal of type ${journalType} created successfully with ID: ${journalDocRef.id}`,
       );
-      return { journalId: journalDocRef.id };
+      return {
+        id: journalDocRef.id,
+        response: { journalId: journalDocRef.id },
+      };
     } catch (error: any) {
-      logger.error("Journal creation failed", error);
+      logger.error('Journal creation failed', error);
       throw new HttpsError(
-        "internal",
+        'internal',
         `Journal creation failed: ${error.message || error}`,
       );
     }
   },
+  { isCreateOperation: true },
 );
 
-const UpdateJournalPayloadSchema = JournalCreateBaseSchema.partial()
+const UpdateJournalPayloadSchema = _CreateJournalPayloadSchema
   .extend({
     id: z.string().min(1),
     details: businessDetailsSchema.partial().optional(),
   })
-  .refine(
-    (data) => {
-      const details = data.details;
-      if (details) {
-        if (
-          data.journalType === JOURNAL_TYPES.BUSINESS &&
-          !businessDetailsSchema.partial().safeParse(details).success
-        ) {
-          return false;
-        }
-      }
-      return true;
-    },
-    {
-      message: "Details must match the specified journal type.",
-      path: ["details"],
-    },
-  );
+  .partial();
+// .refine(
 
 // type UpdateJournalPayloadType = z.infer<typeof UpdateJournalPayloadSchema>;
 
-export const updateJournal = onCall(
-  {
-    cors: ALLOWED,
-    enforceAppCheck: true,
-  },
+export const updateJournal = createAuditedCallable(
+  'updateJournal',
+  JOURNAL_COLLECTION,
+  ['admin'],
+  UpdateJournalPayloadSchema,
   async (request) => {
-    logger.info("updateJournal called");
-
-    if (!request.auth) {
-      throw new HttpsError(
-        "unauthenticated",
-        "You must be signed in to perform this operation.",
-      );
-    }
-
-    const result = UpdateJournalPayloadSchema.safeParse(request.data);
-    if (!result.success) {
-      logger.error("Invalid request data for update", result.error.format());
-      throw new HttpsError(
-        "invalid-argument",
-        "Invalid journal data for update.",
-      );
-    }
-
-    const uid = request.auth.uid;
-    const { id: journalId, title, details } = result.data;
+    const { id: journalId, title, details } = request.data;
 
     try {
       const docRef = db.collection(JOURNAL_COLLECTION).doc(journalId);
-      const doc = await docRef.get();
-
-      if (!doc.exists) {
-        throw new HttpsError("not-found", "Journal not found");
-      }
-
-      const currentData = doc.data();
-      if (!currentData) {
-        throw new HttpsError("internal", "Journal data is missing.");
-      }
-
-      if (currentData.access?.[uid]?.role !== "admin") {
-        throw new HttpsError("permission-denied", "Insufficient permissions");
-      }
 
       const updateData: Record<string, any> = {};
       if (title !== undefined) updateData.title = title;
@@ -177,12 +127,12 @@ export const updateJournal = onCall(
         logger.info(`No changes detected for journal ${journalId}.`);
       }
 
-      return { success: true };
+      return { id: journalId, response: { success: true } };
     } catch (error: any) {
-      logger.error("Update failed", error);
+      logger.error('Update failed', error);
       if (error instanceof HttpsError) throw error;
       throw new HttpsError(
-        "internal",
+        'internal',
         `Update failed: ${error.message || error}`,
       );
     }

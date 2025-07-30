@@ -24,11 +24,10 @@ module.exports = {
   ],
   plugins: ["@typescript-eslint", "import"],
   rules: {
-    estimates: ["error", "double"],
     "import/no-unresolved": 0,
     // "indent": ["error", 2],
     indent: "off",
-    "max-len": ["error", { code: 120 }],
+    "max-len": ["error", { code: 150 }],
     "object-curly-spacing": ["error", "always"],
     // "estimate-props": ["error", "as-needed"],
     "valid-jsdoc": "off",

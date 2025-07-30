@@ -1,13 +1,13 @@
 // backend/functions/src/cache-updates/bg-cache.ts
-import { onDocumentWritten } from "firebase-functions/v2/firestore";
-import { Firestore, getFirestore, FieldValue } from "firebase-admin/firestore";
-import { initializeApp, getApps } from "firebase-admin/app";
-import { EntryItf } from "../common/common_types";
-import { materialItemSchema } from "../common/schemas/InventorySchema";
-import { handleSchemaValidationError } from "../lib/bg-consts";
-import { JOURNAL_COLLECTION, JOURNAL_TYPES } from "../common/const";
-import { ENTRY_CONFIG } from "../common/schemas/configmap";
-import * as logger from "firebase-functions/logger";
+import { onDocumentWritten } from 'firebase-functions/v2/firestore';
+import { Firestore, getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { EntryItf } from '../common/common_types';
+import { materialItemSchema } from '../common/schemas/InventorySchema';
+import { handleSchemaValidationError } from '../lib/bg-consts';
+import { JOURNAL_COLLECTION, JOURNAL_TYPES } from '../common/const';
+import { ENTRY_CONFIG } from '../common/schemas/configmap';
+import * as logger from 'firebase-functions/logger';
 
 if (getApps().length === 0) {
   initializeApp();
@@ -89,7 +89,7 @@ export const onInventoryEntryWrite = onDocumentWritten(
       );
       if (!detailsResult.success) {
         // Use utility function - maybe pass 'inventory' type explicitly
-        handleSchemaValidationError("inventory", detailsResult);
+        handleSchemaValidationError('inventory', detailsResult);
         logger.error(
           `Invalid details for inventory item ${itemId} in journal ${journalId}. Aborting cache update.`,
         );

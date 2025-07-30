@@ -25,7 +25,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner"; // Import toast from sonner
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { useRouter } from "next/navigation";
 // --- Import specific types ---
@@ -65,7 +65,6 @@ export function JournalInfoCard({
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
-  const { toast } = useToast();
   const router = useRouter();
 
   console.log("journalSubcollections", journalSubcollections);
@@ -96,20 +95,12 @@ export function JournalInfoCard({
       // Call deleteJournal function
       const deleteJournalFn = httpsCallable(functions, "deleteJournal"); // Use correct name
       await deleteJournalFn({ journalId: id }); // Pass journalId
-
-      toast({
-        title: "Journal deleted",
-        description: "The journal has been successfully deleted.",
-      });
+      toast.info("Journal deleted");
       router.push("/"); // Navigate home after delete
       router.refresh(); // Force refresh
     } catch (error: any) {
       console.error("Error deleting journal:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete the journal. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to delete the journal. Please try again.");
     } finally {
       setIsDeleting(false);
     }

@@ -1,6 +1,6 @@
 // frontend/src/app/(auth)/journal/comp/Entry.tsx
 import React, { memo } from "react";
-import { DBentry, User } from "../../../../lib/custom_types";
+import { DBentry, AccessUser } from "../../../../lib/custom_types";
 import { getEntryComponent } from "../journal-types/config";
 import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap"; // Import EntryType
 
@@ -10,7 +10,7 @@ export interface EntryProps {
   journalId: string; // --- ADD journalId ---
   entryType: EntryType; // --- ADD entryType ---
   entry: DBentry;
-  user: User; // Creator user info
+  user: AccessUser; // Creator user info
   role: string; // Logged-in user's role
   removeFn: (entry: DBentry) => void;
 }

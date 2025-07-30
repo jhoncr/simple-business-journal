@@ -82,7 +82,7 @@ export default function ListJournalPage() {
   const params = useSearchParams();
   const router = useRouter();
   const journalId = params.get("jid");
-  const typeParam = params.get("type");
+  const typeParam = params.get("type") || "inventory"; // Default to "inventory" if not present
   // --- State for the currently selected tab/entryType ---
   const [displayEntryType, setDisplayEntryType] = useState<EntryType | null>(
     null,
@@ -140,13 +140,6 @@ export default function ListJournalPage() {
             ENTRY_CONFIG[key as keyof typeof ENTRY_CONFIG].category ===
             "business",
         ) as EntryType[];
-        defaultType = "inventory"; // Default to inventory for business
-      } else if (journal.journalType === JOURNAL_TYPES.BABY) {
-        typesForJournal = Object.keys(ENTRY_CONFIG).filter(
-          (key) =>
-            ENTRY_CONFIG[key as keyof typeof ENTRY_CONFIG].category === "baby",
-        ) as EntryType[];
-        defaultType = "feed"; // Default to feed for baby
       }
       setAvailableEntryTypes(typesForJournal);
 
@@ -154,7 +147,7 @@ export default function ListJournalPage() {
       const validTypeParam =
         typeParam && typesForJournal.includes(typeParam as EntryType)
           ? (typeParam as EntryType)
-          : null;
+          : "inventory"; // Default to "inventory" if invalid
 
       // Set display type based on: URL parameter > default type
       if (!displayEntryType) {
@@ -208,7 +201,7 @@ export default function ListJournalPage() {
               journal.access[authUser?.uid]?.role === "admin" && (
                 <AddContributers
                   journalId={journal.id} // Use currentJournal.id directly
-                  access={journal.access}
+                  access={journal.access as any}
                   pendingAccess={
                     (journal.pendingAccess || {}) as pendingAccessSchemaType
                   }
@@ -300,35 +293,14 @@ export default function ListJournalPage() {
       cashflow: "Cash Flow",
       inventory: "Inventory",
       estimate: "Estimates",
-      naps: "Naps",
-      diapers: "Diapers",
-      feeds: "Feeds",
-      growth: "Growth",
+      // "invoice": "Invoices", // Removed Invoices
     };
-    return nameMap[type] || type;
+    return nameMap[type] || type.charAt(0).toUpperCase() + type.slice(1); // Capitalize if not in map
   };
 
   return (
     <div className="flex flex-col items-center justify-start w-full px-1">
       {/* --- Journal Info Card (Optional based on type) --- */}
-      {/*       
-      {currentJournal.journalType === JOURNAL_TYPES.BUSINESS && (
-        <div className="mb-4 w-full max-w-md mx-auto flex flex-col items-center">
-          {" "}
-          <JournalInfoCard
-            id={currentJournal.id}
-            currency={
-              (currentJournal.details as BusinessDetailsType)?.currency
-            }
-            contactInfo={
-              (currentJournal.details as BusinessDetailsType)?.contactInfo
-            }
-            logo={(currentJournal.details as BusinessDetailsType)?.logo}
-            journalSubcollections={ENTRY_CONFIG.business || {}} // Pass only relevant subcollections
-          />
-        </div>
-      )} */}
-      {/* TODO: Add specific card for Baby type? */}
 
       {/* --- Filter Badges --- */}
       <div
@@ -363,7 +335,7 @@ export default function ListJournalPage() {
                 <ChatBox
                   journalId={journalId}
                   entryType={type} // Pass the specific type for this tab
-                  access={journal.access}
+                  access={journal.access as any}
                   actionButton={
                     dateRange ? (
                       <ExportToCSV
@@ -374,7 +346,7 @@ export default function ListJournalPage() {
                           dateRange.to,
                           "yyyyMMdd",
                         )}.csv`}
-                        access={journal.access}
+                        access={journal.access as any}
                       />
                     ) : (
                       actionButton // Action button is specific to the active tab type

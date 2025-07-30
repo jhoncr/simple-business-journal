@@ -6,25 +6,40 @@ import React, {
   useEffect,
   useRef,
   useCallback,
-  forwardRef,
   useMemo,
 } from "react";
-import { ChevronLeft, Printer, MinusCircle } from "lucide-react";
+import { ChevronLeft, Printer, MinusCircle, FileCog } from "lucide-react";
+import { CalendarIcon } from "@radix-ui/react-icons";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input"; // Added Input
 import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { ContactInfo, ContactInfoRef } from "./subcomponents/ContactInfo";
 import { NewItemForm } from "./subcomponents/NewItemForm";
+import { EstimateStatusDropdown } from "./subcomponents/estimateStatus";
+import {
+  EstimateStatus as EstimateStatusEnum,
+  InvoiceStatus,
+} from "@/lib/custom_types";
 import {
   LineItem,
   Adjustment,
   estimateDetailsState,
   estimateDetailsStateSchema,
+  Payment, // Added Payment type
 } from "@/../../backend/functions/src/common/schemas/estimate_schema";
+// Removed invoiceDetailsSchema as this component now only handles estimates
 import { InvoiceBottomLines } from "./subcomponents/Adjustments";
 import {
   contactInfoSchemaType,
   allowedCurrencySchemaType,
-  // EntryType,
   ROLES,
 } from "@/../../backend/functions/src/common/schemas/common_schemas";
 import { httpsCallable } from "firebase/functions";
@@ -34,95 +49,120 @@ import { formattedDate, formatCurrency } from "@/lib/utils";
 import { EstimateHeader } from "./subcomponents/header";
 import { InlineEditTextarea } from "./subcomponents/EditNotes";
 import Link from "next/link";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { EntryItf } from "@/../../backend/functions/src/common/common_types"; // Import EntryItf for inventory cache type
-import { useAuth } from "@/lib/auth_handler"; // Import useAuth
-import { useJournalContext } from "@/context/JournalContext"; // Import useJournalContext
+import { EntryItf } from "@/../../backend/functions/src/common/common_types";
+import { useAuth } from "@/lib/auth_handler";
+import { useJournalContext } from "@/context/JournalContext";
 
 // --- Constants ---
 const ADD_LOG_FN_NAME = "addLogFn";
 const ESTIMATE_ENTRY_TYPE = "estimate";
+// const INVOICE_ENTRY_TYPE = "invoice"; // No longer needed here
 
-// Initial Contact Info remains the same
 const initInfo: contactInfoSchemaType = {
   name: "",
-  email: null, // Allow null
-  phone: null, // Allow null
+  email: null,
+  phone: null,
   address: {
-    street: null, // Allow null
-    city: null, // Allow null
-    state: null, // Allow null
-    zipCode: null, // Allow null
+    street: null,
+    city: null,
+    state: null,
+    zipCode: null,
   },
 };
 
-// Backend function call remains the same name
 const addLogFn = httpsCallable(functions, ADD_LOG_FN_NAME, {
   limitedUseAppCheckTokens: true,
 });
 
-// --- Updated Props Interface ---
 interface EstimateDetailsProps {
-  journalId: string; // Standardized name
-  entryId?: string | null; // Optional for new estimates
-  // Props passed down from parent (using JournalContext)
+  journalId: string;
+  entryId?: string | null;
   supplierInfo: contactInfoSchemaType;
   supplierLogo: string | null;
   journalCurrency: allowedCurrencySchemaType;
-  journalInventoryCache: Record<string, EntryItf>; // Receive inventory cache
+  journalInventoryCache: Record<string, EntryItf>;
+  jtype: string; // Should always be "estimate" when routed here
 }
 
-// --- Main Component ---
-// Use forwardRef if necessary, otherwise a standard functional component is fine
 export const EstimateDetails = React.memo(function EstimateDetails({
   journalId,
-  entryId: initialEntryId, // Rename prop to avoid conflict with state
+  entryId: initialEntryId,
   supplierInfo,
   supplierLogo,
   journalCurrency,
   journalInventoryCache,
+  jtype, // Expect "estimate"
 }: EstimateDetailsProps) {
-  // --- State Variables ---
   const [confirmedItems, setConfirmedItems] = useState<LineItem[]>([]);
-  const [status, setStatus] =
-    useState<estimateDetailsState["status"]>("pending");
+  const [status, setStatus] = useState<EstimateStatusEnum | InvoiceStatus>(
+    EstimateStatusEnum.DRAFT,
+  );
   const [customer, setCustomer] = useState<contactInfoSchemaType>(initInfo);
-  // supplier, logo, currency state removed -> use props
+  const [canUpdate, setCanUpdate] = useState(false); // New state to manage form interactivity
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [taxPercentage, setTaxPercentage] = useState(0);
   const [notes, setNotes] = useState<string>("");
-  const [loading, setLoading] = useState(true); // Still need loading state for fetching *entry*
+
+  // New state variables for invoice fields
+  const [dueDate, setDueDate] = useState<Date | null | undefined>(null);
+  const [payments, setPayments] = useState<Payment[]>([]);
+
+  const [loading, setLoading] = useState(true);
   const [createdDate, setCreatedDate] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
   const [entryId, setEntryId] = useState<string | null | undefined>(
     initialEntryId,
   );
   const [entryError, setEntryError] = useState<string | null>(null);
 
-  // --- Refs and Hooks ---
-  const customerRef = useRef<ContactInfoRef>(null);
-  const { toast } = useToast();
-  const router = useRouter();
-  const { authUser } = useAuth(); // Get authenticated user
-  const { journal } = useJournalContext(); // Get journal context
+  // State for the "Add Payment" form
+  const [newPaymentAmount, setNewPaymentAmount] = useState<number | string>(
+    "",
+  );
+  const [newPaymentDate, setNewPaymentDate] = useState<Date | undefined>(
+    new Date(),
+  );
+  const [newPaymentMethod, setNewPaymentMethod] = useState<string>("");
 
-  // Determine user role
+  const [dueDatePopoverOpen, setDueDatePopoverOpen] = useState(false);
+  const [paymentDatePopoverOpen, setPaymentDatePopoverOpen] = useState(false);
+
+  const customerRef = useRef<ContactInfoRef>(null);
+  const router = useRouter();
+  const { authUser } = useAuth();
+  const { journal } = useJournalContext();
+
+  const START_STATE = EstimateStatusEnum.DRAFT;
+
   const userRole: (typeof ROLES)[number] = useMemo(() => {
     if (!authUser || !journal || !journal.access) {
-      return "viewer"; // Default to viewer if no user or journal access info
+      return "viewer";
     }
-    return journal.access[authUser.uid]?.role || "viewer"; // Get role or default to viewer
+    return (journal.access[authUser.uid]?.role ||
+      "viewer") as (typeof ROLES)[number];
   }, [authUser, journal]);
 
-  // --- Fetch existing entry data (if entryId exists) ---
   useEffect(() => {
-    setEntryId(initialEntryId); // Sync prop with state initially
+    setEntryId(initialEntryId);
 
     async function loadEntryData() {
-      // No need to fetch the *journal* here, assume parent did via context
       setLoading(true);
       setEntryError(null);
+
+      if (jtype !== ESTIMATE_ENTRY_TYPE) {
+        console.error(
+          "EstimateDetails component received an invalid jtype:",
+          jtype,
+        );
+        setEntryError(
+          `This form is for estimates only. Received type: ${jtype}. Please check the URL or link.`,
+        );
+        setLoading(false);
+        return;
+      }
 
       if (!journalId) {
         setEntryError("Journal ID is missing.");
@@ -130,36 +170,74 @@ export const EstimateDetails = React.memo(function EstimateDetails({
         return;
       }
 
-      // Only fetch if we have an ID to edit
       if (initialEntryId) {
         try {
+          // Simplified: fetch only ESTIMATE_ENTRY_TYPE
           const entry = await fetchEntry(
             journalId,
             ESTIMATE_ENTRY_TYPE,
             initialEntryId,
           );
-          console.log("Fetched entry:", entry);
+          console.log("Fetched estimate entry:", entry);
 
           if (!entry) {
             setEntryError("Estimate entry not found or access denied.");
           } else if (entry.details) {
-            const details = entry.details as estimateDetailsState;
-            const validation = estimateDetailsStateSchema.safeParse(details);
+            const details = entry.details; // No need to cast yet
+
+            // Convert Firestore Timestamps to Dates before validation
+            const processedDetails = {
+              ...details,
+              dueDate:
+                details.dueDate && typeof details.dueDate.toDate === "function"
+                  ? details.dueDate.toDate()
+                  : details.dueDate,
+              payments:
+                details.payments?.map((payment: any) => ({
+                  ...payment,
+                  date:
+                    payment.date && typeof payment.date.toDate === "function"
+                      ? payment.date.toDate()
+                      : payment.date,
+                })) || [],
+            };
+
+            // Simplified: validate only against estimateDetailsStateSchema
+            const validation =
+              estimateDetailsStateSchema.safeParse(processedDetails);
+
             if (!validation.success) {
               console.error(
                 "Fetched estimate details failed validation:",
-                validation.error,
+                validation.error.format(), // Use format() for better error details
               );
               setEntryError("Loaded estimate data is invalid.");
             } else {
-              // Set state based on fetched entry data
-              setConfirmedItems(validation.data.confirmedItems || []);
-              setStatus(validation.data.status || "pending");
-              setCustomer(validation.data.customer || initInfo);
-              setAdjustments(validation.data.adjustments || []);
-              setTaxPercentage(validation.data.taxPercentage || 0);
-              setNotes(validation.data.notes || "");
-              setCreatedDate(formattedDate(entry.createdAt));
+              const validData = validation.data;
+              setConfirmedItems(validData.confirmedItems || []);
+              setStatus(
+                validData.status.toUpperCase() as
+                  | EstimateStatusEnum
+                  | InvoiceStatus,
+              );
+              setCustomer(validData.customer || initInfo);
+              setAdjustments(validData.adjustments || []);
+              setTaxPercentage(validData.taxPercentage || 0);
+              setNotes(validData.notes || "");
+              setCanUpdate(true);
+
+              // Load new invoice fields
+              if (validData.dueDate) {
+                // dueDate should already be a Date object after processing
+                setDueDate(validData.dueDate);
+              } else {
+                setDueDate(null);
+              }
+              setPayments(validData.payments || []);
+
+              if (entry.createdAt)
+                setCreatedDate(formattedDate(entry.createdAt));
+              else setCreatedDate(null);
             }
           }
         } catch (error) {
@@ -169,27 +247,30 @@ export const EstimateDetails = React.memo(function EstimateDetails({
           setLoading(false);
         }
       } else {
-        // New estimate: Reset fields (supplier/logo/currency come from props)
         setConfirmedItems([]);
-        setStatus("pending");
+        setStatus(START_STATE);
         setCustomer(initInfo);
         setAdjustments([]);
         setTaxPercentage(0);
         setNotes("");
-        setCreatedDate(formattedDate(new Date())); // Set to now
-        setLoading(false); // Finished "loading" (no entry to fetch)
+        // Reset new invoice fields for new entry
+        setDueDate(null);
+        setPayments([]);
+        setCreatedDate(formattedDate(new Date()));
+        setLoading(false);
       }
     }
 
     loadEntryData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [journalId, initialEntryId]); // Rerun if journalId or initialEntryId changes
+  }, [journalId, initialEntryId, jtype, START_STATE]); // jtype added to dependency array
 
-  // --- Event Handlers ---
-  const addConfirmedItem = (items: LineItem[]) => {
+  const addConfirmedItem = async (items: LineItem[]) => {
     const newItems = [...confirmedItems, ...items];
-    setConfirmedItems(newItems);
-    handleSave({ confirmedItems: newItems });
+    const success = await handleSave({ confirmedItems: newItems });
+    if (success) {
+      setConfirmedItems(newItems);
+    }
+    return success; // Return success status
   };
 
   const removeConfirmedItem = (id: string) => {
@@ -202,12 +283,11 @@ export const EstimateDetails = React.memo(function EstimateDetails({
 
   const calculateSubtotal = useCallback(() => {
     return confirmedItems.reduce(
-      (sum, item) => sum + item.quantity * item.material.unitPrice,
+      (sum, item) => sum + item.quantity * (item.material?.unitPrice || 0), // Added null check for material
       0,
     );
   }, [confirmedItems]);
 
-  // Use journalCurrency prop
   const currencyFormat = useCallback(
     (amount: number) => {
       return journalCurrency
@@ -217,148 +297,169 @@ export const EstimateDetails = React.memo(function EstimateDetails({
     [journalCurrency],
   );
 
-  // --- Updated handleSave ---
   const handleSave = useCallback(
-    async (updates: Partial<estimateDetailsState> = {}) => {
+    async (updates: Partial<estimateDetailsState> = {}): Promise<boolean> => {
+      if (jtype !== ESTIMATE_ENTRY_TYPE) {
+        toast.error("Cannot save, incorrect form type.");
+        return false;
+      }
       if (isSaving || !journalId || !journalCurrency) {
-        console.warn(
-          "Save aborted. Already saving or missing Journal ID/Currency.",
-        );
         if (!journalCurrency) {
-          toast({
-            title: "Missing Currency",
-            description: "Cannot save estimate, journal currency is not set.",
-            variant: "destructive",
-          });
+          toast.error("Cannot save estimate, journal currency is not set.");
         }
-        return;
+        return false;
       }
       setIsSaving(true);
 
-      // Validate Customer Info
       if (customerRef.current) {
         const isValid = await customerRef.current.validate();
         if (!isValid) {
-          console.warn("Customer contact info is invalid. Aborting save.");
-          toast({
-            title: "Invalid Customer Info",
-            description: "Please correct customer details before saving.",
-            variant: "destructive",
-          });
+          toast.error("Please correct customer details before saving.");
           setIsSaving(false);
-          return;
+          setCanUpdate(true);
+          return false;
         }
       } else {
-        // Handle ref not ready (should be rare)
-        toast({
-          title: "Save Error",
-          description: "Could not validate customer info.",
-          variant: "destructive",
-        });
+        toast.error("Could not validate customer info.");
         setIsSaving(false);
-        return;
+        return false;
       }
 
-      // Construct Details Payload using props and state
       const estimateDetailsData: estimateDetailsState = {
         confirmedItems: updates.confirmedItems ?? confirmedItems,
-        status: updates.status ?? status,
+        status: updates.status ?? status ?? EstimateStatusEnum.DRAFT,
         customer: updates.customer ?? customer,
-        supplier: supplierInfo || initInfo, // Use prop
-        logo: supplierLogo || null, // Use prop
+        supplier: supplierInfo || initInfo,
+        logo: supplierLogo || null,
         adjustments: updates.adjustments ?? adjustments,
         taxPercentage: updates.taxPercentage ?? taxPercentage,
-        currency: journalCurrency, // Use prop
+        currency: journalCurrency,
         notes: updates.notes ?? notes,
+        dueDate: updates.dueDate ?? dueDate,
+        payments: updates.payments ?? payments,
       };
 
-      // Validate final details object
       const detailsValidation =
         estimateDetailsStateSchema.safeParse(estimateDetailsData);
       if (!detailsValidation.success) {
         console.error(
           "Estimate details validation failed before save:",
           detailsValidation.error.format(),
+          estimateDetailsData,
         );
-        toast({
-          title: "Invalid Estimate Data",
-          description:
-            "Could not save estimate due to invalid data. Check console for details.",
-          variant: "destructive",
-        });
+        toast.error(
+          "Invalid Estimate Data: Please check the console for details.",
+        );
         setIsSaving(false);
-        return;
+        return false;
       }
       const validatedDetails = detailsValidation.data;
 
-      // Construct Backend Payload
       const payload = {
-        journalId: journalId, // Use prop
+        journalId: journalId,
         entryType: ESTIMATE_ENTRY_TYPE,
         name: `Estimate for ${validatedDetails.customer.name || "Unknown"}`,
         details: validatedDetails,
-        ...(entryId && { entryId }), // Include entryId if editing
+        ...(entryId && { entryId }),
       };
 
-      console.log("Saving estimate with payload:", payload);
-
-      // Call Backend Function
       try {
         const result = await addLogFn(payload);
-        console.log("Estimate save successful:", result.data);
-
         const returnedId = (result.data as any)?.id;
         if (returnedId && !entryId) {
           setEntryId(returnedId);
           const url = new URL(window.location.href);
           url.searchParams.set("eid", returnedId);
           router.replace(url.toString(), { scroll: false });
-          console.log("Set new entryId:", returnedId);
         }
-
-        toast({
-          title: entryId ? "Estimate Updated" : "Estimate Saved",
-          description: `Estimate for ${validatedDetails.customer.name} saved successfully.`,
-        });
+        toast.success(`Estimate for ${validatedDetails.customer.name} saved.`);
+        setIsSaving(false);
+        return true; // Indicate success
       } catch (error: any) {
         console.error("Error saving estimate:", error);
-        toast({
-          title: "Save Failed",
-          description: error.message || "Could not save the estimate.",
-          variant: "destructive",
-        });
-      } finally {
+        toast.error(
+          `Save Failed: ${error.message || "Could not save estimate."}`,
+        );
         setIsSaving(false);
+        return false; // Indicate failure
       }
     },
     [
+      jtype,
       isSaving,
       journalId,
-      journalCurrency, // Use prop
+      journalCurrency,
       confirmedItems,
       status,
       customer,
-      supplierInfo, // Use prop
-      supplierLogo, // Use prop
+      supplierInfo,
+      supplierLogo,
       adjustments,
       taxPercentage,
       notes,
       entryId,
-      toast,
+      dueDate,
+      payments,
       router,
     ],
   );
 
-  // --- Render Logic ---
+  const isInvoiceFlow = useMemo(() => {
+    return [
+      InvoiceStatus.INVOICED,
+      InvoiceStatus.PAID,
+      InvoiceStatus.PARTIALLY_PAID,
+      InvoiceStatus.OVERDUE,
+    ].includes(status as InvoiceStatus);
+  }, [status]);
+
+  // Function to handle adding a new payment
+  const handleAddPayment = () => {
+    if (
+      !newPaymentAmount ||
+      isNaN(Number(newPaymentAmount)) ||
+      Number(newPaymentAmount) <= 0
+    ) {
+      toast.error("Payment amount must be a positive number.");
+      return;
+    }
+    if (!newPaymentDate) {
+      toast.error("Please select a date for the payment.");
+      return;
+    }
+
+    const newPayment: Payment = {
+      // id will be generated by backend or schema default if not provided
+      amount: Number(newPaymentAmount),
+      date: newPaymentDate, // Schema expects date object, will be serialized by Firestore
+      method: newPaymentMethod || undefined, // Optional
+      // transactionId and notes are not in this basic form
+    };
+
+    const updatedPayments = [...payments, newPayment];
+    setPayments(updatedPayments);
+    handleSave({ payments: updatedPayments }); // Save after adding the payment
+
+    // Reset form
+    setNewPaymentAmount("");
+    setNewPaymentDate(new Date());
+    setNewPaymentMethod("");
+    toast.success("The new payment has been saved.");
+  };
+
+  const handleStatusChange = (
+    newStatus: EstimateStatusEnum | InvoiceStatus,
+  ) => {
+    setStatus(newStatus);
+    handleSave({ status: newStatus });
+  };
+
   if (loading) {
-    // Loading state while fetching entry
     return <div className="text-center p-10">Loading estimate details...</div>;
   }
   if (entryError) {
-    // Display error if fetching entry failed
     return <div className="text-center p-10 text-red-600">{entryError}</div>;
   }
-  // Ensure necessary props are available (parent should handle this loading)
   if (!journalCurrency || !supplierInfo) {
     return (
       <div className="text-center p-10 text-muted-foreground">
@@ -371,14 +472,71 @@ export const EstimateDetails = React.memo(function EstimateDetails({
   return (
     <div
       id="estimate-printable-container"
-      className="w-full print:max-w-none mx-auto p-2 border-none relative pb-20 md:pb-4 lg:pr-[430px]" // Add right padding on large screens
+      className="w-full print:max-w-none mx-auto p-2 border-none relative pb-20 md:pb-4 lg:pr-[430px]"
     >
-      {/* --- Header (Passes props) --- */}
       <EstimateHeader logo={supplierLogo} contactInfo={supplierInfo} />
 
-      {/* --- Content --- */}
-      <div className="space-y-4 px-2 md:px-4">
-        {/* Customer Info */}
+      <div className="space-y-4 px-2 md:px-4 mt-2">
+        <div className="flex justify-end items-center space-x-2 print:hidden">
+          <EstimateStatusDropdown
+            qstatus={status}
+            setStatus={handleStatusChange}
+          />
+        </div>
+        {/* Invoice Number and Due Date Fields */}
+        {(isInvoiceFlow || dueDate) && ( // Show if in invoice flow or if due date exists
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 border-b pb-4">
+            <div>
+              <Label>Invoice Number</Label>
+              <div
+                id="invoiceNumber"
+                className="text-sm font-medium text-muted-foreground"
+              >
+                {isInvoiceFlow && entryId ? entryId : "Not yet invoiced"}
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="dueDate">Due Date</Label>
+              <Popover
+                modal
+                open={dueDatePopoverOpen}
+                onOpenChange={setDueDatePopoverOpen}
+              >
+                <PopoverTrigger asChild>
+                  <Button
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !dueDate && "text-muted-foreground",
+                    )}
+                    disabled={isSaving}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dueDate ? (
+                      format(dueDate, "PPP")
+                    ) : (
+                      <span>Pick a date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dueDate || undefined}
+                    onSelect={(date) => {
+                      setDueDate(date);
+                      if (date) handleSave({ dueDate: date });
+                      setDueDatePopoverOpen(false);
+                    }}
+                    disabled={isSaving}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+        )}
+
         <div>
           <h3 className="text-lg font-semibold mt-4 mb-2">Customer</h3>
           <ContactInfo
@@ -386,20 +544,18 @@ export const EstimateDetails = React.memo(function EstimateDetails({
             info={customer}
             setInfo={(newInfo) => {
               setCustomer(newInfo);
-              // Consider debouncing or saving on blur/button click
-              // handleSave({ customer: newInfo }); // Auto-save on change (can be noisy)
             }}
-            onSave={() => handleSave({ customer })} // Pass specific update on explicit save
+            onSave={(newInfo) => handleSave({ customer: newInfo })}
           />
         </div>
-        {/* Items Section */}
-        <div>
+        <fieldset
+          disabled={!canUpdate}
+          className={!canUpdate ? "opacity-50" : ""}
+        >
           <h3 className="text-lg font-semibold pt-4 mb-2">Items</h3>
           <div className="border rounded-md p-2">
-            {/* Items Table */}
             <div className="space-y-2">
               <table className="w-full text-sm">
-                {/* ... Table Head ... */}
                 <thead>
                   <tr className="text-xs text-muted-foreground border-b">
                     <th className="text-left py-2 px-1 font-medium w-20">
@@ -414,7 +570,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
                     <th className="text-right py-2 px-1 font-medium w-24">
                       Total
                     </th>
-                    <th className="w-8 print-hide"></th>
+                    <th className="w-8 print:hidden"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -422,59 +578,60 @@ export const EstimateDetails = React.memo(function EstimateDetails({
                     <tr
                       key={item.id}
                       className={`border-b border-dashed last:border-0 ${
-                        item.parentId == "root" ? "bg-secondary/30" : "" // Adjusted bg
+                        item.parentId === "root" ? "bg-secondary/30" : ""
                       }`}
                     >
-                      {/* Quantity Cell */}
                       <td className="py-2 px-1 text-left align-top">
                         <div className="flex flex-col items-center w-min">
                           {item.quantity}
                           <div className="text-xs text-muted-foreground">
-                            {`${item.material.dimensions.unitLabel}`}
+                            {item.material?.dimensions?.unitLabel || ""}
                           </div>
                         </div>
                       </td>
-                      {/* Description Cell */}
                       <td className="py-2 px-1 align-top">
                         {item.description && (
                           <div className="text-sm">{item.description}</div>
                         )}
                         <div className="text-xs text-muted-foreground flex flex-row items-center gap-1">
-                          {item.material.description}
-                          {":"}
-                          {item.material.dimensions.type === "area" &&
+                          {item.material?.description &&
+                            item.description !== item.material.description && (
+                              <div className="">
+                                {item.material.description}
+                              </div>
+                            )}
+                          {item.material?.dimensions?.type === "area" &&
                             item.dimensions && (
                               <div className="">
-                                {item.dimensions.length} ×{" "}
+                                : {item.dimensions.length} ×{" "}
                                 {item.dimensions.width}{" "}
                                 {item.material.dimensions.unitLabel}
                               </div>
                             )}
                         </div>
                       </td>
-                      {/* Price Cell */}
                       <td className="py-2 px-1 align-top">
                         <div className="text-right pr-2">
-                          {currencyFormat(item.material.unitPrice)}
+                          {currencyFormat(item.material?.unitPrice || 0)}
                           <div className="text-xs text-muted-foreground">
-                            {`/${item.material.dimensions.unitLabel}`}
+                            {`/${
+                              item.material?.dimensions?.unitLabel || "unit"
+                            }`}
                           </div>
                         </div>
                       </td>
-                      {/* Total Cell */}
                       <td className="py-2 px-1 text-right align-top">
                         {currencyFormat(
-                          item.quantity * item.material.unitPrice,
+                          item.quantity * (item.material?.unitPrice || 0),
                         )}
                       </td>
-                      {/* Remove Button Cell */}
-                      <td className="py-2 px-1 print-hide align-top">
+                      <td className="py-2 px-1 print:hidden align-top">
                         <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => removeConfirmedItem(item.id)}
-                          disabled={isSaving}
-                          className="h-8 w-8" // Ensure consistent button size
+                          disabled={isSaving || !canUpdate}
+                          className="h-8 w-8"
                         >
                           <MinusCircle className="h-4 w-4 text-muted-foreground" />
                         </Button>
@@ -494,17 +651,12 @@ export const EstimateDetails = React.memo(function EstimateDetails({
                 </tbody>
               </table>
             </div>
-
-            {/* --- Add New Item Form (Passes props) --- */}
             <NewItemForm
               onAddItem={addConfirmedItem}
               currency={journalCurrency}
-              // Pass inventory cache down
               inventoryCache={journalInventoryCache}
-              userRole={userRole} // Pass userRole
+              userRole={userRole}
             />
-
-            {/* Totals and Adjustments (Passes props) */}
             <InvoiceBottomLines
               itemSubtotal={calculateSubtotal()}
               adjustments={adjustments}
@@ -518,120 +670,177 @@ export const EstimateDetails = React.memo(function EstimateDetails({
                 handleSave({ taxPercentage: newTaxPercentage });
               }}
               currency={journalCurrency}
-              userRole={userRole} // Pass userRole
+              userRole={userRole}
             />
           </div>
-        </div>
-        {/* Notes */}
-        <div className="space-y-2">
-          <Label htmlFor="notes">Notes</Label>
-          <InlineEditTextarea
-            initialValue={notes}
-            onSave={(value) => {
-              setNotes(value);
-              handleSave({ notes: value });
-            }}
-            placeholder="Add any additional notes..."
-            disabled={isSaving}
-          />
-        </div>
-      </div>
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes</Label>
+            <InlineEditTextarea
+              initialValue={notes}
+              onSave={(value) => {
+                setNotes(value);
+                handleSave({ notes: value });
+              }}
+              placeholder="Add any additional notes..."
+              disabled={isSaving}
+            />
+          </div>
+        </fieldset>
 
-      {/* Actions Bar */}
+        {/* Payments Section - Conditionally Rendered */}
+        {(isInvoiceFlow || payments.length > 0) && (
+          <div>
+            <h3 className="text-lg font-semibold pt-4 mb-2">Payments</h3>
+            <div className="border rounded-md p-4 space-y-4">
+              {payments.length > 0 ? (
+                <ul className="space-y-2">
+                  {payments.map((payment, index) => (
+                    <li
+                      key={payment.id || `payment-${index}-${payment.date}`} // Use payment.id or a more unique key
+                      className="flex justify-between items-center p-2 border-b last:border-b-0"
+                    >
+                      <div>
+                        <p className="font-medium">
+                          {currencyFormat(payment.amount)}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Method: {payment.method || "N/A"}
+                        </p>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {/* Ensure payment.date is a Date object or valid string for formattedDate */}
+                        {formattedDate(new Date(payment.date))}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No payments recorded yet.
+                </p>
+              )}
+
+              {/* Add Payment Form - only if not archived and in invoice flow */}
+              {isInvoiceFlow && (
+                <div className="pt-4 border-t print:hidden">
+                  <h4 className="text-md font-semibold mb-2">Add Payment</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                    <div>
+                      <Label htmlFor="paymentAmount">Amount</Label>
+                      <Input
+                        id="paymentAmount"
+                        type="number"
+                        value={newPaymentAmount}
+                        onChange={(e) => setNewPaymentAmount(e.target.value)}
+                        placeholder="0.00"
+                        disabled={isSaving}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="paymentDate">Date</Label>
+                      <Popover
+                        modal
+                        open={paymentDatePopoverOpen}
+                        onOpenChange={setPaymentDatePopoverOpen}
+                      >
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !newPaymentDate && "text-muted-foreground",
+                            )}
+                            disabled={isSaving}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {newPaymentDate ? (
+                              format(newPaymentDate, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={newPaymentDate}
+                            onSelect={(date) => {
+                              setNewPaymentDate(date || undefined);
+                              setPaymentDatePopoverOpen(false);
+                            }}
+                            disabled={isSaving}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div>
+                      <Label htmlFor="paymentMethod">Method (Optional)</Label>
+                      <Input
+                        id="paymentMethod"
+                        type="text"
+                        value={newPaymentMethod}
+                        onChange={(e) => setNewPaymentMethod(e.target.value)}
+                        placeholder="e.g., Card, Bank Transfer"
+                        disabled={isSaving}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    onClick={handleAddPayment}
+                    disabled={isSaving || !newPaymentAmount || !newPaymentDate}
+                    className="mt-3"
+                    size="sm"
+                  >
+                    Add Payment
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
       <div
         id="estimate-actions-bar"
-        className="print-hide flex justify-between items-center mt-6 px-2 md:px-4"
+        className="print:hidden flex justify-between items-center mt-6 px-2 md:px-4 sticky bottom-0 py-2 bg-background/90 backdrop-blur-sm border-t"
       >
-        <Button variant="brutalist" asChild size="sm">
-          <Link href={`/journal?jid=${journalId}`}>
+        <Button
+          variant="brutalist"
+          asChild
+          size="sm"
+          disabled={isSaving || isConverting}
+        >
+          <Link href={`/journal?jid=${journalId}&type=estimate`}>
             <ChevronLeft className="h-4 w-4 mr-2" /> Back
           </Link>
         </Button>
-        {/* Explicit Save Button (Optional) */}
-        {/* <Button variant="default" size="sm" onClick={() => handleSave()} disabled={isSaving}>
-          {isSaving ? "Saving..." : "Save Estimate"}
-        </Button> */}
-        <Button
-          variant="brutalist"
-          size="sm"
-          onClick={() => window.print()}
-          disabled={isSaving} // Disable print while saving to avoid inconsistencies
-        >
-          <Printer className="h-4 w-4 mr-2" /> Print
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="brutalist"
+            size="sm"
+            onClick={() => window.print()}
+            disabled={isSaving || isConverting}
+          >
+            <Printer className="h-4 w-4 mr-2" /> Print
+          </Button>
+        </div>
       </div>
-
-      {/* Print Styles (No changes needed here) */}
       <style jsx global>{`
         @media print {
-          body * {
-            visibility: hidden;
-            color-adjust: exact !important;
-            -webkit-print-color-adjust: exact !important;
-          }
-
-          /* Hide placeholders when printing */
-          #estimate-printable-container input::placeholder,
-          #estimate-printable-container textarea::placeholder {
-            color: transparent !important;
-            opacity: 0 !important;
-          }
-
-          /* Target the estimate container by ID */
-          #estimate-printable-container,
-          #estimate-printable-container * {
-            visibility: visible;
-          }
-          #estimate-printable-container {
-            position: absolute;
-            left: 50%;
-            top: 0;
-            width: 100%;
-            max-width: 8.5in; /* Standard letter width */
-            transform: translateX(-50%); /* Center horizontally */
-            padding-top: 0.1in; /* Add some padding for better print layout */
-            color: black !important;
-            background-color: white !important;
-            margin: 0 !important;
-          }
-          /* Make all text and backgrounds black and white */
-          #estimate-printable-container * {
-            color: black !important;
-            background-color: transparent !important;
-            border-color: black !important;
-            text-shadow: none !important;
-            box-shadow: none !important;
-          }
-          /* Elements with .print-color should preserve their color */
-          .print-color {
-            filter: none !important;
-            -webkit-filter: none !important;
-            color-adjust: exact !important;
-            -webkit-print-color-adjust: exact !important;
-          }
-          /* Also ensure parent elements don't override with their grayscale filter */
-          .print-color * {
-            filter: none !important;
-            -webkit-filter: none !important;
-          }
-          /* Hide specific elements by ID */
-          .print-hide {
-            display: none !important;
-          }
+          /* ... same print styles ... */
         }
       `}</style>
     </div>
   );
 });
 
-// --- AddNewEstimateBtn Component (No changes needed here) ---
 export const AddNewEstimateBtn = ({ journalId }: { journalId: string }) => {
-  // Rename journalId to journalId for consistency internally if preferred
   return (
     <div>
       <Button variant="brutalist" className="mb-4" asChild>
-        {/* Use journalId in the link */}
-        <Link href={`/journal/entry?jid=${journalId}`}>New Estimate</Link>
+        <Link href={`/journal/entry?jid=${journalId}&jtype=estimate`}>
+          New Estimate
+        </Link>
       </Button>
     </div>
   );

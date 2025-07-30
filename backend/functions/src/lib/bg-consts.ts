@@ -1,14 +1,13 @@
-import { HttpsError } from "firebase-functions/https";
-import type { SafeParseError } from "zod";
+import { HttpsError } from 'firebase-functions/https';
+import type { SafeParseError } from 'zod';
 
 // TODO: CORS configuration should be made more restrictive for production environments.
 // Currently, it allows all origins. For production, specify allowed origins explicitly.
-const ALLOWED = ["*"];
+const ALLOWED = ['*'];
 // The conditional addition of "http://localhost:3000" for development is redundant
 // if "*" is already present, as "*" includes localhost.
 // If specific origins are needed for production and localhost for development,
 // this logic should be:
-// const ALLOWED = process.env.NODE_ENV === "development" ? ["http://localhost:3000", "other-dev-allowed-origin"] : ["prod-allowed-origin-1", "prod-allowed-origin-2"];
 
 export { ALLOWED };
 
@@ -27,9 +26,9 @@ export function handleSchemaValidationError(
   detailsResult: SafeParseError<any>,
 ): never {
   throw new HttpsError(
-    "invalid-argument",
+    'invalid-argument',
     `Invalid entry details for entryType ${entryType}: \n${detailsResult.error.issues // Updated message
-      .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
-      .join("\n")}`,
+      .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+      .join('\n')}`,
   );
 }

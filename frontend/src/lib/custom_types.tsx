@@ -46,6 +46,22 @@ export interface Journal {
   isActive: boolean;
 }
 
+export enum EstimateStatus {
+  DRAFT = "DRAFT",
+  SENT = "SENT",
+  ACCEPTED = "ACCEPTED",
+  DECLINED = "DECLINED",
+  VOID = "VOID",
+}
+
+export enum InvoiceStatus {
+  INVOICED = "INVOICED",
+  PAID = "PAID",
+  PARTIALLY_PAID = "PARTIALLY_PAID",
+  OVERDUE = "OVERDUE",
+  VOID = "VOID",
+}
+
 // DBentry can extend the locally defined EntryItf
 export interface DBentry extends Omit<EntryItf, "createdAt" | "updatedAt"> {
   id: string; // Firestore document ID
@@ -53,6 +69,7 @@ export interface DBentry extends Omit<EntryItf, "createdAt" | "updatedAt"> {
   createdAt: Timestamp; // Firestore Timestamp
   updatedAt?: Timestamp; // Firestore Timestamp (optional)
   entryType?: EntryType; // From config_shared
+  status?: EstimateStatus | InvoiceStatus;
   // details are already part of EntryItf
 }
 

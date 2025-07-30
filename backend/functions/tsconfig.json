@@ -6,11 +6,14 @@
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
-    "target": "es2017"
+    "target": "es2017",
+    "baseUrl": "./src",
+    "paths": {
+      "@shared/*": ["../../shared/*"]
+    }
   },
   "compileOnSave": true,
   "include": [
     "src"
-, "../../simplelog/src/tests", "src/common/schemas/common_schemas.ts", "src/common/common_types.ts", "src/common/const.ts"  ]
-
+  ]
 }

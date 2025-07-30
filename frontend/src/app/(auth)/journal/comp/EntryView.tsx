@@ -1,6 +1,6 @@
 // frontend/src/app/(auth)/journal/comp/EntryView.tsx
 import React, { memo } from "react";
-import { DBentry, User } from "@/lib/custom_types"; // Keep using DBentry
+import { DBentry, AccessUser } from "@/lib/custom_types"; // Keep using DBentry
 import { ROLES_CAN_DELETE } from "@/../../backend/functions/src/common/const";
 import { DeleteEntryBtn } from "../actions/delete-entry";
 import {
@@ -18,7 +18,7 @@ export interface EntryViewProps<T extends DBentry> {
   journalId: string; // Use journalId for clarity
   entry: T;
   entryType: EntryType; // --- ADD entryType prop ---
-  user: User; // User who created the entry (from access map)
+  user: AccessUser; // User who created the entry (from access map)
   role: string; // Role of the *logged-in* user viewing the entry
   removeFn: (entry: T) => void; // Callback for UI removal
   children: React.ReactNode; // Type-specific content

@@ -150,7 +150,7 @@ export function InvoiceBottomLines({
                 key={`${index}-delete`}
                 aria-label="Delete adjustment"
                 data-testid={`delete-adjustment-${index}`}
-                className="print-hide"
+                className="print:hidden"
                 size="icon"
                 onClick={() => {
                   handleDeleteAdjustment(index);
@@ -186,7 +186,7 @@ export function InvoiceBottomLines({
                   key="delete-tax"
                   aria-label="Delete tax"
                   size="icon"
-                  className="print-hide ml-1"
+                  className="print:hidden ml-1"
                   onClick={() => {
                     handleTaxChange(0);
                   }}
@@ -208,7 +208,7 @@ export function InvoiceBottomLines({
           </h1>
         </div>
       </div>
-      <div className="print-hide space-y-2">
+      <div className="print:hidden space-y-2">
         <AdjustmentForm
           onSubmit={handleAddAdjustment}
           onTaxSubmit={handleTaxChange}

@@ -18,7 +18,7 @@ import {
   DocumentData,
   Timestamp, // Import Timestamp
 } from "firebase/firestore";
-import { app } from "@/lib/auth_handler";
+import { app, emulatorIP } from "@/lib/auth_handler";
 import { DBentry, DBentryMap, Journal } from "./custom_types"; // Use updated types
 // --- Import Shared Constants ---
 import {
@@ -44,7 +44,7 @@ export const db = getFirestore(app);
 
 if (process.env.NODE_ENV === "development") {
   console.log("Firestore connected to emulator");
-  connectFirestoreEmulator(db, "localhost", 8080);
+  connectFirestoreEmulator(db, emulatorIP, 8080);
 }
 
 // Helper to get subcollection config
@@ -155,7 +155,7 @@ export async function fetchOlderEntrys(
       return {};
     }
 
-    const queryConstraints = [
+    const queryConstraints: any[] = [
       where("isActive", "==", true),
       orderBy(primarySortField, "desc"),
       // orderBy("createdAt", "desc"), // Consider if this secondary sort is always needed/reliable
@@ -391,6 +391,7 @@ export async function fetchEntry(
 
   try {
     const docPath = `${JOURNAL_COLLECTION}/${journalId}/${subcollectionName}/${entryId}`;
+    console.info(`Getting DocPath ${docPath}`);
     const docRef = doc(db, docPath);
     const docSnap = await getDoc(docRef);
 

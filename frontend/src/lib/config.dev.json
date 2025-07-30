@@ -8,5 +8,6 @@
     "appId": "1:1245:web:somekey",
     "measurementId": "G-somekey"
   },
-  "recaptchaSiteKey": "somekey"
+  "recaptchaSiteKey": "somekey",
+  "emulatorIP": "192.168.1.202"
 }

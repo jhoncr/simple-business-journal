@@ -4,7 +4,7 @@
 // TODO: Replace this with a shared package or API endpoint for configurations.
 
 import * as z from "zod";
-
+import { ENTRY_CONFIG } from "../../../backend/functions/src/common/schemas/configmap";
 // Copied from backend/functions/src/common/const.ts
 export const JOURNAL_COLLECTION = "journals"; // Added
 
@@ -73,44 +73,6 @@ export const BusinessDetailsTypeSchema = z // Renamed from businessDetailsSchema
 
 export type BusinessDetailsType = z.infer<typeof BusinessDetailsTypeSchema>;
 
-// Copied and simplified from backend/functions/src/common/schemas/configmap.ts
-// Define a simplified interface for entry configuration for frontend use
-interface FrontendEntryConfig {
-  subcollection: string;
-  // schema is omitted or typed as any as frontend doesn't execute backend Zod schemas directly
-  // schema: any; // Or z.ZodTypeAny if you want to keep zod type but not specific schema
-  displayName?: string;
-  icon?: string;
-  category: "business" | "baby" | "other";
-  sortField?: string;
-}
-
-// Map EntryType -> EntryConfig (frontend version)
-// Schemas are represented as empty objects or `as any` since frontend doesn't use them for validation here.
-export const ENTRY_CONFIG: Record<string, FrontendEntryConfig> = {
-  // Business Entry Types
-  cashflow: {
-    subcollection: "cashflow_entries",
-    // schema: {} as any, // Placeholder for backend schema
-    displayName: "Cash Flow",
-    category: "business",
-    sortField: "details.date",
-  },
-  inventory: {
-    subcollection: "inventory_items",
-    // schema: {} as any,
-    displayName: "Inventory",
-    category: "business",
-    sortField: "createdAt",
-  },
-  estimate: {
-    subcollection: "estimates",
-    // schema: {} as any,
-    displayName: "Estimate",
-    category: "business",
-    sortField: "createdAt",
-  },
-};
-
 // Added EntryType based on the shared ENTRY_CONFIG
 export type EntryType = keyof typeof ENTRY_CONFIG;
+export { ENTRY_CONFIG };

@@ -17,7 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogTrigger,
@@ -75,7 +75,6 @@ AddInventoryEntryFormProps) {
   const [pending, setPending] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const { journal, loading, error } = useJournalContext(); // Get journal from context
-  const { toast } = useToast();
   const id = useId(); // For radio group
 
   // Safely access currency by checking if 'currency' property exists in details
@@ -140,11 +139,7 @@ AddInventoryEntryFormProps) {
 
   const onSubmit = async (data: InventoryFormValues) => {
     if (!activeCurrency) {
-      toast({
-        title: "Missing Currency",
-        description: "Cannot add item. Business currency is not set.",
-        variant: "destructive",
-      });
+      toast.error("Active currency is not set. Cannot add item.");
       return;
     }
     setPending(true);
@@ -163,20 +158,15 @@ AddInventoryEntryFormProps) {
       const result = await addLogFn(payload);
       console.log("addLogFn result:", result);
 
-      toast({
-        title: "Inventory Item Added",
-        description: `"${data.name}" has been added to your inventory.`,
-      });
+      toast.success("Inventory item added successfully.");
 
       form.reset(defaultValues);
       setIsOpen(false);
     } catch (error: any) {
       console.error("Error adding inventory entry:", error);
-      toast({
-        title: "Error Adding Item",
-        description: error.message || "Failed to add inventory item.",
-        variant: "destructive",
-      });
+      toast.error(
+        error?.message || "An error occurred while adding the item.",
+      );
     } finally {
       setPending(false);
     }

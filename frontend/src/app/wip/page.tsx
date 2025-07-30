@@ -12,7 +12,7 @@ export default function WIPPage() {
     if (!isDevelopment) {
       router.replace("/");
     }
-  }, [router]);
+  }, [router, isDevelopment]);
 
   if (!isDevelopment) {
     return null;

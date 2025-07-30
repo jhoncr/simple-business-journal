@@ -1,97 +1,60 @@
 import React from "react";
-import { Label } from "@/components/ui/label";
-import { CardHeader, CardContent } from "@/components/ui/card"; // Card components might not be needed if EntryView handles the card structure
-import {
-  EntryView,
-  EntryViewProps as BaseEntryViewProps,
-} from "../../comp/EntryView"; // Use alias
+import { EntryView } from "../../comp/EntryView";
 // --- Import backend schema/types ---
-import {
-  Adjustment,
-  LineItem,
-  estimateDetailsState,
-} from "@/../../backend/functions/src/common/schemas/estimate_schema";
+import { estimateDetailsState as EstimateDetails } from "@/../../backend/functions/src/common/schemas/estimate_schema";
 import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap";
 // --- Import frontend types ---
-import { DBentry, User } from "@/lib/custom_types";
-import { formatCurrency, formattedDate } from "@/lib/utils"; // Import utils
-// --- Remove if CURRENCY_OPTIONS not used directly ---
-// import { CURRENCY_OPTIONS } from "@/../../backend/functions/src/common/const";
+import {
+  DBentry,
+  AccessUser,
+  EstimateStatus,
+  InvoiceStatus,
+} from "@/lib/custom_types";
+import { formatCurrency, formattedDate } from "@/lib/utils";
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge"; // For status
-import { FileText } from "lucide-react"; // Icon for estimate
+import { Badge } from "@/components/ui/badge";
+import { ClipboardList } from "lucide-react"; // Icon for estimate
 
 // --- Define Props Interface ---
 interface EstimateEntryProps {
   journalId: string;
-  entry: DBentry; // Details should match estimateDetailsState
-  entryType: EntryType; // Will be 'estimate'
-  user: User; // Creator info
-  role: string; // Viewer's role
+  entry: DBentry;
+  entryType: EntryType;
+  user: AccessUser | null;
+  role: string;
   removeFn: (entry: DBentry) => void;
 }
 
-// Helper Interface for calculated totals
-interface EstimateTotals {
-  itemsTotal: number;
-  adjustmentsTotal: number;
-  taxAmount: number;
-  grandTotal: number;
-}
-
-// Helper function to calculate totals (can be memoized if complex)
-const calculateEstimateTotals = (
-  details: estimateDetailsState | undefined,
-): EstimateTotals => {
-  if (!details)
-    return { itemsTotal: 0, adjustmentsTotal: 0, taxAmount: 0, grandTotal: 0 };
-
-  const { confirmedItems = [], adjustments = [], taxPercentage = 0 } = details;
-
-  const itemsTotal = confirmedItems.reduce(
-    (sum: number, item: Partial<LineItem>) => {
-      const quantity = item.quantity || 0;
-      // Safely access nested properties
-      const unitPrice = item.material?.unitPrice || 0;
-      return sum + quantity * unitPrice;
-    },
-    0,
-  );
-
-  const adjustmentsTotal = adjustments.reduce(
-    (sum: number, adj: Adjustment): number => {
-      const value = adj.value || 0;
-      let adjustmentValue = 0;
-      switch (adj.type) {
-        case "addFixed":
-          adjustmentValue = value;
-          break;
-        case "discountFixed":
-          adjustmentValue = -value;
-          break;
-        case "addPercent":
-          adjustmentValue = (itemsTotal * value) / 100;
-          break;
-        case "discountPercent":
-          adjustmentValue = -(itemsTotal * value) / 100;
-          break;
-        // taxPercent is not an adjustment to sum here
-        default:
-          break;
-      }
-      return sum + adjustmentValue;
-    },
-    0,
-  );
-
-  const subtotalBeforeTax = itemsTotal + adjustmentsTotal;
-  const taxAmount = (subtotalBeforeTax * taxPercentage) / 100;
-  const grandTotal = subtotalBeforeTax + taxAmount;
-
-  return { itemsTotal, adjustmentsTotal, taxAmount, grandTotal };
+// --- Main Component ---
+const getStatusBadgeVariant = (
+  currentStatus: EstimateStatus | InvoiceStatus,
+): "default" | "secondary" | "destructive" | "outline" => {
+  switch (currentStatus) {
+    case EstimateStatus.DRAFT:
+      return "default";
+    case EstimateStatus.SENT:
+      return "secondary";
+    case EstimateStatus.ACCEPTED:
+      return "secondary"; // Changed from "success" to "secondary"
+    case EstimateStatus.DECLINED:
+      return "destructive";
+    case EstimateStatus.VOID:
+      return "outline";
+    case InvoiceStatus.INVOICED:
+      return "secondary";
+    case InvoiceStatus.PAID:
+      return "secondary"; // Changed from "success" to "secondary"
+    case InvoiceStatus.PARTIALLY_PAID:
+      return "secondary"; // Changed from "warning" to "secondary"
+    case InvoiceStatus.OVERDUE:
+      return "destructive";
+    case InvoiceStatus.VOID:
+      return "outline";
+    default:
+      return "default";
+  }
 };
 
-// --- Main Component ---
 export const EstimateEntry = React.memo(function EstimateEntry({
   journalId,
   entry,
@@ -110,40 +73,41 @@ export const EstimateEntry = React.memo(function EstimateEntry({
     return null;
   }
 
-  // --- Safely access details ---
-  // Cast details, assuming it matches estimateDetailsState structure based on entryType
-  const details = entry.details as estimateDetailsState;
+  const details = entry.details as EstimateDetails;
   const {
     customer,
+    dueDate,
     confirmedItems = [],
-    adjustments = [],
-    status = "pending", // Default status
-    taxPercentage = 0,
-    currency, // Currency code (e.g., "USD") is stored in details
+    currency,
     notes,
+    payments = [], // Destructure payments, default to empty array
   } = details;
 
-  // --- Calculate Totals ---
-  const { itemsTotal, adjustmentsTotal, taxAmount, grandTotal } =
-    calculateEstimateTotals(details);
+  const totalAmount = confirmedItems.reduce(
+    // Assuming unitPrice is part of LineItem, if not, adjust access path
+    (sum, item) => sum + item.quantity * (item.material?.unitPrice || 0),
+    0,
+  );
 
-  // --- Determine Status Color ---
-  const getStatusBadgeVariant = (
-    status: estimateDetailsState["status"],
-  ): "default" | "secondary" | "destructive" | "outline" => {
-    switch (status) {
-      case "accepted":
-        return "default"; // Greenish (using primary here, maybe customize later)
-      case "rejected":
-        return "destructive"; // Red
-      case "pending":
-      default:
-        return "secondary"; // Yellowish/Grey
-    }
-  };
+  const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+
+  // Get status from top-level entry, not from details
+  const currentStatus = entry.details.status || EstimateStatus.DRAFT;
+  const displayStatus =
+    currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1);
+  const displayBadgeVariant = getStatusBadgeVariant(currentStatus);
+
+  // For invoice number, use entry ID when in invoice status, otherwise show estimate number
+  const isInvoiceStatus = [
+    InvoiceStatus.INVOICED,
+    InvoiceStatus.PAID,
+    InvoiceStatus.PARTIALLY_PAID,
+    InvoiceStatus.OVERDUE,
+  ].includes(currentStatus as InvoiceStatus);
+
+  const displayNumber = isInvoiceStatus ? entry.id : null;
 
   return (
-    // --- Pass props to EntryView ---
     <EntryView
       journalId={journalId}
       entry={entry}
@@ -152,77 +116,68 @@ export const EstimateEntry = React.memo(function EstimateEntry({
       role={role}
       removeFn={removeFn}
     >
-      {/* --- Estimate Specific Summary --- */}
-      {/* Link wraps the main content area */}
       <Link
-        href={`/journal/entry?jid=${journalId}&eid=${entry.id}`} // Use journalId
-        className="block hover:bg-accent/50 transition-colors rounded-md -m-2 p-2" // Make link cover area, adjust margins/padding
+        href={`/journal/entry?jid=${journalId}&eid=${entry.id}&jtype=estimate`}
+        className="block hover:bg-accent/50 transition-colors rounded-md -m-2 p-2"
       >
         {/* Top Row: Customer Name, Grand Total, Status */}
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 mb-1">
           <div className="flex items-center gap-2 min-w-0">
-            {" "}
-            {/* Allow shrinking */}
-            <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />{" "}
-            {/* Icon */}
+            <ClipboardList className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span
               className="font-medium truncate"
               title={customer?.name || "No Customer"}
             >
               {customer?.name || "No Customer"}
             </span>
+            {displayNumber && (
+              <span className="text-xs text-muted-foreground">
+                #{displayNumber}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
-            {/* <Badge variant={getStatusBadgeVariant(status)} className="text-xs">
-              {status.charAt(0).toUpperCase() + status.slice(1)}
-            </Badge> */}
+            <Badge variant={displayBadgeVariant} className="text-xs">
+              {displayStatus}
+            </Badge>
             <span className="font-semibold text-base">
-              {formatCurrency(grandTotal, currency || "USD")}{" "}
-              {/* Use currency code from details */}
+              {formatCurrency(totalAmount, currency || "USD")}
             </span>
           </div>
         </div>
 
-        {/* Middle Row: Contact Info (Optional) */}
-        <div className="text-xs text-muted-foreground mb-2 space-x-3">
-          {customer?.email && (
-            <span className="truncate" title={customer.email}>
-              {customer.email}
+        {/* Middle Row: Due Date */}
+        {/* Due Date - ensure it's displayed if available */}
+        {/* Middle Row: Due Date */}
+        {/* Due Date - ensure it's displayed if available */}
+        {dueDate && ( // Show if dueDate exists
+          <div className="text-xs text-muted-foreground mt-1 mb-1">
+            <span>
+              Due: {dueDate ? formattedDate(new Date(dueDate)) : "N/A"}
             </span>
-          )}
-          {customer?.phone && <span>{customer.phone}</span>}
-        </div>
+          </div>
+        )}
 
-        {/* Bottom Row: Summary of items/adjustments/notes */}
+        {/* Bottom Row: Summary of items/notes */}
         <div className="text-xs text-muted-foreground space-y-1">
           {confirmedItems.length > 0 && (
-            <p className="truncate">
-              {confirmedItems.length} item(s):{" "}
-              {confirmedItems
-                .slice(0, 2) // Show first 2 items max
-                .map(
-                  (item: Partial<LineItem>) =>
-                    item.material?.description || item.description || "item",
-                ) // Safer access
-                .join(", ")}
-              {confirmedItems.length > 2 ? "..." : ""}
-            </p>
-          )}
-          {adjustments.length > 0 && (
-            <p className="truncate">
-              {adjustments.length} adjustment(s)
-              {/* Maybe show first adjustment desc? */}
-              {/* {adjustments[0].description && ` (${adjustments[0].description})`} */}
-            </p>
+            <p className="truncate">{confirmedItems.length} item(s)</p>
           )}
           {notes && <p className="truncate italic">Notes: {notes}</p>}
         </div>
 
-        {/* Creator and Date Info (Optional - can be moved/removed) */}
-        {/* <div className="text-xs text-muted-foreground mt-1 text-right">
-             {`${user?.displayName || 'User'} | ${formattedDate(entry.createdAt)}`}
-         </div> */}
+        {/* Creator and Date Info */}
+        <div className="text-xs text-muted-foreground mt-2 text-right">
+          {entry.createdBy ||
+            user?.displayName ||
+            user?.email ||
+            "Unknown User"}{" "}
+          | {formattedDate(entry.createdAt)}
+        </div>
       </Link>
     </EntryView>
   );
 });
+
+// Helper type for badge variants if not already globally defined
+// type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "success" | "warning";
