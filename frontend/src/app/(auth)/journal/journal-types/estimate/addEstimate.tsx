@@ -231,7 +231,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
                 // dueDate should already be a Date object after processing
                 setDueDate(validData.dueDate);
               } else {
-                setDueDate(null);
+                setDueDate(new Date());
               }
               setPayments(validData.payments || []);
 
@@ -472,7 +472,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
   return (
     <div
       id="estimate-printable-container"
-      className="w-full print:max-w-none mx-auto p-2 border-none relative pb-20 md:pb-4 lg:pr-[430px]"
+      className="w-full print:max-w-none mx-auto   border-none relative pb-20 md:pb-4 lg:pr-[430px]"
     >
       <EstimateHeader logo={supplierLogo} contactInfo={supplierInfo} />
 
@@ -651,12 +651,14 @@ export const EstimateDetails = React.memo(function EstimateDetails({
                 </tbody>
               </table>
             </div>
-            <NewItemForm
-              onAddItem={addConfirmedItem}
-              currency={journalCurrency}
-              inventoryCache={journalInventoryCache}
-              userRole={userRole}
-            />
+            <div className="print:hidden">
+              <NewItemForm
+                onAddItem={addConfirmedItem}
+                currency={journalCurrency}
+                inventoryCache={journalInventoryCache}
+                userRole={userRole}
+              />
+            </div>
             <InvoiceBottomLines
               itemSubtotal={calculateSubtotal()}
               adjustments={adjustments}
@@ -671,6 +673,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
               }}
               currency={journalCurrency}
               userRole={userRole}
+              payments={payments}
             />
           </div>
           <div className="space-y-2">
@@ -689,7 +692,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
 
         {/* Payments Section - Conditionally Rendered */}
         {(isInvoiceFlow || payments.length > 0) && (
-          <div>
+          <div className="break-before-page">
             <h3 className="text-lg font-semibold pt-4 mb-2">Payments</h3>
             <div className="border rounded-md p-4 space-y-4">
               {payments.length > 0 ? (
@@ -827,7 +830,7 @@ export const EstimateDetails = React.memo(function EstimateDetails({
       </div>
       <style jsx global>{`
         @media print {
-          /* ... same print styles ... */
+          /* Hide non-print elements */
         }
       `}</style>
     </div>

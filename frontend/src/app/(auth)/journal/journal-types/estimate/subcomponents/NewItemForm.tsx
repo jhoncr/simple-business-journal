@@ -310,6 +310,12 @@ export function NewItemForm({
     ) {
       values.description = values.inventoryMaterialName;
     }
+
+    // have values.inventoryMaterialName = values.description if itemType is not "inventory"
+    if (values.itemType !== "inventory") {
+      values.inventoryMaterialName = values.description;
+    }
+
     setIsSubmitting(true);
     const lineItem = createLineItemFromForm(values);
     const laborItem = createLaborItem(values, lineItem);
