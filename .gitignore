@@ -1,2 +1,8 @@
 .vscode
 simple-biz_flat.txt
+
+# exclude .chace files
+**/*.chace
+
+# exclude the _flat.txt files
+*_flat.txt
