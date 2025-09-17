@@ -48,6 +48,7 @@ export const acceptShare = onCall(
       const { businessID: businessId, operation } = result.data; // Use businessId for consistency with original code
       const uid = request.auth.uid;
       const email = request.auth.token?.email;
+      const escapedEmail = email?.replace(/\./g, ',');
 
       if (operation === 'ignore') {
         // Optionally: You could add logic here to record the ignore action if needed
@@ -74,15 +75,21 @@ export const acceptShare = onCall(
 
         // Check if user already has access
         if (logData.access && logData.access[uid]) {
-          logger.info(`User ${uid} already has access to business ${businessId}`);
+          logger.info(
+            `User ${uid} already has access to business ${businessId}`,
+          );
           // No error needed, just inform the user
           return null; // Exit transaction successfully
         }
 
         // Check operation: Verify invitation exists
         if (operation === 'check') {
-          if (email && logData.pendingAccess && logData.pendingAccess[email]) {
-            const role = logData.pendingAccess[email];
+          if (
+            escapedEmail &&
+            logData.pendingAccess &&
+            logData.pendingAccess[escapedEmail]
+          ) {
+            const role = logData.pendingAccess[escapedEmail];
             logger.info(
               `Access check successful for ${email} on business ${businessId}. Role: ${role}`,
             );
@@ -109,11 +116,17 @@ export const acceptShare = onCall(
 
         if (
           email &&
+          escapedEmail &&
           logData.pendingAccess &&
-          Object.prototype.hasOwnProperty.call(logData.pendingAccess, email)
+          Object.prototype.hasOwnProperty.call(
+            logData.pendingAccess,
+            escapedEmail,
+          )
         ) {
-          logger.info(`Accepting share for ${email} on business ${businessId}.`);
-          const role = logData.pendingAccess[email];
+          logger.info(
+            `Accepting share for ${email} on business ${businessId}.`,
+          );
+          const role = logData.pendingAccess[escapedEmail];
 
           // Prepare updates
           const updates: Record<string, any> = {
@@ -125,7 +138,7 @@ export const acceptShare = onCall(
               photoURL: request?.auth?.token?.picture || '',
             },
             // Remove from pendingAccess map, only if email is not null
-            [`pendingAccess.${email}`]: FieldValue.delete(),
+            [`pendingAccess.${escapedEmail}`]: FieldValue.delete(),
             // Add UID to access_array
             access_array: FieldValue.arrayUnion(uid),
             updatedAt: FieldValue.serverTimestamp(), // Update timestamp
