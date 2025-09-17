@@ -6,8 +6,6 @@ import * as z from 'zod';
 //   feedDetailsSchema,
 //   growthDetailsSchema,
 // } from "./BabySchema"; // Updated import path // TODO: Fix missing BabySchema.ts or BABY_ENTRY_TYPES export and re-enable baby entry types.
-import { cashFlowEntryDetailsSchema } from './CashflowSchema';
-import { materialItemSchema } from './InventorySchema';
 import { estimateDetailsStateSchema } from './estimate_schema';
 // import { invoiceDetailsSchema } from "./invoice_schema";
 
@@ -24,20 +22,6 @@ interface EntryConfig<T extends z.ZodTypeAny> {
 // Map EntryType -> EntryConfig
 export const ENTRY_CONFIG = {
   // Business Entry Types
-  cashflow: {
-    subcollection: 'cashflow_entries',
-    schema: cashFlowEntryDetailsSchema,
-    displayName: 'Cash Flow',
-    category: 'business',
-    sortField: 'details.date', // Add sortField
-  },
-  inventory: {
-    subcollection: 'inventory_items',
-    schema: materialItemSchema,
-    displayName: 'Inventory',
-    category: 'business',
-    sortField: 'createdAt', // Add sortField
-  },
   estimate: {
     subcollection: 'estimates',
     schema: estimateDetailsStateSchema,

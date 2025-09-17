@@ -1,20 +1,7 @@
-import {
-  Coins,
-  Package,
-  List,
-  FileText,
-  PencilRuler,
-  Receipt,
-} from "lucide-react";
-import { CashFlowEntry } from "./cash-flow/CashFlowEntry";
-import { InventoryItemEntry } from "./inventory/InventoryItemEntry";
-import { AddInventoryEntryForm } from "./inventory/add-inventory-entry";
-import { AddLogEntryForm } from "./cash-flow/add-cf-entry";
+import { PencilRuler } from "lucide-react";
 import React from "react";
 import { AddNewEstimateBtn } from "./estimate/addEstimate";
 import { EstimateEntry } from "./estimate/EstimateEntry";
-// Removed: import { InvoiceEntry } from "./invoice/InvoiceEntry";
-// Removed: import { AddNewInvoiceBtn } from "./invoice/AddNewInvoiceBtn";
 import { DBentry } from "@/lib/custom_types";
 import { EntryViewProps } from "../comp/EntryView";
 
@@ -26,36 +13,11 @@ const JOURNAL_CONFIG: {
     addEntryForm?: React.ComponentType<{ journalId: string }> | null;
   };
 } = {
-  cashflow: {
-    icon: <Coins className="h-4 w-4" />,
-    title: "Simple Cashflow",
-    entryComponent: CashFlowEntry,
-    addEntryForm: AddLogEntryForm,
-  },
-  inventory: {
-    icon: <Package className="h-4 w-4" />,
-    title: "Inventory",
-    entryComponent: InventoryItemEntry as any,
-    addEntryForm: AddInventoryEntryForm,
-  },
   estimate: {
     icon: <PencilRuler className="h-4 w-4" />,
     title: "Estimates",
     entryComponent: EstimateEntry,
     addEntryForm: AddNewEstimateBtn,
-  },
-  // Removed "invoice" entry:
-  // invoice: {
-  //   icon: <Receipt className="h-4 w-4" />,
-  //   title: "Invoices",
-  //   entryComponent: InvoiceEntry,
-  //   addEntryForm: AddNewInvoiceBtn,
-  // },
-  group: {
-    icon: <FileText className="h-4 w-4" />,
-    title: "Group",
-    entryComponent: null,
-    addEntryForm: null,
   },
 };
 

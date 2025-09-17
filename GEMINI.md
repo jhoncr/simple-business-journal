@@ -43,7 +43,8 @@ Your code modification workflow is as follows:
 3.  **Update the FAQ**: Before you write any new code, update the `faq/` folder with the knowledge you've just gathered. This ensures our documentation is always up-to-date.
 4.  **Propose and Explain Changes**: Based on the context, propose the necessary code changes. Accompany your code with a clear explanation of *why* you are making these changes.
 5.  **Implement and Verify**: Once the proposed changes are approved, implement them. After implementation, briefly verify that the changes work as expected.
-6.  **Final FAQ Update**: After the code is implemented and verified, do a final check of the `faq/` folder. Update any relevant entries with information about the new changes.
+6.  **Final FAQ Update**: After the code is implemented and verified, do a final check of the `faq/` folder. Update any relevant entries with inform
+ation about the new changes.
 
 
 ## Project Overview

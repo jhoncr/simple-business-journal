@@ -16,14 +16,18 @@ import {
   ReCaptchaEnterpriseProvider,
 } from "firebase/app-check";
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
-// import the config.json file
-import devConfig from "./config.dev.json";
-import prodConfig from "./config.json";
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+};
 
-const config = process.env.NODE_ENV === "development" ? devConfig : prodConfig;
-
-const firebaseConfig = config.firebaseConfig;
-export const emulatorIP =  process.env.NODE_ENV === "development" ? devConfig.emulatorIP : 'localhost';
+export const emulatorIP =
+  process.env.NEXT_PUBLIC_EMULATOR_IP || "localhost";
 
 export const app = initializeApp(firebaseConfig);
 
@@ -62,7 +66,9 @@ if (typeof window !== "undefined") {
     console.log("App Check initialized with CustomProvider for development.");
   } else {
     initializeAppCheck(app, {
-      provider: new ReCaptchaEnterpriseProvider(config.recaptchaSiteKey),
+      provider: new ReCaptchaEnterpriseProvider(
+        process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!,
+      ),
       isTokenAutoRefreshEnabled: true,
     });
     console.log("App Check initialized with ReCaptchaEnterpriseProvider for production.");

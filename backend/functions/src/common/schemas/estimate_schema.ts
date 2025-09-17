@@ -1,10 +1,5 @@
 import * as z from 'zod';
 import { contactInfoSchema, allowedCurrencySchema } from './common_schemas';
-import {
-  materialItemSchema,
-  laborItemSchema,
-  dimensionConfigSchema,
-} from './InventorySchema';
 
 export const currencyCodeSchema = allowedCurrencySchema; // ISO 4217 currency codes are 3 letters
 // Add this near the top of the file, before the schemas
@@ -25,6 +20,18 @@ export const paymentSchema = z.object({
   notes: z.string().optional().nullable(),
 });
 
+export const materialSchema = z.object({
+  id: z.string(),
+  description: z.string(),
+  unitPrice: z.number(),
+  dimensions: z.object({
+    type: z.enum(["area", "unit"]),
+    unitLabel: z.enum(["m²", "ft²", "unit"]),
+  }),
+  currency: currencyCodeSchema,
+  labor: z.any().nullable(),
+});
+
 export const lineItemSchema = z.object({
   id: z.string(),
   parentId: z.string(),
@@ -38,13 +45,13 @@ export const lineItemSchema = z.object({
     .nullable(),
   description: z
     .string()
-    .min(3, {
-      message: 'The description must be at least 3 characters.',
+    .min(1, {
+      message: "The description must be at least 1 characters.",
     })
     .max(254, {
-      message: 'A max of 254 characters is allowed in the description.',
+      message: "A max of 254 characters is allowed in the description.",
     }),
-  material: materialItemSchema,
+  material: materialSchema,
 });
 
 export const adjustmentSchema = z.object({
@@ -85,9 +92,6 @@ export type estimateDetailsState = z.infer<typeof estimateDetailsStateSchema>;
 export type contactInfoSchemaType = z.infer<typeof contactInfoSchema>;
 export type LineItem = z.infer<typeof lineItemSchema>;
 export type Adjustment = z.infer<typeof adjustmentSchema>;
-export type MaterialItem = z.infer<typeof materialItemSchema>;
-export type LaborItem = z.infer<typeof laborItemSchema>;
-export type DimensionConfig = z.infer<typeof dimensionConfigSchema>;
 export type Payment = z.infer<typeof paymentSchema>;
 // Add the type export
 export type Currency = z.infer<typeof currencySchema>;

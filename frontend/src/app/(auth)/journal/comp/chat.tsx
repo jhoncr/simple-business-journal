@@ -6,7 +6,7 @@ import { ChevronsUp, User } from "lucide-react";
 import { Entry } from "./Entry";
 import { useFetchEntries } from "./useFetch";
 import { useAuth } from "@/lib/auth_handler";
-import { AddInventoryEntryForm } from "../journal-types/inventory/add-inventory-entry";
+
 import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap"; // Import EntryType
 
 //TODO: handle delete of entries
