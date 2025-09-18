@@ -12,7 +12,7 @@ import { EntryItf } from "@/../../backend/functions/src/common/common_types";
 import { EstimateHeader } from "./subcomponents/header";
 import Link from "next/link";
 import { useEstimate } from "./useEstimate"; // Import the new hook
-import { EstimateStatusDropdown } from "./subcomponents/estimateStatus";
+import { WorkStatusDropdown } from "./subcomponents/estimateStatus";
 import { ContactInfo } from "./subcomponents/ContactInfo";
 import { ItemsList } from "./subcomponents/ItemsList";
 import { InvoiceDetails } from "./subcomponents/InvoiceDetails";
@@ -51,7 +51,7 @@ export const EstimateDetails = React.memo(function EstimateDetails(
     entryError,
     userRole,
     customerRef,
-    isInvoiceFlow,
+    isDelivered,
     setCustomer,
     setAdjustments,
     setTaxPercentage,
@@ -92,21 +92,19 @@ export const EstimateDetails = React.memo(function EstimateDetails(
 
       <div className="space-y-4 px-2 md:px-4 mt-2">
         <div className="flex justify-end items-center space-x-2 print:hidden">
-          <EstimateStatusDropdown
+          <WorkStatusDropdown
             qstatus={status}
             setStatus={handleStatusChange}
           />
         </div>
 
-        {(isInvoiceFlow || dueDate) && (
-          <InvoiceDetails
-            entryId={entryId}
-            dueDate={dueDate}
-            setDueDate={setDueDate}
-            handleSave={handleSave}
-            isSaving={isSaving}
-          />
-        )}
+        <InvoiceDetails
+          entryId={entryId}
+          dueDate={dueDate}
+          setDueDate={setDueDate}
+          handleSave={handleSave}
+          isSaving={isSaving}
+        />
 
         <div>
           <h3 className="text-lg font-semibold mt-4 mb-2">Customer</h3>
@@ -170,11 +168,11 @@ export const EstimateDetails = React.memo(function EstimateDetails(
           </div>
         </fieldset>
 
-        {(isInvoiceFlow || payments.length > 0) && (
+        {(isDelivered || payments.length > 0) && (
           <Payments
             payments={payments}
             currencyFormat={currencyFormat}
-            isInvoiceFlow={isInvoiceFlow}
+            isInvoiceFlow={isDelivered}
             handleAddPayment={handleAddPayment}
             isSaving={isSaving}
           />

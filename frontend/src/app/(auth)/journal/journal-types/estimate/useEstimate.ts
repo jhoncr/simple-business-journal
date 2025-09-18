@@ -5,10 +5,7 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/auth_handler";
 import { fetchEntry } from "@/lib/db_handler";
 import { formattedDate, formatCurrency } from "@/lib/utils";
-import {
-  EstimateStatus as EstimateStatusEnum,
-  InvoiceStatus,
-} from "@/lib/custom_types";
+import { WorkStatus } from "@/lib/custom_types";
 import {
   LineItem,
   Adjustment,
@@ -65,9 +62,7 @@ export const useEstimate = ({
   jtype,
 }: UseEstimateProps) => {
   const [confirmedItems, setConfirmedItems] = useState<LineItem[]>([]);
-  const [status, setStatus] = useState<EstimateStatusEnum | InvoiceStatus>(
-    EstimateStatusEnum.DRAFT,
-  );
+  const [status, setStatus] = useState<WorkStatus>(WorkStatus.DRAFT);
   const [customer, setCustomer] = useState<contactInfoSchemaType>(initInfo);
   const [canUpdate, setCanUpdate] = useState(false);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
@@ -88,7 +83,7 @@ export const useEstimate = ({
   const { authUser } = useAuth();
   const { journal } = useJournalContext();
 
-  const START_STATE = EstimateStatusEnum.DRAFT;
+  const START_STATE = WorkStatus.DRAFT;
 
   const userRole: (typeof ROLES)[number] = useMemo(() => {
     if (!authUser || !journal || !journal.access) {
@@ -166,11 +161,7 @@ export const useEstimate = ({
             } else {
               const validData = validation.data;
               setConfirmedItems(validData.confirmedItems || []);
-              setStatus(
-                validData.status.toUpperCase() as
-                  | EstimateStatusEnum
-                  | InvoiceStatus,
-              );
+              setStatus(validData.status.toUpperCase() as WorkStatus);
               setCustomer(validData.customer || initInfo);
               setAdjustments(validData.adjustments || []);
               setTaxPercentage(validData.taxPercentage || 0);
@@ -229,7 +220,7 @@ export const useEstimate = ({
   const buildPayload = (updates: Partial<estimateDetailsState>) => {
     const estimateDetailsData: estimateDetailsState = {
       confirmedItems: updates.confirmedItems ?? confirmedItems,
-      status: updates.status ?? status ?? EstimateStatusEnum.DRAFT,
+      status: updates.status ?? status ?? WorkStatus.DRAFT,
       customer: updates.customer ?? customer,
       supplier: supplierInfo || initInfo,
       logo: supplierLogo || null,
@@ -363,20 +354,13 @@ export const useEstimate = ({
     handleSave({ confirmedItems: newItems });
   };
 
-  const handleStatusChange = (
-    newStatus: EstimateStatusEnum | InvoiceStatus,
-  ) => {
+  const handleStatusChange = (newStatus: WorkStatus) => {
     setStatus(newStatus);
     handleSave({ status: newStatus });
   };
 
-  const isInvoiceFlow = useMemo(() => {
-    return [
-      InvoiceStatus.INVOICED,
-      InvoiceStatus.PAID,
-      InvoiceStatus.PARTIALLY_PAID,
-      InvoiceStatus.OVERDUE,
-    ].includes(status as InvoiceStatus);
+  const isDelivered = useMemo(() => {
+    return status === WorkStatus.DELIVERED;
   }, [status]);
 
   const calculateSubtotal = useCallback(() => {
@@ -419,7 +403,7 @@ export const useEstimate = ({
     entryError,
     userRole,
     customerRef,
-    isInvoiceFlow,
+    isDelivered,
     setCustomer,
     setAdjustments,
     setTaxPercentage,

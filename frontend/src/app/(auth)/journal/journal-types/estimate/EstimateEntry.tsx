@@ -4,12 +4,7 @@ import { EntryView } from "../../comp/EntryView";
 import { estimateDetailsState as EstimateDetails } from "@/../../backend/functions/src/common/schemas/estimate_schema";
 import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap";
 // --- Import frontend types ---
-import {
-  DBentry,
-  AccessUser,
-  EstimateStatus,
-  InvoiceStatus,
-} from "@/lib/custom_types";
+import { DBentry, AccessUser, WorkStatus } from "@/lib/custom_types";
 import { formatCurrency, formattedDate } from "@/lib/utils";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
@@ -27,29 +22,15 @@ interface EstimateEntryProps {
 
 // --- Main Component ---
 const getStatusBadgeVariant = (
-  currentStatus: EstimateStatus | InvoiceStatus,
+  currentStatus: WorkStatus,
 ): "default" | "secondary" | "destructive" | "outline" => {
   switch (currentStatus) {
-    case EstimateStatus.DRAFT:
+    case WorkStatus.DRAFT:
       return "default";
-    case EstimateStatus.SENT:
+    case WorkStatus.IN_PROCESS:
       return "secondary";
-    case EstimateStatus.ACCEPTED:
-      return "secondary"; // Changed from "success" to "secondary"
-    case EstimateStatus.DECLINED:
-      return "destructive";
-    case EstimateStatus.VOID:
-      return "outline";
-    case InvoiceStatus.INVOICED:
+    case WorkStatus.DELIVERED:
       return "secondary";
-    case InvoiceStatus.PAID:
-      return "secondary"; // Changed from "success" to "secondary"
-    case InvoiceStatus.PARTIALLY_PAID:
-      return "secondary"; // Changed from "warning" to "secondary"
-    case InvoiceStatus.OVERDUE:
-      return "destructive";
-    case InvoiceStatus.VOID:
-      return "outline";
     default:
       return "default";
   }
@@ -92,20 +73,14 @@ export const EstimateEntry = React.memo(function EstimateEntry({
   const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
 
   // Get status from top-level entry, not from details
-  const currentStatus = entry.details.status || EstimateStatus.DRAFT;
+  const currentStatus = entry.status || WorkStatus.DRAFT;
   const displayStatus =
-    currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1);
+    currentStatus.charAt(0).toUpperCase() +
+    currentStatus.slice(1).toLowerCase().replace("_", " ");
   const displayBadgeVariant = getStatusBadgeVariant(currentStatus);
 
-  // For invoice number, use entry ID when in invoice status, otherwise show estimate number
-  const isInvoiceStatus = [
-    InvoiceStatus.INVOICED,
-    InvoiceStatus.PAID,
-    InvoiceStatus.PARTIALLY_PAID,
-    InvoiceStatus.OVERDUE,
-  ].includes(currentStatus as InvoiceStatus);
-
-  const displayNumber = isInvoiceStatus ? entry.id : null;
+  const displayNumber =
+    currentStatus === WorkStatus.DELIVERED ? entry.id : null;
 
   return (
     <EntryView

@@ -66,11 +66,11 @@ export const adjustmentSchema = z.object({
   description: z.string(),
 });
 
-import { EstimateStatus, InvoiceStatus } from '../common_types';
+import { WorkStatus } from '../common_types';
 
 export const estimateDetailsStateSchema = z.object({
   confirmedItems: z.array(lineItemSchema),
-  status: z.union([z.nativeEnum(EstimateStatus), z.nativeEnum(InvoiceStatus)]),
+  status: z.nativeEnum(WorkStatus),
   customer: contactInfoSchema,
   supplier: contactInfoSchema,
   logo: z.string().nullable(),

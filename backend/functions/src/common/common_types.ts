@@ -2,20 +2,10 @@ import { AccessMap } from './schemas/common_schemas';
 import { Timestamp } from 'firebase-admin/firestore';
 import { ROLES } from './schemas/common_schemas'; // Import ROLES
 
-export enum EstimateStatus {
-  DRAFT = 'DRAFT',
-  SENT = 'SENT',
-  ACCEPTED = 'ACCEPTED',
-  DECLINED = 'DECLINED',
-  VOID = 'VOID',
-}
-
-export enum InvoiceStatus {
-  INVOICED = 'INVOICED',
-  PAID = 'PAID',
-  PARTIALLY_PAID = 'PARTIALLY_PAID',
-  OVERDUE = 'OVERDUE',
-  VOID = 'VOID',
+export enum WorkStatus {
+  DRAFT = "DRAFT",
+  IN_PROCESS = "IN_PROCESS",
+  DELIVERED = "DELIVERED",
 }
 
 export interface EntryItf {
@@ -26,7 +16,7 @@ export interface EntryItf {
   createdBy: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
-  status?: EstimateStatus | InvoiceStatus;
+  status?: WorkStatus;
   details: {
     [key: string]: any;
   };
