@@ -3,9 +3,9 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { ROLES } from './schemas/common_schemas'; // Import ROLES
 
 export enum WorkStatus {
-  DRAFT = 'DRAFT',
-  IN_PROCESS = 'IN_PROCESS',
-  DELIVERED = 'DELIVERED',
+  DRAFT = "DRAFT",
+  IN_PROCESS = "IN_PROCESS",
+  DELIVERED = "DELIVERED",
 }
 
 export interface EntryItf {

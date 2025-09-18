@@ -12,6 +12,7 @@ import { EntryItf } from "@/../../backend/functions/src/common/common_types";
 import { EstimateHeader } from "./subcomponents/header";
 import Link from "next/link";
 import { useEstimate } from "./useEstimate"; // Import the new hook
+import { WorkStatusDropdown } from "./subcomponents/estimateStatus";
 import { ContactInfo } from "./subcomponents/ContactInfo";
 import { ItemsList } from "./subcomponents/ItemsList";
 import { InvoiceDetails } from "./subcomponents/InvoiceDetails";
@@ -20,7 +21,6 @@ import { InvoiceBottomLines } from "./subcomponents/Adjustments";
 import { InlineEditTextarea } from "./subcomponents/EditNotes";
 import { NewItemForm } from "./subcomponents/NewItemForm";
 import { Label } from "@/components/ui/label";
-import { WorkStatus } from "@/../../backend/functions/src/common/common_types";
 
 interface EstimateDetailsProps {
   journalId: string;
@@ -43,7 +43,7 @@ export const EstimateDetails = React.memo(function EstimateDetails(
     adjustments,
     taxPercentage,
     notes,
-    createdAt,
+    dueDate,
     payments,
     loading,
     isSaving,
@@ -51,10 +51,12 @@ export const EstimateDetails = React.memo(function EstimateDetails(
     entryError,
     userRole,
     customerRef,
+    isDelivered,
     setCustomer,
     setAdjustments,
     setTaxPercentage,
     setNotes,
+    setDueDate,
     addConfirmedItem,
     removeConfirmedItem,
     handleStatusChange,
@@ -78,24 +80,30 @@ export const EstimateDetails = React.memo(function EstimateDetails(
     );
   }
 
-  console.log("Rendering EstimateDetails with createdAt:", createdAt);
-
   return (
     <div
       id="estimate-printable-container"
-      className="w-full print:max-w-none mx-auto border-none relative pb-20 md:pb-4 lg:pr-[430px] print:p-0 print:m-0 print:border-none"
+      className="w-full print:max-w-none mx-auto border-none relative pb-20 md:pb-4 lg:pr-[430px]"
     >
       <EstimateHeader
         logo={props.supplierLogo}
         contactInfo={props.supplierInfo}
       />
 
-      <div className="space-y-4 px-2 md:px-4 mt-2">
+      <div className="space-y-2 print:space-y-1 px-2 md:px-4 mt-2 print:px-0 print:mt-0">
+        <div className="flex justify-end items-center space-x-2 print:hidden">
+          <WorkStatusDropdown
+            qstatus={status}
+            setStatus={handleStatusChange}
+          />
+        </div>
+
         <InvoiceDetails
           entryId={entryId}
-          createdDate={createdAt}
-          status={status}
-          handleStatusChange={canUpdate ? handleStatusChange : undefined}
+          dueDate={dueDate}
+          setDueDate={setDueDate}
+          handleSave={handleSave}
+          isSaving={isSaving}
         />
 
         <div>
@@ -108,72 +116,67 @@ export const EstimateDetails = React.memo(function EstimateDetails(
           />
         </div>
 
-        {canUpdate && (
-          <fieldset
-            disabled={!canUpdate}
-            className={!canUpdate ? "opacity-50" : ""}
-          >
-            <h3 className="text-lg font-semibold pt-4 mb-2">Items</h3>
-            <div className="border rounded-md p-2">
-              <ItemsList
-                confirmedItems={confirmedItems}
-                removeConfirmedItem={removeConfirmedItem}
-                currencyFormat={currencyFormat}
-                isSaving={isSaving}
-                canUpdate={canUpdate}
-              />
-              <div className="print:hidden">
-                <NewItemForm
-                  onAddItem={addConfirmedItem}
-                  currency={props.journalCurrency}
-                  inventoryCache={props.journalInventoryCache}
-                  userRole={userRole}
-                />
-              </div>
-              <InvoiceBottomLines
-                itemSubtotal={calculateSubtotal()}
-                adjustments={adjustments}
-                setAdjustments={(newAdjustments) => {
-                  setAdjustments(newAdjustments);
-                  handleSave({ adjustments: newAdjustments });
-                }}
-                taxPercentage={taxPercentage}
-                setTaxPercentage={(newTaxPercentage) => {
-                  setTaxPercentage(newTaxPercentage);
-                  handleSave({ taxPercentage: newTaxPercentage });
-                }}
-                currency={props.journalCurrency}
-                userRole={userRole}
-                payments={payments}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
-              <InlineEditTextarea
-                initialValue={notes}
-                onSave={(value) => {
-                  setNotes(value);
-                  handleSave({ notes: value });
-                }}
-                placeholder="Add any additional notes..."
-                disabled={isSaving}
-              />
-            </div>
-          </fieldset>
-        )}
-
-        {canUpdate &&
-          (status == WorkStatus.IN_PROCESS ||
-            status == WorkStatus.DELIVERED ||
-            payments.length > 0) && (
-            <Payments
-              payments={payments}
+        <fieldset
+          disabled={!canUpdate}
+          className={!canUpdate ? "opacity-50" : ""}
+        >
+          <h3 className="text-lg font-semibold pt-4 mb-2">Items</h3>
+          <div className="border rounded-md p-2">
+            <ItemsList
+              confirmedItems={confirmedItems}
+              removeConfirmedItem={removeConfirmedItem}
               currencyFormat={currencyFormat}
-              isInvoiceFlow={true}
-              handleAddPayment={handleAddPayment}
               isSaving={isSaving}
+              canUpdate={canUpdate}
             />
-          )}
+            <div className="print:hidden">
+              <NewItemForm
+                onAddItem={addConfirmedItem}
+                currency={props.journalCurrency}
+                inventoryCache={props.journalInventoryCache}
+                userRole={userRole}
+              />
+            </div>
+            <InvoiceBottomLines
+              itemSubtotal={calculateSubtotal()}
+              adjustments={adjustments}
+              setAdjustments={(newAdjustments) => {
+                setAdjustments(newAdjustments);
+                handleSave({ adjustments: newAdjustments });
+              }}
+              taxPercentage={taxPercentage}
+              setTaxPercentage={(newTaxPercentage) => {
+                setTaxPercentage(newTaxPercentage);
+                handleSave({ taxPercentage: newTaxPercentage });
+              }}
+              currency={props.journalCurrency}
+              userRole={userRole}
+              payments={payments}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes</Label>
+            <InlineEditTextarea
+              initialValue={notes}
+              onSave={(value) => {
+                setNotes(value);
+                handleSave({ notes: value });
+              }}
+              placeholder="Add any additional notes..."
+              disabled={isSaving}
+            />
+          </div>
+        </fieldset>
+
+        {(isDelivered || payments.length > 0) && (
+          <Payments
+            payments={payments}
+            currencyFormat={currencyFormat}
+            isInvoiceFlow={isDelivered}
+            handleAddPayment={handleAddPayment}
+            isSaving={isSaving}
+          />
+        )}
       </div>
 
       <div

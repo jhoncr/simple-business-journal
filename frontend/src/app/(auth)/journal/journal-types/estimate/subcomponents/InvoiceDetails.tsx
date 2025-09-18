@@ -1,50 +1,77 @@
+import { useState } from 'react';
+import { CalendarIcon } from "@radix-ui/react-icons";
 import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { WorkStatusDropdown } from "./estimateStatus";
-import { WorkStatus } from "@/lib/custom_types";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { estimateDetailsState } from '@/../../backend/functions/src/common/schemas/estimate_schema';
 
 interface InvoiceDetailsProps {
   entryId: string | null | undefined;
-  createdDate: Date | null | undefined;
-  status: WorkStatus;
-  handleStatusChange: (newStatus: WorkStatus) => void;
+  dueDate: Date | null | undefined;
+  setDueDate: (date: Date | null | undefined) => void;
+  handleSave: (updates: Partial<estimateDetailsState>) => Promise<boolean>;
+  isSaving: boolean;
 }
 
-export const InvoiceDetails = ({
-  entryId,
-  createdDate,
-  status,
-  handleStatusChange,
-}: InvoiceDetailsProps) => {
-  console.log("Rendering InvoiceDetails with createdDate:", createdDate);
+export const InvoiceDetails = ({ entryId, dueDate, setDueDate, handleSave, isSaving }: InvoiceDetailsProps) => {
+  const [dueDatePopoverOpen, setDueDatePopoverOpen] = useState(false);
+
   return (
-    <div className="flex justify-between items-start mt-4 border-b pb-1">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4 border-b pb-4">
       <div>
-        <Label className="print:text-xs">Order ID</Label>
+        <Label>Invoice Number</Label>
         <div
-          id="orderId"
-          className="text-sm font-medium text-muted-foreground print:text-xs"
+          id="invoiceNumber"
+          className="text-sm font-medium text-muted-foreground"
         >
-          {entryId || "Not yet assigned"}
+          {entryId ? entryId : "Not yet invoiced"}
         </div>
       </div>
       <div>
-        <Label className="print:text-xs">Created</Label>
-        <div
-          id="createdDate"
-          className="text-sm font-medium text-muted-foreground print:text-xs"
+        <Label htmlFor="dueDate">Due Date</Label>
+        <Popover
+          modal
+          open={dueDatePopoverOpen}
+          onOpenChange={setDueDatePopoverOpen}
         >
-          {createdDate ? format(createdDate, "PP") : "Not set"}
-        </div>
-      </div>
-      <div className="hidden print:block">
-        <Label className="print:text-xs">Status</Label>
-        <div className="text-sm font-medium text-muted-foreground print:text-xs">
-          {status}
-        </div>
-      </div>
-      <div className="print:hidden">
-        <WorkStatusDropdown qstatus={status} setStatus={handleStatusChange} />
+          <PopoverTrigger asChild>
+            <Button
+              variant={"outline"}
+              className={cn(
+                "w-full justify-start text-left font-normal",
+                !dueDate && "text-muted-foreground",
+              )}
+              disabled={isSaving}
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {dueDate ? (
+                format(dueDate, "PPP")
+              ) : (
+                <span>Pick a date</span>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={dueDate || undefined}
+              onSelect={(date) => {
+                setDueDate(date);
+                if (date) handleSave({ dueDate: date });
+                setDueDatePopoverOpen(false);
+              }}
+              disabled={isSaving}
+              initialFocus
+            />
+          </PopoverContent>
+        </Popover>
       </div>
     </div>
   );

@@ -21,9 +21,19 @@ interface WorkStatusProps {
   setStatus: (status: WorkStatus) => void;
 }
 
-export function WorkStatusDropdown({ qstatus, setStatus }: WorkStatusProps) {
+export function WorkStatusDropdown({
+  qstatus,
+  setStatus,
+}: WorkStatusProps) {
   const availableStatuses = () => {
-    return Object.values(WorkStatus).filter((status) => status !== qstatus);
+    switch (qstatus) {
+      case WorkStatus.DRAFT:
+        return [WorkStatus.IN_PROCESS];
+      case WorkStatus.IN_PROCESS:
+        return [WorkStatus.DELIVERED];
+      default:
+        return [];
+    }
   };
 
   return (

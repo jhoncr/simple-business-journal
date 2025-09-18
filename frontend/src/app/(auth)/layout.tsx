@@ -1,4 +1,5 @@
 "use client";
+import "./print.css";
 import { useAuth } from "@/lib/auth_handler";
 // import { JournalListProvider } from "@/lib/db_handler";
 import { useEffect, useState } from "react";

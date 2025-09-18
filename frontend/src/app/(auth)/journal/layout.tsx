@@ -37,7 +37,7 @@ function JournalBreadcrumb() {
   if (!journal) return null; // Don't render breadcrumbs if no journal
 
   return (
-    <div className="print:hidden">
+    <div className="mb-6 print:hidden">
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>

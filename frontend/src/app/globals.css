@@ -1,5 +1,5 @@
 @tailwind base;
-@tailwind components; 
+@tailwind components;
 @tailwind utilities;
 
 
@@ -95,9 +95,3 @@ n
   body {
     @apply bg-background text-foreground;
   }
-
-@media print {
-  body {
-    font-size: 10pt;
-  }
-}

@@ -14,19 +14,19 @@ export function EstimateHeader({
   contactInfo,
 }: EstimateHeaderProps) {
   return (
-    <div className="print:shadow-none print:max-w-none print:mx-0 print:w-full border-b px-4 pb-1">
-      <div className="flex flex-wrap justify-between items-center gap-4 print:gap-2">
+    <div className="print:shadow-none print:max-w-none print:mx-0 print:w-full border-b p-4">
+      <div className="flex flex-wrap justify-between items-center gap-4">
         {/* logo and address */}
-        <div className="flex items-center space-x-3 print:space-x-2">
+        <div className="flex items-center space-x-3">
           <Image
             src={logo || "/placeholder.svg"}
             alt={`${contactInfo?.name || "Company"} logo`}
             width={40}
             height={40}
-            className="h-16 w-auto print:h-10"
+            className="h-16 w-auto"
           />
           <div className="flex flex-col">
-            <h1 className="text-2xl font-bold tracking-tight text-primary print:text-lg">
+            <h1 className="text-2xl font-bold tracking-tight text-primary">
               {contactInfo?.name || "Acme Industries"}
             </h1>
             {contactInfo?.address && (
