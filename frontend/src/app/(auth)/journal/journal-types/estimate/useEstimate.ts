@@ -21,6 +21,7 @@ import {
   allowedCurrencySchemaType,
   ROLES,
 } from "@/../../backend/functions/src/common/schemas/common_schemas";
+import { EntryItf } from "@/../../backend/functions/src/common/common_types";
 import { useAuth } from "@/lib/auth_handler";
 import { useJournalContext } from "@/context/JournalContext";
 import { ContactInfoRef } from "./subcomponents/ContactInfo";
@@ -50,6 +51,7 @@ interface UseEstimateProps {
   supplierInfo: contactInfoSchemaType;
   supplierLogo: string | null;
   journalCurrency: allowedCurrencySchemaType;
+  journalInventoryCache: Record<string, EntryItf>;
   jtype: string;
 }
 
@@ -59,6 +61,7 @@ export const useEstimate = ({
   supplierInfo,
   supplierLogo,
   journalCurrency,
+  journalInventoryCache,
   jtype,
 }: UseEstimateProps) => {
   const [confirmedItems, setConfirmedItems] = useState<LineItem[]>([]);
@@ -338,6 +341,8 @@ export const useEstimate = ({
       dueDate,
       payments,
       router,
+      buildPayload,
+      handleSaveSuccess,
     ],
   );
 

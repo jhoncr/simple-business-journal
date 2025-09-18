@@ -17,6 +17,7 @@ import { Plus, ListPlus, Loader2 } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { LineItem } from "@backend/common/schemas/estimate_schema";
 import { allowedCurrencySchemaType } from "@backend/common/schemas/common_schemas";
+import { EntryItf } from "@backend/common/common_types";
 import { ROLES_THAT_ADD } from "@backend/common/const";
 import { ROLES } from "@backend/common/schemas/common_schemas";
 import { formatCurrency, currencyToSymbol } from "@/lib/utils";
@@ -37,6 +38,7 @@ import {
 interface NewItemFormProps {
   onAddItem: (items: LineItem[]) => Promise<boolean>; // Expects a promise now
   currency: allowedCurrencySchemaType;
+  inventoryCache: Record<string, EntryItf>;
   userRole: (typeof ROLES)[number];
 }
 
@@ -121,6 +123,7 @@ const defaultFormValues: ItemFormValues = {
 export function NewItemForm({
   onAddItem,
   currency,
+  inventoryCache,
   userRole,
 }: NewItemFormProps) {
   const [isOpen, setIsOpen] = useState(false);

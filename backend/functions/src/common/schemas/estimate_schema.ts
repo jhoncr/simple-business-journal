@@ -25,8 +25,8 @@ export const materialSchema = z.object({
   description: z.string(),
   unitPrice: z.number(),
   dimensions: z.object({
-    type: z.enum(["area", "unit"]),
-    unitLabel: z.enum(["m²", "ft²", "unit"]),
+    type: z.enum(['area', 'unit']),
+    unitLabel: z.enum(['m²', 'ft²', 'unit']),
   }),
   currency: currencyCodeSchema,
   labor: z.any().nullable(),
@@ -46,10 +46,10 @@ export const lineItemSchema = z.object({
   description: z
     .string()
     .min(1, {
-      message: "The description must be at least 1 characters.",
+      message: 'The description must be at least 1 characters.',
     })
     .max(254, {
-      message: "A max of 254 characters is allowed in the description.",
+      message: 'A max of 254 characters is allowed in the description.',
     }),
   material: materialSchema,
 });

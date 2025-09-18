@@ -4,7 +4,11 @@
 import React from "react";
 import { ChevronLeft, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { contactInfoSchemaType, allowedCurrencySchemaType } from "@/../../backend/functions/src/common/schemas/common_schemas";
+import {
+  contactInfoSchemaType,
+  allowedCurrencySchemaType,
+} from "@/../../backend/functions/src/common/schemas/common_schemas";
+import { EntryItf } from "@/../../backend/functions/src/common/common_types";
 import { EstimateHeader } from "./subcomponents/header";
 import Link from "next/link";
 import { useEstimate } from "./useEstimate"; // Import the new hook
@@ -24,10 +28,13 @@ interface EstimateDetailsProps {
   supplierInfo: contactInfoSchemaType;
   supplierLogo: string | null;
   journalCurrency: allowedCurrencySchemaType;
+  journalInventoryCache: Record<string, EntryItf>;
   jtype: string;
 }
 
-export const EstimateDetails = React.memo(function EstimateDetails(props: EstimateDetailsProps) {
+export const EstimateDetails = React.memo(function EstimateDetails(
+  props: EstimateDetailsProps,
+) {
   const {
     confirmedItems,
     status,
@@ -78,15 +85,27 @@ export const EstimateDetails = React.memo(function EstimateDetails(props: Estima
       id="estimate-printable-container"
       className="w-full print:max-w-none mx-auto border-none relative pb-20 md:pb-4 lg:pr-[430px]"
     >
-      <EstimateHeader logo={props.supplierLogo} contactInfo={props.supplierInfo} />
+      <EstimateHeader
+        logo={props.supplierLogo}
+        contactInfo={props.supplierInfo}
+      />
 
       <div className="space-y-4 px-2 md:px-4 mt-2">
         <div className="flex justify-end items-center space-x-2 print:hidden">
-          <EstimateStatusDropdown qstatus={status} setStatus={handleStatusChange} />
+          <EstimateStatusDropdown
+            qstatus={status}
+            setStatus={handleStatusChange}
+          />
         </div>
 
         {(isInvoiceFlow || dueDate) && (
-          <InvoiceDetails entryId={entryId} dueDate={dueDate} setDueDate={setDueDate} handleSave={handleSave} isSaving={isSaving} />
+          <InvoiceDetails
+            entryId={entryId}
+            dueDate={dueDate}
+            setDueDate={setDueDate}
+            handleSave={handleSave}
+            isSaving={isSaving}
+          />
         )}
 
         <div>
@@ -99,7 +118,10 @@ export const EstimateDetails = React.memo(function EstimateDetails(props: Estima
           />
         </div>
 
-        <fieldset disabled={!canUpdate} className={!canUpdate ? "opacity-50" : ""}>
+        <fieldset
+          disabled={!canUpdate}
+          className={!canUpdate ? "opacity-50" : ""}
+        >
           <h3 className="text-lg font-semibold pt-4 mb-2">Items</h3>
           <div className="border rounded-md p-2">
             <ItemsList
@@ -113,6 +135,7 @@ export const EstimateDetails = React.memo(function EstimateDetails(props: Estima
               <NewItemForm
                 onAddItem={addConfirmedItem}
                 currency={props.journalCurrency}
+                inventoryCache={props.journalInventoryCache}
                 userRole={userRole}
               />
             </div>
@@ -148,7 +171,13 @@ export const EstimateDetails = React.memo(function EstimateDetails(props: Estima
         </fieldset>
 
         {(isInvoiceFlow || payments.length > 0) && (
-          <Payments payments={payments} currencyFormat={currencyFormat} isInvoiceFlow={isInvoiceFlow} handleAddPayment={handleAddPayment} isSaving={isSaving} />
+          <Payments
+            payments={payments}
+            currencyFormat={currencyFormat}
+            isInvoiceFlow={isInvoiceFlow}
+            handleAddPayment={handleAddPayment}
+            isSaving={isSaving}
+          />
         )}
       </div>
 
@@ -156,12 +185,7 @@ export const EstimateDetails = React.memo(function EstimateDetails(props: Estima
         id="estimate-actions-bar"
         className="print:hidden flex justify-between items-center mt-6 px-2 md:px-4 sticky bottom-0 py-2 bg-background/90 backdrop-blur-sm border-t"
       >
-        <Button
-          variant="brutalist"
-          asChild
-          size="sm"
-          disabled={isSaving}
-        >
+        <Button variant="brutalist" asChild size="sm" disabled={isSaving}>
           <Link href={`/journal?jid=${props.journalId}&type=estimate`}>
             <ChevronLeft className="h-4 w-4 mr-2" /> Back
           </Link>
