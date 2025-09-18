@@ -12,15 +12,15 @@ interface ItemsListProps {
 
 export const ItemsList = ({ confirmedItems, removeConfirmedItem, currencyFormat, isSaving, canUpdate }: ItemsListProps) => {
   return (
-    <div className="space-y-2">
-      <table className="w-full text-sm">
+    <div className="space-y-1">
+      <table className="w-full text-xs">
         <thead>
-          <tr className="text-xs text-muted-foreground border-b">
-            <th className="text-left py-2 px-1 font-medium w-20">Qty</th>
-            <th className="text-left py-2 px-1 font-medium">Description</th>
-            <th className="text-right py-2 px-2 font-medium w-24">Price</th>
-            <th className="text-right py-2 px-1 font-medium w-24">Total</th>
-            <th className="w-8 print:hidden"></th>
+          <tr className="text-2xs text-muted-foreground border-b">
+            <th className="text-left py-1 px-1 font-medium w-16">Qty</th>
+            <th className="text-left py-1 px-1 font-medium">Description</th>
+            <th className="text-right py-1 px-2 font-medium w-20">Price</th>
+            <th className="text-right py-1 px-1 font-medium w-20">Total</th>
+            <th className="w-6 print:hidden"></th>
           </tr>
         </thead>
         <tbody>
@@ -31,19 +31,19 @@ export const ItemsList = ({ confirmedItems, removeConfirmedItem, currencyFormat,
                 item.parentId === "root" ? "bg-secondary/30" : ""
               }`}
             >
-              <td className="py-2 px-1 text-left align-top">
-                <div className="flex flex-col items-center w-min">
+              <td className="py-1 px-1 text-left align-top">
+                <div className="flex flex-col items-start w-min">
                   {item.quantity}
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-2xs text-muted-foreground">
                     {item.material?.dimensions?.unitLabel || ""}
                   </div>
                 </div>
               </td>
-              <td className="py-2 px-1 align-top">
+              <td className="py-1 px-1 align-top">
                 {item.description && (
-                  <div className="text-sm">{item.description}</div>
+                  <div className="text-xs">{item.description}</div>
                 )}
-                <div className="text-xs text-muted-foreground flex flex-row items-center gap-1">
+                <div className="text-2xs text-muted-foreground flex flex-row items-center gap-1">
                   {item.material?.description &&
                     item.description !== item.material.description && (
                       <div className="">
@@ -60,30 +60,30 @@ export const ItemsList = ({ confirmedItems, removeConfirmedItem, currencyFormat,
                     )}
                 </div>
               </td>
-              <td className="py-2 px-1 align-top">
+              <td className="py-1 px-1 align-top">
                 <div className="text-right pr-2">
                   {currencyFormat(item.material?.unitPrice || 0)}
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-2xs text-muted-foreground">
                     {`/${
                       item.material?.dimensions?.unitLabel || "unit"
                     }`}
                   </div>
                 </div>
               </td>
-              <td className="py-2 px-1 text-right align-top">
+              <td className="py-1 px-1 text-right align-top">
                 {currencyFormat(
                   item.quantity * (item.material?.unitPrice || 0),
                 )}
               </td>
-              <td className="py-2 px-1 print:hidden align-top">
+              <td className="py-1 px-1 print:hidden align-top">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => removeConfirmedItem(item.id)}
                   disabled={isSaving || !canUpdate}
-                  className="h-8 w-8"
+                  className="h-6 w-6"
                 >
-                  <MinusCircle className="h-4 w-4 text-muted-foreground" />
+                  <MinusCircle className="h-3 w-3 text-muted-foreground" />
                 </Button>
               </td>
             </tr>
@@ -92,7 +92,7 @@ export const ItemsList = ({ confirmedItems, removeConfirmedItem, currencyFormat,
             <tr>
               <td
                 colSpan={5}
-                className="text-center py-4 text-sm text-muted-foreground"
+                className="text-center py-3 text-xs text-muted-foreground"
               >
                 Add items using the form below.
               </td>

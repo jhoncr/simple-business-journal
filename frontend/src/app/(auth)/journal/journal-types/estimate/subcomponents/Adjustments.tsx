@@ -134,20 +134,20 @@ export function InvoiceBottomLines({
   };
 
   return (
-    <div className="space-y-2 pt-4 border-t">
-      <div className="md:max-w-[50%]  print:max-w-[50%] md:ml-auto print:ml-auto">
+    <div className="space-y-1 pt-2 border-t text-xs">
+      <div className="md:max-w-[50%] print:max-w-[50%] md:ml-auto print:ml-auto space-y-1">
         <div className="flex justify-between items-center">
           <span>Subtotal</span>
-          <span className="pr-10 print:pr-0">
+          <span className="pr-8 print:pr-0">
             {currencyFormat(itemSubtotal, currency)}
           </span>
         </div>
         {adjustments.map((adjustment, index) => (
           <div key={index} className="flex justify-between items-center">
-            <span>{formatDescription(adjustment)}</span>
-            <span
+            <span className="text-2xs">{formatDescription(adjustment)}</span>
+            <div
               className={cn(
-                "font-medium",
+                "font-medium flex items-center",
                 calculateAdjustmentAmount(adjustment) >= 0
                   ? "text-green-600"
                   : "text-red-600",
@@ -163,7 +163,7 @@ export function InvoiceBottomLines({
                 key={`${index}-delete`}
                 aria-label="Delete adjustment"
                 data-testid={`delete-adjustment-${index}`}
-                className="print:hidden"
+                className="print:hidden h-6 w-6"
                 size="icon"
                 onClick={() => {
                   handleDeleteAdjustment(index);
@@ -175,31 +175,31 @@ export function InvoiceBottomLines({
                     : ""
                 } // Add tooltip
               >
-                <MinusCircle className="h-4 w-4 text-muted-foreground" />
+                <MinusCircle className="h-3 w-3 text-muted-foreground" />
               </Button>
-            </span>
+            </div>
           </div>
         ))}
         {taxPercentage > 0 && (
           <>
-            <div className="flex justify-between items-center pt-2 border-t">
+            <div className="flex justify-between items-center pt-1 border-t">
               <span>Total before Tax</span>
               <div>
-                <span className="pr-10 print:pr-0">
+                <span className="pr-8 print:pr-0">
                   {currencyFormat(totalBeforeTax, currency)}
                 </span>
               </div>
             </div>
             <div className="flex justify-between items-center">
               <span>Tax ({taxPercentage}%)</span>
-              <div>
+              <div className="flex items-center">
                 <span>{currencyFormat(taxAmount, currency)}</span>
                 <Button
                   variant="ghost"
                   key="delete-tax"
                   aria-label="Delete tax"
                   size="icon"
-                  className="print:hidden ml-1"
+                  className="print:hidden ml-1 h-6 w-6"
                   onClick={() => {
                     handleTaxChange(0);
                   }}
@@ -208,38 +208,38 @@ export function InvoiceBottomLines({
                     !canModify ? "You don't have permission to remove tax" : ""
                   } // Add tooltip
                 >
-                  <MinusCircle className="h-4 w-4 text-muted-foreground" />
+                  <MinusCircle className="h-3 w-3 text-muted-foreground" />
                 </Button>
               </div>
             </div>
           </>
         )}
-        <div className="flex justify-between pt-4 mt-2 items-center border-t-4 border-double">
-          <span className="text-md font-medium">Total</span>
-          <h1 className="pr-10 print:pr-0 text-xl font-bold text-primary">
+        <div className="flex justify-between pt-2 mt-1 items-center border-t-2 border-double">
+          <span className="text-sm font-medium">Total</span>
+          <h2 className="pr-8 print:pr-0 text-lg font-bold text-primary">
             {currencyFormat(grandTotal, currency)}
-          </h1>
+          </h2>
         </div>
         {payments.length > 0 && (
           <>
-            <div className="flex justify-between items-center pt-2 border-t">
+            <div className="flex justify-between items-center pt-1 border-t">
               <span className="font-medium text-muted-foreground">
                 Payments Total
               </span>
-              <div className="pr-10 print:pr-0 text-muted-foreground">
+              <div className="pr-8 print:pr-0 text-muted-foreground">
                 - {currencyFormat(totalPayments, currency)}
               </div>
             </div>
-            <div className="flex justify-between pt-2 mt-2 items-center border-t-2">
-              <span className="text-md font-medium">Balance Due</span>
-              <h1 className="pr-10 print:pr-0 text-xl font-bold text-primary">
+            <div className="flex justify-between pt-1 mt-1 items-center border-t">
+              <span className="text-sm font-medium">Balance Due</span>
+              <h2 className="pr-8 print:pr-0 text-lg font-bold text-primary">
                 {currencyFormat(balanceDue, currency)}
-              </h1>
+              </h2>
             </div>
           </>
         )}
       </div>
-      <div className="print:hidden space-y-2">
+      <div className="print:hidden space-y-2 pt-2">
         <AdjustmentForm
           onSubmit={handleAddAdjustment}
           onTaxSubmit={handleTaxChange}
