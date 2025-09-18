@@ -12,7 +12,6 @@ import { EntryItf } from "@/../../backend/functions/src/common/common_types";
 import { EstimateHeader } from "./subcomponents/header";
 import Link from "next/link";
 import { useEstimate } from "./useEstimate"; // Import the new hook
-import { WorkStatusDropdown } from "./subcomponents/estimateStatus";
 import { ContactInfo } from "./subcomponents/ContactInfo";
 import { ItemsList } from "./subcomponents/ItemsList";
 import { InvoiceDetails } from "./subcomponents/InvoiceDetails";
@@ -21,6 +20,7 @@ import { InvoiceBottomLines } from "./subcomponents/Adjustments";
 import { InlineEditTextarea } from "./subcomponents/EditNotes";
 import { NewItemForm } from "./subcomponents/NewItemForm";
 import { Label } from "@/components/ui/label";
+import { WorkStatus } from "@/../../backend/functions/src/common/common_types";
 
 interface EstimateDetailsProps {
   journalId: string;
@@ -43,7 +43,7 @@ export const EstimateDetails = React.memo(function EstimateDetails(
     adjustments,
     taxPercentage,
     notes,
-    dueDate,
+    createdAt,
     payments,
     loading,
     isSaving,
@@ -51,12 +51,10 @@ export const EstimateDetails = React.memo(function EstimateDetails(
     entryError,
     userRole,
     customerRef,
-    isDelivered,
     setCustomer,
     setAdjustments,
     setTaxPercentage,
     setNotes,
-    setDueDate,
     addConfirmedItem,
     removeConfirmedItem,
     handleStatusChange,
@@ -80,6 +78,8 @@ export const EstimateDetails = React.memo(function EstimateDetails(
     );
   }
 
+  console.log("Rendering EstimateDetails with createdAt:", createdAt);
+
   return (
     <div
       id="estimate-printable-container"
@@ -91,19 +91,11 @@ export const EstimateDetails = React.memo(function EstimateDetails(
       />
 
       <div className="space-y-4 px-2 md:px-4 mt-2">
-        <div className="flex justify-end items-center space-x-2 print:hidden">
-          <WorkStatusDropdown
-            qstatus={status}
-            setStatus={handleStatusChange}
-          />
-        </div>
-
         <InvoiceDetails
           entryId={entryId}
-          dueDate={dueDate}
-          setDueDate={setDueDate}
-          handleSave={handleSave}
-          isSaving={isSaving}
+          createdDate={createdAt}
+          status={status}
+          handleStatusChange={handleStatusChange}
         />
 
         <div>
@@ -168,11 +160,13 @@ export const EstimateDetails = React.memo(function EstimateDetails(
           </div>
         </fieldset>
 
-        {(isDelivered || payments.length > 0) && (
+        {(status == WorkStatus.IN_PROCESS ||
+          status == WorkStatus.DELIVERED ||
+          payments.length > 0) && (
           <Payments
             payments={payments}
             currencyFormat={currencyFormat}
-            isInvoiceFlow={isDelivered}
+            isInvoiceFlow={true}
             handleAddPayment={handleAddPayment}
             isSaving={isSaving}
           />

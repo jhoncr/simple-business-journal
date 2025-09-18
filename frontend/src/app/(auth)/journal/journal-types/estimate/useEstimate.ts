@@ -5,7 +5,6 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/auth_handler";
 import { fetchEntry } from "@/lib/db_handler";
 import { formattedDate, formatCurrency } from "@/lib/utils";
-import { WorkStatus } from "@/lib/custom_types";
 import {
   LineItem,
   Adjustment,
@@ -18,7 +17,10 @@ import {
   allowedCurrencySchemaType,
   ROLES,
 } from "@/../../backend/functions/src/common/schemas/common_schemas";
-import { EntryItf } from "@/../../backend/functions/src/common/common_types";
+import {
+  WorkStatus,
+  EntryItf,
+} from "@/../../backend/functions/src/common/common_types";
 import { useAuth } from "@/lib/auth_handler";
 import { useJournalContext } from "@/context/JournalContext";
 import { ContactInfoRef } from "./subcomponents/ContactInfo";
@@ -68,11 +70,11 @@ export const useEstimate = ({
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [taxPercentage, setTaxPercentage] = useState(0);
   const [notes, setNotes] = useState<string>("");
-  const [dueDate, setDueDate] = useState<Date | null | undefined>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [createdDate, setCreatedDate] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [dueDate, setDueDate] = useState<Date | null>(null);
+  const [createdAt, setCreatedAt] = useState<Date | null>(null);
   const [entryId, setEntryId] = useState<string | null | undefined>(
     initialEntryId,
   );
@@ -131,6 +133,11 @@ export const useEstimate = ({
           } else if (entry.details) {
             const details = entry.details;
 
+            const newCreatedAt = entry.createdAt
+              ? entry.createdAt.toDate()
+              : null;
+            setCreatedAt(newCreatedAt);
+            console.log("Fetched estimate entry createdAt:", newCreatedAt);
             const processedDetails = {
               ...details,
               dueDate:
@@ -160,10 +167,12 @@ export const useEstimate = ({
               setEntryError("Loaded estimate data is invalid.");
             } else {
               const validData = validation.data;
-              setConfirmedItems(validData.confirmedItems || []);
-              setStatus(validData.status.toUpperCase() as WorkStatus);
+              setConfirmedItems(
+                (validData.confirmedItems as LineItem[]) || [],
+              );
+              setStatus(validData.status as WorkStatus);
               setCustomer(validData.customer || initInfo);
-              setAdjustments(validData.adjustments || []);
+              setAdjustments((validData.adjustments as Adjustment[]) || []);
               setTaxPercentage(validData.taxPercentage || 0);
               setNotes(validData.notes || "");
               setCanUpdate(true);
@@ -173,11 +182,7 @@ export const useEstimate = ({
               } else {
                 setDueDate(new Date());
               }
-              setPayments(validData.payments || []);
-
-              if (entry.createdAt)
-                setCreatedDate(formattedDate(entry.createdAt));
-              else setCreatedDate(null);
+              setPayments((validData.payments as Payment[]) || []);
             }
           }
         } catch (error) {
@@ -195,8 +200,9 @@ export const useEstimate = ({
         setNotes("");
         setDueDate(null);
         setPayments([]);
-        setCreatedDate(formattedDate(new Date()));
         setLoading(false);
+        setCanUpdate(true); // Allow creating a new estimate
+        setCreatedAt(new Date()); // Set created date for new estimate
       }
     }
 
@@ -359,13 +365,12 @@ export const useEstimate = ({
     handleSave({ status: newStatus });
   };
 
-  const isDelivered = useMemo(() => {
-    return status === WorkStatus.DELIVERED;
-  }, [status]);
-
   const calculateSubtotal = useCallback(() => {
     return confirmedItems.reduce(
-      (sum, item) => sum + item.quantity * (item.material?.unitPrice || 0),
+      (sum, item) =>
+        sum +
+        (item.quantity || 0) *
+          (item.material?.unitPrice ? Number(item.material.unitPrice) : 0),
       0,
     );
   }, [confirmedItems]);
@@ -389,6 +394,7 @@ export const useEstimate = ({
   return {
     confirmedItems,
     status,
+    createdAt,
     customer,
     canUpdate,
     adjustments,
@@ -397,13 +403,11 @@ export const useEstimate = ({
     dueDate,
     payments,
     loading,
-    createdDate,
     isSaving,
     entryId,
     entryError,
     userRole,
     customerRef,
-    isDelivered,
     setCustomer,
     setAdjustments,
     setTaxPercentage,
