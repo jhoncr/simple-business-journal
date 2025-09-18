@@ -15,18 +15,18 @@ export function EstimateHeader({
 }: EstimateHeaderProps) {
   return (
     <div className="print:shadow-none print:max-w-none print:mx-0 print:w-full border-b px-4 pb-1">
-      <div className="flex flex-wrap justify-between items-center gap-4">
+      <div className="flex flex-wrap justify-between items-center gap-4 print:gap-2">
         {/* logo and address */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-3 print:space-x-2">
           <Image
             src={logo || "/placeholder.svg"}
             alt={`${contactInfo?.name || "Company"} logo`}
             width={40}
             height={40}
-            className="h-16 w-auto"
+            className="h-16 w-auto print:h-10"
           />
           <div className="flex flex-col">
-            <h1 className="text-2xl font-bold tracking-tight text-primary">
+            <h1 className="text-2xl font-bold tracking-tight text-primary print:text-lg">
               {contactInfo?.name || "Acme Industries"}
             </h1>
             {contactInfo?.address && (

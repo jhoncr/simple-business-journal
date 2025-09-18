@@ -35,13 +35,15 @@ const ContactSummary = ({ info }: { info: contactInfoSchemaType }) => (
     {/* Name and company info */}
     <div className="flex flex-col">
       <div className="flex items-center space-x-2">
-        <User className="h-5 w-5 text-primary" />
-        <h2 className="text-xl font-bold">{info.name || "Not set"}</h2>
+        <User className="h-5 w-5 text-primary print:h-4 print:w-4" />
+        <h2 className="text-xl font-bold print:text-base">
+          {info.name || "Not set"}
+        </h2>
       </div>
 
       {/* Address below name */}
       {info.address?.street && ( // Add optional chaining to safely access address properties
-        <div className="mt-2 text-sm text-muted-foreground">
+        <div className="mt-2 text-sm text-muted-foreground print:text-xs">
           <div className="flex items-center space-x-2">
             <MapPin className="h-4 w-4 text-muted-foreground" />
             <div className="flex flex-wrap gap-2">
@@ -62,7 +64,7 @@ const ContactSummary = ({ info }: { info: contactInfoSchemaType }) => (
         <Phone className="h-4 w-4 text-muted-foreground" />
         <a
           href={`tel:${info.phone}`}
-          className="text-sm text-muted-foreground hover:text-primary"
+          className="text-sm text-muted-foreground hover:text-primary print:text-xs"
         >
           {info.phone || "Not set"}
         </a>
@@ -71,7 +73,7 @@ const ContactSummary = ({ info }: { info: contactInfoSchemaType }) => (
         <Mail className="h-4 w-4 text-muted-foreground" />
         <a
           href={`mailto:${info.email}`}
-          className="text-sm text-muted-foreground hover:text-primary"
+          className="text-sm text-muted-foreground hover:text-primary print:text-xs"
         >
           {info.email || "Not set"}
         </a>

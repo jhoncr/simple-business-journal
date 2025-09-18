@@ -83,7 +83,7 @@ export const EstimateDetails = React.memo(function EstimateDetails(
   return (
     <div
       id="estimate-printable-container"
-      className="w-full print:max-w-none mx-auto border-none relative pb-20 md:pb-4 lg:pr-[430px]"
+      className="w-full print:max-w-none mx-auto border-none relative pb-20 md:pb-4 lg:pr-[430px] print:p-0 print:m-0 print:border-none"
     >
       <EstimateHeader
         logo={props.supplierLogo}

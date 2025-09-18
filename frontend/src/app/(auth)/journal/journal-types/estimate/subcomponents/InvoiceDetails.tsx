@@ -20,21 +20,27 @@ export const InvoiceDetails = ({
   return (
     <div className="flex justify-between items-start mt-4 border-b pb-1">
       <div>
-        <Label>Order ID</Label>
+        <Label className="print:text-xs">Order ID</Label>
         <div
           id="orderId"
-          className="text-sm font-medium text-muted-foreground"
+          className="text-sm font-medium text-muted-foreground print:text-xs"
         >
           {entryId || "Not yet assigned"}
         </div>
       </div>
       <div>
-        <Label>Created</Label>
+        <Label className="print:text-xs">Created</Label>
         <div
           id="createdDate"
-          className="text-sm font-medium text-muted-foreground"
+          className="text-sm font-medium text-muted-foreground print:text-xs"
         >
           {createdDate ? format(createdDate, "PP") : "Not set"}
+        </div>
+      </div>
+      <div className="hidden print:block">
+        <Label className="print:text-xs">Status</Label>
+        <div className="text-sm font-medium text-muted-foreground print:text-xs">
+          {status}
         </div>
       </div>
       <div className="print:hidden">
