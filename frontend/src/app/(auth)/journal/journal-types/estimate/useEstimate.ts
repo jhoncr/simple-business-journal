@@ -201,7 +201,7 @@ export const useEstimate = ({
         setDueDate(null);
         setPayments([]);
         setLoading(false);
-        setCanUpdate(true); // Allow creating a new estimate
+        // setCanUpdate(true); // Allow creating a new estimate
         setCreatedAt(new Date()); // Set created date for new estimate
       }
     }

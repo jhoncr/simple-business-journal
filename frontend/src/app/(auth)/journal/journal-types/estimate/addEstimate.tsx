@@ -95,7 +95,7 @@ export const EstimateDetails = React.memo(function EstimateDetails(
           entryId={entryId}
           createdDate={createdAt}
           status={status}
-          handleStatusChange={handleStatusChange}
+          handleStatusChange={canUpdate ? handleStatusChange : undefined}
         />
 
         <div>
@@ -108,69 +108,72 @@ export const EstimateDetails = React.memo(function EstimateDetails(
           />
         </div>
 
-        <fieldset
-          disabled={!canUpdate}
-          className={!canUpdate ? "opacity-50" : ""}
-        >
-          <h3 className="text-lg font-semibold pt-4 mb-2">Items</h3>
-          <div className="border rounded-md p-2">
-            <ItemsList
-              confirmedItems={confirmedItems}
-              removeConfirmedItem={removeConfirmedItem}
-              currencyFormat={currencyFormat}
-              isSaving={isSaving}
-              canUpdate={canUpdate}
-            />
-            <div className="print:hidden">
-              <NewItemForm
-                onAddItem={addConfirmedItem}
+        {canUpdate && (
+          <fieldset
+            disabled={!canUpdate}
+            className={!canUpdate ? "opacity-50" : ""}
+          >
+            <h3 className="text-lg font-semibold pt-4 mb-2">Items</h3>
+            <div className="border rounded-md p-2">
+              <ItemsList
+                confirmedItems={confirmedItems}
+                removeConfirmedItem={removeConfirmedItem}
+                currencyFormat={currencyFormat}
+                isSaving={isSaving}
+                canUpdate={canUpdate}
+              />
+              <div className="print:hidden">
+                <NewItemForm
+                  onAddItem={addConfirmedItem}
+                  currency={props.journalCurrency}
+                  inventoryCache={props.journalInventoryCache}
+                  userRole={userRole}
+                />
+              </div>
+              <InvoiceBottomLines
+                itemSubtotal={calculateSubtotal()}
+                adjustments={adjustments}
+                setAdjustments={(newAdjustments) => {
+                  setAdjustments(newAdjustments);
+                  handleSave({ adjustments: newAdjustments });
+                }}
+                taxPercentage={taxPercentage}
+                setTaxPercentage={(newTaxPercentage) => {
+                  setTaxPercentage(newTaxPercentage);
+                  handleSave({ taxPercentage: newTaxPercentage });
+                }}
                 currency={props.journalCurrency}
-                inventoryCache={props.journalInventoryCache}
                 userRole={userRole}
+                payments={payments}
               />
             </div>
-            <InvoiceBottomLines
-              itemSubtotal={calculateSubtotal()}
-              adjustments={adjustments}
-              setAdjustments={(newAdjustments) => {
-                setAdjustments(newAdjustments);
-                handleSave({ adjustments: newAdjustments });
-              }}
-              taxPercentage={taxPercentage}
-              setTaxPercentage={(newTaxPercentage) => {
-                setTaxPercentage(newTaxPercentage);
-                handleSave({ taxPercentage: newTaxPercentage });
-              }}
-              currency={props.journalCurrency}
-              userRole={userRole}
-              payments={payments}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes</Label>
-            <InlineEditTextarea
-              initialValue={notes}
-              onSave={(value) => {
-                setNotes(value);
-                handleSave({ notes: value });
-              }}
-              placeholder="Add any additional notes..."
-              disabled={isSaving}
-            />
-          </div>
-        </fieldset>
-
-        {(status == WorkStatus.IN_PROCESS ||
-          status == WorkStatus.DELIVERED ||
-          payments.length > 0) && (
-          <Payments
-            payments={payments}
-            currencyFormat={currencyFormat}
-            isInvoiceFlow={true}
-            handleAddPayment={handleAddPayment}
-            isSaving={isSaving}
-          />
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes</Label>
+              <InlineEditTextarea
+                initialValue={notes}
+                onSave={(value) => {
+                  setNotes(value);
+                  handleSave({ notes: value });
+                }}
+                placeholder="Add any additional notes..."
+                disabled={isSaving}
+              />
+            </div>
+          </fieldset>
         )}
+
+        {canUpdate &&
+          (status == WorkStatus.IN_PROCESS ||
+            status == WorkStatus.DELIVERED ||
+            payments.length > 0) && (
+            <Payments
+              payments={payments}
+              currencyFormat={currencyFormat}
+              isInvoiceFlow={true}
+              handleAddPayment={handleAddPayment}
+              isSaving={isSaving}
+            />
+          )}
       </div>
 
       <div

@@ -14,7 +14,7 @@ export function EstimateHeader({
   contactInfo,
 }: EstimateHeaderProps) {
   return (
-    <div className="print:shadow-none print:max-w-none print:mx-0 print:w-full border-b p-4">
+    <div className="print:shadow-none print:max-w-none print:mx-0 print:w-full border-b px-4 pb-1">
       <div className="flex flex-wrap justify-between items-center gap-4">
         {/* logo and address */}
         <div className="flex items-center space-x-3">
