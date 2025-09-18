@@ -99,7 +99,7 @@ export const EstimateDetails = React.memo(function EstimateDetails(
         />
 
         <div>
-          <h3 className="text-lg font-semibold mt-4 mb-2">Customer</h3>
+          <h3 className="font-semibold mt-4">Client</h3>
           <ContactInfo
             ref={customerRef}
             info={customer}
@@ -113,7 +113,7 @@ export const EstimateDetails = React.memo(function EstimateDetails(
             disabled={!canUpdate}
             className={!canUpdate ? "opacity-50" : ""}
           >
-            <h3 className="text-lg font-semibold pt-4 mb-2">Items</h3>
+            <h3 className="font-semibold pt-4">Items</h3>
             <div className="border rounded-md p-2">
               <ItemsList
                 confirmedItems={confirmedItems}
@@ -147,8 +147,8 @@ export const EstimateDetails = React.memo(function EstimateDetails(
                 payments={payments}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="notes">Notes</Label>
+            <div>
+              <h3 className="font-semibold mt-4">Notes</h3>
               <InlineEditTextarea
                 initialValue={notes}
                 onSave={(value) => {
