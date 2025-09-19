@@ -1,0 +1,32 @@
+{
+  "LandingPage": {
+    "title": "Create Professional Estimates in Minutes",
+    "subtitle": "Simple Estimates helps you generate, customize, and print/share business estimates effortlessly.",
+    "tryForFree": "Try it for free today!",
+    "signInWithGoogle": "Sign in with Google",
+    "howItWorksTitle": "Creating Estimates is as Easy as 1-2-3",
+    "step1Title": "1. Add Items",
+    "step1Description": "Quickly add items to your estimate, from your inventory or create new ones on the fly.",
+    "step2Title": "2. Customize",
+    "step2Description": "Set prices, add discounts, include taxes, and personalize with your company logo and contact information.",
+    "step3Title": "3. Print or Share",
+    "step3Description": "Generate a professional PDF estimate to print, or share directly with your client via a unique link.",
+    "whyUseTitle": "Why Use Simple Business Journals?",
+    "benefit1Title": "Stay Organized",
+    "benefit1Description": "Stop wasting time with spreadsheets. Create estimates in a fraction of the time.",
+    "benefit2Title": "Look Professional",
+    "benefit2Description": "Impress clients with polished, branded estimates.",
+    "benefit3Title": "Easy to Use",
+    "benefit3Description": "No complicated software to learn. Get started instantly.",
+    "benefit4Title": "Inventory",
+    "benefit4Description": "Keep track of your inventory and prices",
+    "finalCtaTitle": "Sign up now and start creating professional estimates in minutes!",
+    "footerText": "Simple Business Journals © {year}"
+  },
+  "AboutPage": {
+    "title": "About SimpleJ",
+    "subtitle": "SimpleJ is a simple daily logging app",
+    "tryIt": "Try it",
+    "footer": "Made with ❤️ by {author}"
+  }
+}

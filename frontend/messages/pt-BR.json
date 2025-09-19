@@ -1,0 +1,32 @@
+{
+  "LandingPage": {
+    "title": "Crie Orçamentos Profissionais em Minutos",
+    "subtitle": "O Simple Estimates ajuda você a gerar, personalizar e imprimir/compartilhar orçamentos de negócios sem esforço.",
+    "tryForFree": "Experimente de graça hoje!",
+    "signInWithGoogle": "Entrar com o Google",
+    "howItWorksTitle": "Criar Orçamentos é tão Fácil quanto 1-2-3",
+    "step1Title": "1. Adicione Itens",
+    "step1Description": "Adicione itens rapidamente ao seu orçamento, do seu inventário ou crie novos na hora.",
+    "step2Title": "2. Personalize",
+    "step2Description": "Defina preços, adicione descontos, inclua impostos e personalize com o logotipo e as informações de contato da sua empresa.",
+    "step3Title": "3. Imprima ou Compartilhe",
+    "step3Description": "Gere um orçamento profissional em PDF para imprimir ou compartilhe diretamente com seu cliente por meio de um link exclusivo.",
+    "whyUseTitle": "Por que Usar o Simple Business Journals?",
+    "benefit1Title": "Mantenha-se Organizado",
+    "benefit1Description": "Pare de perder tempo com planilhas. Crie orçamentos em uma fração do tempo.",
+    "benefit2Title": "Apareça Profissional",
+    "benefit2Description": "Impressione os clientes com orçamentos refinados e com a marca da sua empresa.",
+    "benefit3Title": "Fácil de Usar",
+    "benefit3Description": "Nenhum software complicado para aprender. Comece instantaneamente.",
+    "benefit4Title": "Inventário",
+    "benefit4Description": "Acompanhe seu inventário e preços",
+    "finalCtaTitle": "Inscreva-se agora e comece a criar orçamentos profissionais em minutos!",
+    "footerText": "Simple Business Journals © {year}"
+  },
+  "AboutPage": {
+    "title": "Sobre o SimpleJ",
+    "subtitle": "O SimpleJ é um aplicativo simples de registro diário",
+    "tryIt": "Experimente",
+    "footer": "Feito com ❤️ por {author}"
+  }
+}
