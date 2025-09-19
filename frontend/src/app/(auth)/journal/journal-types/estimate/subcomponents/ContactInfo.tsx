@@ -31,20 +31,22 @@ interface ContactInfoProps {
 
 // Improved ContactSummary layout
 const ContactSummary = ({ info }: { info: contactInfoSchemaType }) => (
-  <div className="flex flex-wrap justify-between items-start gap-4 flex-grow">
+  <div className="flex flex-wrap justify-between items-start gap-2 flex-grow">
     {/* Name and company info */}
     <div className="flex flex-col">
       <div className="flex items-center space-x-2">
-        <User className="h-5 w-5 text-primary" />
-        <h2 className="text-xl font-bold">{info.name || "Not set"}</h2>
+        <User className="h-4 w-4 text-primary print:h-3 print:w-3" />
+        <h2 className="text-base font-bold print:text-sm">
+          {info.name || "Not set"}
+        </h2>
       </div>
 
       {/* Address below name */}
       {info.address?.street && ( // Add optional chaining to safely access address properties
-        <div className="mt-2 text-sm text-muted-foreground">
+        <div className="mt-1 text-2xs text-muted-foreground print:text-2xs">
           <div className="flex items-center space-x-2">
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-            <div className="flex flex-wrap gap-2">
+            <MapPin className="h-3 w-3 text-muted-foreground" />
+            <div className="flex flex-wrap gap-x-1">
               <span>{info.address.street}</span>
               <div>
                 {info.address.city}, {info.address.state}{" "}
@@ -57,21 +59,21 @@ const ContactSummary = ({ info }: { info: contactInfoSchemaType }) => (
     </div>
 
     {/* Contact details on right side */}
-    <div className="flex flex-wrap justify-between items-center gap-4 sm:flex-col sm:items-end grow">
-      <div className="flex items-center space-x-2">
-        <Phone className="h-4 w-4 text-muted-foreground" />
+    <div className="flex flex-col items-end space-y-1 text-2xs">
+      <div className="flex items-center space-x-1">
+        <Phone className="h-3 w-3 text-muted-foreground" />
         <a
           href={`tel:${info.phone}`}
-          className="text-sm text-muted-foreground hover:text-primary"
+          className="text-muted-foreground hover:text-primary print:text-2xs"
         >
           {info.phone || "Not set"}
         </a>
       </div>
-      <div className="flex items-center space-x-2">
-        <Mail className="h-4 w-4 text-muted-foreground" />
+      <div className="flex items-center space-x-1">
+        <Mail className="h-3 w-3 text-muted-foreground" />
         <a
           href={`mailto:${info.email}`}
-          className="text-sm text-muted-foreground hover:text-primary"
+          className="text-muted-foreground hover:text-primary print:text-2xs"
         >
           {info.email || "Not set"}
         </a>

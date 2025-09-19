@@ -1,4 +1,7 @@
-import { materialItemSchemaType } from "@/../../backend/functions/src/common/schemas/InventorySchema";
+// This file contains test materials that were previously used
+// The import below is commented out because the InventorySchema doesn't exist
+
+// import { materialItemSchemaType } from "@/../../backend/functions/src/common/schemas/InventorySchema";
 
 // // Update TEST_MATERIALS
 // export const TEST_MATERIALS: materialItemSchemaType[] = [

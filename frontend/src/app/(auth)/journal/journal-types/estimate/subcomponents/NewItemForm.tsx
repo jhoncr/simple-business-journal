@@ -17,9 +17,9 @@ import { Plus, ListPlus, Loader2 } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { LineItem } from "@backend/common/schemas/estimate_schema";
 import { allowedCurrencySchemaType } from "@backend/common/schemas/common_schemas";
+import { EntryItf } from "@backend/common/common_types";
 import { ROLES_THAT_ADD } from "@backend/common/const";
 import { ROLES } from "@backend/common/schemas/common_schemas";
-import { EntryItf } from "@backend/common/common_types";
 import { formatCurrency, currencyToSymbol } from "@/lib/utils";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { NumericInput } from "@/components/InputUnit";
@@ -62,9 +62,10 @@ const getLaborDescription = (
 
 const itemFormSchema = z
   .object({
-    itemType: z.enum(["custom", "inventory"]),
-    inventoryId: z.string().optional(),
-    description: z.string().max(254, "Max 254 characters"),
+    description: z
+      .string()
+      .min(1, "Description is required")
+      .max(254, "Max 254 characters"),
     inventoryMaterialName: z
       .string()
       .max(254, "Max 254 characters")
@@ -103,24 +104,11 @@ const itemFormSchema = z
       return true;
     },
     { message: "Labor rate required", path: ["laborRate"] },
-  )
-  .refine(
-    (data) => {
-      if (data.itemType === "custom") {
-        return data.description?.trim() !== "";
-      }
-      return true;
-    },
-    {
-      message: "Description required for custom items",
-      path: ["description"],
-    },
   );
 
 type ItemFormValues = z.infer<typeof itemFormSchema>;
 
 const defaultFormValues: ItemFormValues = {
-  itemType: "custom",
   description: "",
   quantity: 1,
   unitPrice: 0,
@@ -130,7 +118,6 @@ const defaultFormValues: ItemFormValues = {
   width: undefined,
   laborType: "null",
   laborRate: 0,
-  inventoryId: "",
 };
 
 export function NewItemForm({
@@ -149,60 +136,6 @@ export function NewItemForm({
     resolver: zodResolver(itemFormSchema),
     defaultValues: defaultFormValues,
   });
-
-  const inventoryMaterials = useMemo(() => {
-    if (!inventoryCache || !currency) return [];
-
-    return Object.entries(inventoryCache)
-      .filter(([, item]) => item.details.currency === currency)
-      .map(([id, item]) => ({
-        id,
-        description: `${item.name}`,
-        unitPrice: item.details.unitPrice || 0,
-        dimensions: item.details.dimensions || {
-          type: "unit" as const,
-          unitLabel: "unit" as const,
-        },
-        currency: item.details.currency as allowedCurrencySchemaType,
-        labor: item.details.labor || null,
-      }));
-  }, [inventoryCache, currency]);
-
-  const handleMaterialSelect = (materialId: string) => {
-    if (materialId === "") {
-      form.reset({
-        ...defaultFormValues,
-        quantity: form.getValues("quantity"),
-      });
-      return;
-    }
-
-    const inventoryItem = inventoryCache[materialId];
-    if (inventoryItem) {
-      const dimensions = inventoryItem.details.dimensions || {
-        type: "unit",
-        unitLabel: "unit",
-      };
-      const labor = inventoryItem.details.labor || {
-        laborType: "null",
-        laborRate: 0,
-      };
-
-      form.reset({
-        itemType: "inventory",
-        inventoryId: materialId,
-        description: "",
-        inventoryMaterialName: inventoryItem.name || "",
-        unitPrice: inventoryItem.details.unitPrice || 0,
-        dimensionType: `${dimensions.type}-${dimensions.unitLabel}`,
-        length: undefined,
-        width: undefined,
-        laborType: labor.laborType,
-        laborRate: labor.laborRate,
-        quantity: form.getValues("quantity") || 1,
-      });
-    }
-  };
 
   const calculateAreaQuantity = (length?: number, width?: number) => {
     if (length === undefined || width === undefined) return 0;
@@ -304,17 +237,7 @@ export function NewItemForm({
   };
 
   const handleAddItem = async (values: ItemFormValues) => {
-    if (
-      values.itemType === "inventory" &&
-      (!values.description || values.description.trim() === "")
-    ) {
-      values.description = values.inventoryMaterialName;
-    }
-
-    // have values.inventoryMaterialName = values.description if itemType is not "inventory"
-    if (values.itemType !== "inventory") {
-      values.inventoryMaterialName = values.description;
-    }
+    values.inventoryMaterialName = values.description;
 
     setIsSubmitting(true);
     const lineItem = createLineItemFromForm(values);
@@ -341,41 +264,6 @@ export function NewItemForm({
         className="space-y-4 px-4 flex flex-col flex-grow overflow-y-auto"
         id="newItemForm"
       >
-        <FormField
-          control={form.control}
-          name="inventoryId"
-          render={({ field }) => (
-            <FormItem className="space-y-2">
-              <FormLabel>Select Item</FormLabel>
-              <FormControl>
-                <select
-                  id="materialSelect"
-                  className="w-full h-10 px-3 rounded-md border border-input bg-background"
-                  onChange={(e) => {
-                    handleMaterialSelect(e.target.value);
-                    field.onChange(e.target.value);
-                  }}
-                  value={field.value || ""}
-                  disabled={isSubmitting || !canAdd}
-                >
-                  <option value="">-- Custom Item --</option>
-                  {isSubmitting ? (
-                    <option disabled>Loading inventory...</option>
-                  ) : (
-                    inventoryMaterials.map((material) => (
-                      <option key={material.id} value={material.id}>
-                        {material.description} -{" "}
-                        {formatCurrency(material.unitPrice, currency)}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
         <FormField
           control={form.control}
           name="description"
@@ -410,9 +298,7 @@ export function NewItemForm({
                   prefix={currencyToSymbol(currency || "")}
                   placeholder="0.00"
                   className="peer text-center"
-                  disabled={
-                    form.getValues("itemType") === "inventory" || !canAdd
-                  }
+                  disabled={!canAdd}
                 />
               </FormControl>
               <FormMessage />
@@ -442,9 +328,7 @@ export function NewItemForm({
                       form.setValue("width", undefined);
                     }
                   }}
-                  disabled={
-                    form.getValues("itemType") === "inventory" || !canAdd
-                  }
+                  disabled={!canAdd}
                 >
                   {[
                     { value: "unit-unit", label: "Unit" },
@@ -561,11 +445,7 @@ export function NewItemForm({
                     onChange={(e) =>
                       field.onChange(Number(e.target.value) || 0)
                     }
-                    disabled={
-                      (form.getValues("itemType") === "inventory" &&
-                        form.watch("dimensionType").startsWith("area")) ||
-                      !canAdd
-                    }
+                    disabled={!canAdd}
                   />
                 </FormControl>
                 <FormMessage />
@@ -585,9 +465,7 @@ export function NewItemForm({
                   className="flex flex-wrap gap-2"
                   value={field.value}
                   onValueChange={field.onChange}
-                  disabled={
-                    form.getValues("itemType") === "inventory" || !canAdd
-                  }
+                  disabled={!canAdd}
                 >
                   {[
                     { value: "null", label: "No fee" },
@@ -651,9 +529,7 @@ export function NewItemForm({
                     }
                     placeholder="0.00"
                     className="peer text-center"
-                    disabled={
-                      form.getValues("itemType") === "inventory" || !canAdd
-                    }
+                    disabled={!canAdd}
                   />
                 </FormControl>
                 <FormMessage />

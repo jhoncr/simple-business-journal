@@ -156,16 +156,17 @@ const handleAddOperation = async (
     return;
   }
 
+  const escapedEmail = data.email.replace(/\./g, ',');
   // If the email is not in the access map, add it to pendingAccess map
   const pendingAccess = logData?.pendingAccess ?? {};
   // Avoid overwriting if email already in pendingAccess, update role instead
-  if (pendingAccess[data.email] && pendingAccess[data.email] !== data.role) {
+  if (pendingAccess[escapedEmail] && pendingAccess[escapedEmail] !== data.role) {
      logger.info(`Updating role for ${data.email} in pendingAccess to ${data.role}.`);
-  } else if (!pendingAccess[data.email]) {
+  } else if (!pendingAccess[escapedEmail]) {
     logger.info(`Adding ${data.email} to pendingAccess with role ${data.role}.`);
   }
   transaction.update(logDocRef, {
-    [`pendingAccess.${data.email}`]: data.role, // Use email as key for pendingAccess
+    [`pendingAccess.${escapedEmail}`]: data.role, // Use email as key for pendingAccess
   });
 };
 
@@ -207,10 +208,11 @@ const handleRemoveOperation = async (
 
   // If the email is not in the access map, check pendingAccess map
   const pendingAccess = logData?.pendingAccess ?? {};
-  if (pendingAccess[data.email]) {
+  const escapedEmail = data.email.replace(/\./g, ',');
+  if (pendingAccess[escapedEmail]) {
     // Remove the email from the pendingAccess map
     transaction.update(logDocRef, {
-      [`pendingAccess.${data.email}`]: FieldValue.delete(),
+      [`pendingAccess.${escapedEmail}`]: FieldValue.delete(),
     });
     logger.info(`Removed ${data.email} from pendingAccess.`);
   } else {

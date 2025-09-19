@@ -14,23 +14,23 @@ export function EstimateHeader({
   contactInfo,
 }: EstimateHeaderProps) {
   return (
-    <div className="print:shadow-none print:max-w-none print:mx-0 print:w-full border-b p-4">
-      <div className="flex flex-wrap justify-between items-center gap-4">
+    <div className="print:shadow-none print:max-w-none print:mx-0 print:w-full border-b px-2 pb-1">
+      <div className="flex flex-wrap justify-between items-start gap-2 print:gap-1">
         {/* logo and address */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2 print:space-x-1">
           <Image
             src={logo || "/placeholder.svg"}
             alt={`${contactInfo?.name || "Company"} logo`}
-            width={40}
-            height={40}
-            className="h-16 w-auto"
+            width={30}
+            height={30}
+            className="h-10 w-auto print:h-8"
           />
           <div className="flex flex-col">
-            <h1 className="text-2xl font-bold tracking-tight text-primary">
+            <h1 className="text-lg font-bold tracking-tight text-primary print:text-base">
               {contactInfo?.name || "Acme Industries"}
             </h1>
             {contactInfo?.address && (
-              <div className="mt-2 text-xs text-muted-foreground hover:text-primary flex flex-wrap gap-2">
+              <div className="mt-1 text-2xs text-muted-foreground hover:text-primary flex flex-wrap gap-1">
                 <span>{contactInfo.address.street},</span>
                 <span>
                   {contactInfo.address.city}, {contactInfo.address.state}{" "}
@@ -41,18 +41,17 @@ export function EstimateHeader({
           </div>
         </div>
 
-        <div className="flex justify-between h-full grow text-xs text-muted-foreground hover:text-primary  sm:flex-col sm:items-end sm:space-y-5">
-          <div className="flex items-center justify-end space-x-2 ">
-            <Phone className="h-4 w-4" />
+        <div className="flex flex-col items-end space-y-1 text-2xs text-muted-foreground hover:text-primary">
+          <div className="flex items-center space-x-1">
+            <Phone className="h-3 w-3" />
             <span>{contactInfo?.phone || "(555) 123-4567"}</span>
           </div>
-          <div className="flex items-center justify-end space-x-2 grow">
-            <Mail className="h-4 w-4" />
+          <div className="flex items-center space-x-1">
+            <Mail className="h-3 w-3" />
             <span>{contactInfo?.email || "billing@acmeindustries.com"}</span>
           </div>
         </div>
       </div>
-      {/* <Separator className="my-6" /> */}
     </div>
   );
 }

@@ -1,8 +1,3 @@
-Of course. Here is a `.MD` file that you can use to instruct a code assistant.
-
----
-
-`GEMINI.md` / `CLAUDE.md`
 
 # AI Assistant Development Workflow
 
@@ -48,14 +43,12 @@ Your code modification workflow is as follows:
 3.  **Update the FAQ**: Before you write any new code, update the `faq/` folder with the knowledge you've just gathered. This ensures our documentation is always up-to-date.
 4.  **Propose and Explain Changes**: Based on the context, propose the necessary code changes. Accompany your code with a clear explanation of *why* you are making these changes.
 5.  **Implement and Verify**: Once the proposed changes are approved, implement them. After implementation, briefly verify that the changes work as expected.
-6.  **Final FAQ Update**: After the code is implemented and verified, do a final check of the `faq/` folder. Update any relevant entries with information about the new changes.
+6.  **Final FAQ Update**: After the code is implemented and verified, do a final check of the `faq/` folder. Update any relevant entries with inform
+ation about the new changes.
 
 
-## Data Schemas
+## Project Overview
 
-All the data structures in this project are defined using Zod schemas located in the `shared/schemas` directory, types are under `shared/types`. These schemas and types ensure data integrity and consistency across the application.both frontend and backend use these schemas to validate data.
+The frontend uses shadcn UI components. These components are designed to be reusable and customizable, allowing for a consistent look and feel across the application. Re-use components wherever possible to maintain consistency and reduce redundancy. Keep componets as small and focused as possible.
 
-
-## Audit Trail
-Every write operation to Firestore is logged in an `events` subcollection. This includes details about the operation type, timestamp, user ID, and a description of the action taken. This audit trail helps in tracking changes and maintaining accountability. See `shared/schemas/event.ts` for the schema definition and `backend/functions/src/helpers/audited-function.ts`
-
+The backend is built with Firebase functions. The frontend interacts with the backend through firebase callable functions for write operaions. Read operations are done through firestore queries. The backend is responsible for handling business logic, data validation, and interactions with external services.

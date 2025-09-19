@@ -120,7 +120,7 @@ export function AddContributers({
       const p =
         (pendingAccess &&
           Object.entries(pendingAccess).map(([k, v]) => ({
-            email: k,
+            email: k.replace(/,/g, "."),
             role: v,
             is_pending: true,
           }))) ||

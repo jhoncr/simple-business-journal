@@ -62,7 +62,7 @@ function SharePageContent() {
       }
     }
 
-    let payload = { journalID: journalId, operation: "accept" };
+    let payload = { businessID: journalId, operation: "accept" };
     console.log("payload", payload);
     sendAccept(payload);
   };

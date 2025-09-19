@@ -1,8 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { fetchDateRangeEntries, useWatchJournal } from "@/lib/db_handler";
-// --- Remove specific Add forms if not needed directly ---
-// import { AddLogEntryForm } from "./journal-types/cash-flow/add-cf-entry";
 import { AddContributers } from "@/components/ui/add-contributors";
 import { useToolbar } from "../nav_tool_handler";
 import { ChatBox } from "./comp/chat";
@@ -11,34 +9,26 @@ import { DatePickerWithRange } from "./actions/date-pick-with-range";
 import { format } from "date-fns";
 import { X } from "lucide-react";
 import ExportToCSV from "./actions/export-to-csv";
-import { useSearchParams, useRouter } from "next/navigation"; // useRouter added
-import { getAddEntryForm, getJournalIcon } from "./journal-types/config"; // Keep these utils
+import { useSearchParams, useRouter } from "next/navigation";
+import { getAddEntryForm, getJournalIcon } from "./journal-types/config";
 import { ROLES_THAT_ADD } from "@/../../backend/functions/src/common/const";
 import { useAuth } from "@/lib/auth_handler";
-// import { useJournalStore } from "@/lib/store/journalStore";
 import { useJournalContext } from "@/context/JournalContext";
-import { DBentry, Journal } from "@/lib/custom_types"; // Import Journal type
+import { DBentry, Journal } from "@/lib/custom_types";
 import {
   EntryType,
   ENTRY_CONFIG,
-} from "@/../../backend/functions/src/common/schemas/configmap"; // Import EntryType
+} from "@/../../backend/functions/src/common/schemas/configmap";
 import { JOURNAL_TYPES } from "@/../../backend/functions/src/common/const";
 import { BusinessDetailsType } from "@/../../backend/functions/src/common/schemas/JournalSchema";
 import { pendingAccessSchemaType } from "@/../../backend/functions/src/common/schemas/common_schemas";
-// --- Import Tabs components ---
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
-// --- Interfaces/Components (FilterRangeBadge, NotFound) remain the same ---
 interface DateRange {
   from: Date;
   to: Date;
 }
+
 const FilterRangeBadge = ({
   dateRange,
   setdateRange,
@@ -71,7 +61,6 @@ const NotFound = () => (
   </main>
 );
 
-// --- Main Page ---
 export default function ListJournalPage() {
   const { authUser } = useAuth();
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
@@ -82,145 +71,51 @@ export default function ListJournalPage() {
   const params = useSearchParams();
   const router = useRouter();
   const journalId = params.get("jid");
-  const typeParam = params.get("type") || "inventory"; // Default to "inventory" if not present
-  // --- State for the currently selected tab/entryType ---
-  const [displayEntryType, setDisplayEntryType] = useState<EntryType | null>(
-    null,
-  );
-  // --- State to hold available entry types for the current journal ---
-  const [availableEntryTypes, setAvailableEntryTypes] = useState<EntryType[]>(
-    [],
-  );
+  const displayEntryType: EntryType = "estimate"; // Hardcoded to estimate
 
-  // Function to update URL when tab changes
-  const updateTabInURL = useCallback(
-    (newType: EntryType) => {
-      // Create new URLSearchParams object from current params
-      const newParams = new URLSearchParams(params.toString());
-      // Update the type parameter
-      newParams.set("type", newType);
-      // Replace the URL without causing navigation/reload
-      const newURL = `${window.location.pathname}?${newParams.toString()}`;
-      router.replace(newURL, { scroll: false });
-    },
-    [params, router],
-  );
-
-  // Handle tab change
-  const handleTabChange = useCallback(
-    (value: string) => {
-      const newType = value as EntryType;
-      setDisplayEntryType(newType);
-      updateTabInURL(newType);
-    },
-    [updateTabInURL],
-  );
-
-  // Effect to fetch journal data
   useEffect(() => {
     if (!journalId) {
       router.push("/");
       return;
     }
-    // Reset display type when ID changes
-    setDisplayEntryType(null);
-    setAvailableEntryTypes([]);
   }, [journalId, router]);
 
-  // Effect to setup Toolbar, Action Button, Available Types, and Default Tab
   useEffect(() => {
-    let defaultType: EntryType | null = null;
-    let typesForJournal: EntryType[] = [];
-
     if (journal) {
-      // Determine available entry types based on journal type
-      if (journal.journalType === JOURNAL_TYPES.BUSINESS) {
-        typesForJournal = Object.keys(ENTRY_CONFIG).filter(
-          (key) =>
-            ENTRY_CONFIG[key as keyof typeof ENTRY_CONFIG].category ===
-            "business",
-        ) as EntryType[];
-      }
-      setAvailableEntryTypes(typesForJournal);
-
-      // Check if the URL parameter for tab exists and is valid
-      const validTypeParam =
-        typeParam && typesForJournal.includes(typeParam as EntryType)
-          ? (typeParam as EntryType)
-          : "inventory"; // Default to "inventory" if invalid
-
-      // Set display type based on: URL parameter > default type
-      if (!displayEntryType) {
-        const newType = validTypeParam || defaultType;
-        if (newType) {
-          setDisplayEntryType(newType);
-          // Update URL if no valid type param but we're setting a default
-          if (!validTypeParam && newType) {
-            updateTabInURL(newType);
-          }
-        }
-      } else if (validTypeParam && displayEntryType !== validTypeParam) {
-        // URL parameter changed, update the display type
-        setDisplayEntryType(validTypeParam);
-      } else if (!typesForJournal.includes(displayEntryType)) {
-        // If current display type is not valid for this journal, reset to default
-        const newType = defaultType;
-        if (newType) {
-          setDisplayEntryType(newType);
-          updateTabInURL(newType);
-        }
-      }
-
-      // --- Setup Toolbar ---
       setToolBar(
         <div className="flex flex-row justify-between items-center w-full">
-          {/* Journal Title/Icon */}
           <div className="flex justify-start items-center gap-2 min-w-0 pr-2">
-            {/* ... existing code ... */}
-            {getJournalIcon(
-              journal.journalType === JOURNAL_TYPES.BUSINESS
-                ? "group"
-                : journal.journalType,
-            )}{" "}
-            {/* Show group icon for business */}
+            {getJournalIcon(journal.journalType)}
             <p className="font-bold truncate" title={journal.title}>
               {journal.title}
             </p>
           </div>
-
-          {/* Actions & Role Badge */}
           <div className="flex flex-row items-center space-x-2 flex-shrink-0">
-            {/* Date Picker */}
             <DatePickerWithRange
               daterange={dateRange}
               setDate={setDateRange}
             />
-            {/* Add Contributors Button (Admin only) */}
             {journal.access &&
               authUser?.uid &&
               journal.access[authUser?.uid]?.role === "admin" && (
                 <AddContributers
-                  journalId={journal.id} // Use currentJournal.id directly
+                  journalId={journal.id}
                   access={journal.access as any}
                   pendingAccess={
                     (journal.pendingAccess || {}) as pendingAccessSchemaType
                   }
                 />
               )}
-            {/* Role Badge */}
             {authUser?.uid && journal?.access?.[authUser.uid]?.role && (
               <Badge variant="secondary">
                 {journal.access[authUser.uid].role}
               </Badge>
             )}
           </div>
-        </div>,
+        </div>
       );
 
-      // --- Setup Action Button (based on *selected* displayEntryType) ---
-      const AddEntryForm = displayEntryType
-        ? getAddEntryForm(displayEntryType)
-        : null;
+      const AddEntryForm = getAddEntryForm(displayEntryType);
       if (
         AddEntryForm &&
         authUser?.uid &&
@@ -232,138 +127,77 @@ export default function ListJournalPage() {
         setActionButton(null);
       }
     } else {
-      // Journal not loaded or not found
-      setAvailableEntryTypes([]);
       setToolBar(null);
       setActionButton(null);
     }
 
-    // Toolbar cleanup
     return () => {
       setToolBar(null);
     };
-  }, [
-    journal,
-    authUser,
-    journalId,
-    dateRange,
-    displayEntryType,
-    setToolBar,
-    typeParam,
-    updateTabInURL,
-  ]); // Add displayEntryType dependency
+  }, [journal, authUser, journalId, dateRange, setToolBar]);
 
-  // --- Fetch Filtered List based on Date Range and Selected Type ---
   const fetchFilterList = useCallback(async () => {
-    // Ensure all required data is available
-    if (!displayEntryType || !dateRange || !journalId) return;
-    console.log(`Fetching filtered list for ${displayEntryType}`);
+    if (!dateRange || !journalId) return;
     const entries = await fetchDateRangeEntries(
       journalId,
       displayEntryType,
       dateRange.from,
-      dateRange.to,
+      dateRange.to
     );
     setFilterList(entries);
   }, [dateRange, journalId, displayEntryType]);
 
-  // Re-fetch when dateRange or displayEntryType changes
   useEffect(() => {
-    if (dateRange && displayEntryType) {
+    if (dateRange) {
       fetchFilterList();
     } else {
-      setFilterList([]); // Clear filter list if no range or type selected
+      setFilterList([]);
     }
-  }, [dateRange, displayEntryType, fetchFilterList]);
+  }, [dateRange, fetchFilterList]);
 
-  // Callback to remove entry from filtered list
   const removeFilterEntry = useCallback((entry: DBentry) => {
     setFilterList((prevList) => prevList.filter((x) => x.id !== entry.id));
   }, []);
 
-  // --- Render Logic ---
-  if (!journalId) return null; // Should be handled by effect redirect
+  if (!journalId) return null;
   if (journal === undefined)
     return <div className="text-center p-6">Loading Journal...</div>;
   if (journal === null) return <NotFound />;
 
-  // Helper to get display name for tabs
-  const getTabDisplayName = (type: EntryType): string => {
-    const nameMap: Record<string, string> = {
-      cashflow: "Cash Flow",
-      inventory: "Inventory",
-      estimate: "Estimates",
-      // "invoice": "Invoices", // Removed Invoices
-    };
-    return nameMap[type] || type.charAt(0).toUpperCase() + type.slice(1); // Capitalize if not in map
-  };
-
   return (
     <div className="flex flex-col items-center justify-start w-full px-4 sm:px-6 lg:px-8">
-      {/* --- Filter Badges --- */}
       <div
         id="filter-badges"
         className="flex flex-row items-center justify-center space-x-2 my-4"
       >
         <FilterRangeBadge dateRange={dateRange} setdateRange={setDateRange} />
       </div>
-
-      {/* --- Tabs for Entry Types --- */}
-      {availableEntryTypes.length > 0 && displayEntryType ? (
-        <Tabs
-          value={displayEntryType} // Controlled by state
-          onValueChange={handleTabChange} // Use our new handler function here
-          className="w-full"
-        >
-          <TabsList className="grid w-full grid-cols-3 mb-4 border-b-2 border-gray-200 dark:border-gray-700">
-            {availableEntryTypes.map((type) => (
-              <TabsTrigger key={type} value={type}>
-                {getTabDisplayName(type)}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          {/* Render Content for each type, but only the active one is visible */}
-          {availableEntryTypes.map((type) => (
-            <TabsContent key={type} value={type} className="w-full m-0">
-              {/* Render ChatBox only if this tab is active */}
-              {displayEntryType === type && journal.access && journalId && (
-                <ChatBox
-                  journalId={journalId}
-                  entryType={type} // Pass the specific type for this tab
+      <div className="w-full">
+        {journal.access && journalId && (
+          <ChatBox
+            journalId={journalId}
+            entryType={displayEntryType}
+            access={journal.access as any}
+            actionButton={
+              dateRange ? (
+                <ExportToCSV
+                  entry_list={filterList}
+                  filename={`${journal.title}-Estimates-${format(
+                    dateRange.from,
+                    "yyyyMMdd"
+                  )}-${format(dateRange.to, "yyyyMMdd")}.csv`}
                   access={journal.access as any}
-                  actionButton={
-                    dateRange ? (
-                      <ExportToCSV
-                        entry_list={filterList} // Filter list applies to active tab
-                        filename={`${journal.title}-${getTabDisplayName(
-                          type,
-                        )}-${format(dateRange.from, "yyyyMMdd")}-${format(
-                          dateRange.to,
-                          "yyyyMMdd",
-                        )}.csv`}
-                        access={journal.access as any}
-                      />
-                    ) : (
-                      actionButton // Action button is specific to the active tab type
-                    )
-                  }
-                  filterList={filterList} // Pass filterList
-                  hasFilter={!!dateRange}
-                  removeFilterEntry={removeFilterEntry}
                 />
-              )}
-            </TabsContent>
-          ))}
-        </Tabs>
-      ) : // Handle case where journal type has no configured entry types or still loading
-      !journal ? (
-        <div className="text-center p-6">Loading...</div>
-      ) : (
-        <div className="text-center p-6 text-muted-foreground">
-          No sections available for this journal type.
-        </div>
-      )}
+              ) : (
+                actionButton
+              )
+            }
+            filterList={filterList}
+            hasFilter={!!dateRange}
+            removeFilterEntry={removeFilterEntry}
+          />
+        )}
+      </div>
     </div>
   );
 }
