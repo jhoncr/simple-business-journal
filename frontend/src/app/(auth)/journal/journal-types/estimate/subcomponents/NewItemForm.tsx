@@ -268,7 +268,7 @@ export function NewItemForm({
           control={form.control}
           name="description"
           render={({ field }) => (
-            <FormItem className="space-y-2">
+            <FormItem className="space-y-0">
               <FormLabel>Description</FormLabel>
               <FormControl>
                 <Input
@@ -286,7 +286,7 @@ export function NewItemForm({
           control={form.control}
           name="unitPrice"
           render={({ field }) => (
-            <FormItem className="space-y-2">
+            <FormItem className="space-y-0">
               <FormLabel>Unit Price</FormLabel>
               <FormControl>
                 <NumericInput
@@ -310,11 +310,11 @@ export function NewItemForm({
           control={form.control}
           name="dimensionType"
           render={({ field }) => (
-            <FormItem className="space-y-2">
+            <FormItem className="space-y-0">
               <FormLabel>Dimension Type</FormLabel>
               <FormControl>
                 <RadioGroup
-                  className="flex flex-wrap gap-2"
+                  className="flex flex-wrap justify-between gap-2"
                   value={field.value}
                   onValueChange={(value) => {
                     field.onChange(value);
@@ -333,7 +333,7 @@ export function NewItemForm({
                   {[
                     { value: "unit-unit", label: "Unit" },
                     { value: "area-m²", label: "Area (m²)" },
-                    { value: "area-ft²", label: "Area (ft²)" },
+                    // { value: "area-ft²", label: "Area (ft²)" },
                   ].map((item) => (
                     <div
                       key={item.value}
@@ -365,12 +365,12 @@ export function NewItemForm({
         />
 
         {form.watch("dimensionType").startsWith("area") && (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-2">
             <FormField
               control={form.control}
               name="length"
               render={({ field }) => (
-                <FormItem className="space-y-2">
+                <FormItem className="space-y-0">
                   <FormLabel>Length</FormLabel>
                   <FormControl>
                     <NumericInput
@@ -398,7 +398,7 @@ export function NewItemForm({
               control={form.control}
               name="width"
               render={({ field }) => (
-                <FormItem className="space-y-2">
+                <FormItem className="space-y-0">
                   <FormLabel>Width</FormLabel>
                   <FormControl>
                     <NumericInput
@@ -434,7 +434,7 @@ export function NewItemForm({
             control={form.control}
             name="quantity"
             render={({ field }) => (
-              <FormItem className="space-y-2">
+              <FormItem className="space-y-0 mt-1">
                 <FormLabel>Quantity</FormLabel>
                 <FormControl>
                   <Input
@@ -458,17 +458,17 @@ export function NewItemForm({
           control={form.control}
           name="laborType"
           render={({ field }) => (
-            <FormItem className="space-y-2">
+            <FormItem className="space-y-0 mt-1">
               <FormLabel>Service Fee</FormLabel>
               <FormControl>
                 <RadioGroup
-                  className="flex flex-wrap gap-2"
+                  className="flex flex-wrap gap-1 justify-between"
                   value={field.value}
                   onValueChange={field.onChange}
                   disabled={!canAdd}
                 >
                   {[
-                    { value: "null", label: "No fee" },
+                    { value: "null", label: "None" },
                     { value: "percentage", label: "%" },
                     { value: "fixed", label: "Flat" },
                     { value: "quantity", label: "Per Unit" },
@@ -507,7 +507,7 @@ export function NewItemForm({
             control={form.control}
             name="laborRate"
             render={({ field }) => (
-              <FormItem className="space-y-2">
+              <FormItem className="space-y-0">
                 <FormLabel>
                   {form.watch("laborType") === "percentage"
                     ? "Labor %"
