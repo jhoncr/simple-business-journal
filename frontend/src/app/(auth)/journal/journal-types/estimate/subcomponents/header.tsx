@@ -3,6 +3,7 @@ import { Building2, Mail, Phone } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { contactInfoSchemaType } from "../../../../../../../../backend/functions/src/common/schemas/common_schemas";
+import { useTranslations } from "next-intl";
 
 interface EstimateHeaderProps {
   contactInfo?: contactInfoSchemaType;
@@ -13,6 +14,8 @@ export function EstimateHeader({
   logo = "/placeholder.svg?height=40&width=120",
   contactInfo,
 }: EstimateHeaderProps) {
+  const t = useTranslations("estimate");
+
   return (
     <div className="print:shadow-none print:max-w-none print:mx-0 print:w-full border-b px-2 pb-1">
       <div className="flex flex-wrap justify-between items-start gap-2 print:gap-1">
@@ -20,14 +23,14 @@ export function EstimateHeader({
         <div className="flex items-center space-x-2 print:space-x-1">
           <Image
             src={logo || "/placeholder.svg"}
-            alt={`${contactInfo?.name || "Company"} logo`}
+            alt={`${contactInfo?.name || t("companyLogo")} ${t("logo")}`}
             width={30}
             height={30}
             className="h-10 w-auto print:h-8"
           />
           <div className="flex flex-col">
             <h1 className="text-lg font-bold tracking-tight text-primary print:text-base">
-              {contactInfo?.name || "Acme Industries"}
+              {contactInfo?.name || t("defaultCompanyName")}
             </h1>
             {contactInfo?.address && (
               <div className="mt-1 text-2xs text-muted-foreground hover:text-primary flex flex-wrap gap-1">
@@ -44,11 +47,11 @@ export function EstimateHeader({
         <div className="flex flex-col items-end space-y-1 text-2xs text-muted-foreground hover:text-primary">
           <div className="flex items-center space-x-1">
             <Phone className="h-3 w-3" />
-            <span>{contactInfo?.phone || "(555) 123-4567"}</span>
+            <span>{contactInfo?.phone || t("defaultPhone")}</span>
           </div>
           <div className="flex items-center space-x-1">
             <Mail className="h-3 w-3" />
-            <span>{contactInfo?.email || "billing@acmeindustries.com"}</span>
+            <span>{contactInfo?.email || t("defaultEmail")}</span>
           </div>
         </div>
       </div>

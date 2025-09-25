@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { MinusCircle } from "lucide-react";
 import { LineItem } from "@/../../backend/functions/src/common/schemas/estimate_schema";
+import { useTranslations } from "next-intl";
 
 interface ItemsListProps {
   confirmedItems: LineItem[];
@@ -17,16 +18,25 @@ export const ItemsList = ({
   isSaving,
   canUpdate,
 }: ItemsListProps) => {
+  const t = useTranslations("estimate.itemsList");
   return (
     <div className="space-y-1">
       <table className="w-full text-xs">
         <thead>
           <tr className="text-2xs text-muted-foreground border-b">
-            <th className="text-left py-1 px-1 font-medium">Description</th>
+            <th className="text-left py-1 px-1 font-medium">
+              {t("headerDescription")}
+            </th>
 
-            <th className="text-left py-1 px-1 font-medium w-16">Qty</th>
-            <th className="text-right py-1 px-2 font-medium w-30">Price</th>
-            <th className="text-right py-1 px-1 font-medium w-20">Total</th>
+            <th className="text-left py-1 px-1 font-medium w-16">
+              {t("headerQty")}
+            </th>
+            <th className="text-right py-1 px-2 font-medium w-30">
+              {t("headerPrice")}
+            </th>
+            <th className="text-right py-1 px-1 font-medium w-20">
+              {t("headerTotal")}
+            </th>
             <th className="w-6 print:hidden"></th>
           </tr>
         </thead>
@@ -86,7 +96,7 @@ export const ItemsList = ({
                       {currencyFormat(item.material?.unitPrice || 0)}
                     </span>
                     <span className="text-2xs text-muted-foreground">
-                      {`/${item.material?.dimensions?.unitLabel || "unit"}`}
+                      {`/${item.material?.dimensions?.unitLabel || t("unit")}`}
                     </span>
                   </span>
                 </div>
@@ -115,7 +125,7 @@ export const ItemsList = ({
                 colSpan={5}
                 className="text-center py-3 text-xs text-muted-foreground"
               >
-                Add items using the form below.
+                {t("noItems")}
               </td>
             </tr>
           )}

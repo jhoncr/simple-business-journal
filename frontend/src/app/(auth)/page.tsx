@@ -17,16 +17,14 @@ import { JournalInfoCard } from "@/components/ui/journal-info-card"; // Import t
 import { JOURNAL_TYPES } from "@/../../backend/functions/src/common/const";
 import { ENTRY_CONFIG } from "@/../../backend/functions/src/common/schemas/configmap"; // Import entry config
 import { BusinessDetailsType } from "@/../../backend/functions/src/common/schemas/JournalSchema"; // Import details type
+import { useTranslations } from "next-intl";
 
 // --- Renamed Component: DisplayJournalList ---
 // Renders the list of journals using JournalInfoCard
 function DisplayJournalList({ journals }: { journals: Journal[] }) {
+  const t = useTranslations("dashboard");
   if (journals.length === 0) {
-    return (
-      <p className="text-muted-foreground mt-4">
-        No journals found. Create a new business to get started!
-      </p>
-    );
+    return <p className="text-muted-foreground mt-4">{t("noJournals")}</p>;
   }
 
   return (
@@ -78,6 +76,7 @@ function DisplayJournalList({ journals }: { journals: Journal[] }) {
 
 // --- Main Page Component ---
 export default function Home() {
+  const t = useTranslations();
   const { setToolBar } = useToolbar();
   // --- Simplified State: Just one list of journals ---
   const [journals, setJournals] = useState<Journal[]>([]);
@@ -113,10 +112,12 @@ export default function Home() {
   // --- Toolbar Effect ---
   useEffect(() => {
     // Update toolbar title based on context (e.g., "My Journals", "Dashboard")
-    setToolBar(<h1 className="text-lg font-bold">Dashboard</h1>);
+    setToolBar(
+      <h1 className="text-lg font-bold">{t("navigation.dashboard")}</h1>,
+    );
     // Cleanup function
     return () => setToolBar(null);
-  }, [setToolBar]); // Depend on setToolBar
+  }, [setToolBar, t]); // Depend on setToolBar
 
   return (
     <div className="flex flex-col items-center justify-start min-h-screen py-4 md:py-6">
@@ -127,9 +128,15 @@ export default function Home() {
         {/* Use max-w-6xl */}
         {/* --- Loading and Error States --- */}
         {loading && (
-          <p className="text-muted-foreground mt-8">Loading journals...</p>
+          <p className="text-muted-foreground mt-8">
+            {t("dashboard.loadingJournals")}
+          </p>
         )}
-        {error && <p className="text-destructive mt-8">Error: {error}</p>}
+        {error && (
+          <p className="text-destructive mt-8">
+            {t("common.error")}: {error}
+          </p>
+        )}
         {/* --- Display Journal List --- */}
         {!loading && !error && <DisplayJournalList journals={journals} />}
         {/* --- Create New Button (should be the refactored version) --- */}

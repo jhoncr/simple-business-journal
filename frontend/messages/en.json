@@ -1,0 +1,230 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "create": "Create",
+    "update": "Update",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "journals": "Journals",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "noJournals": "No journals found. Create a new business to get started!",
+    "loadingJournals": "Loading journals...",
+    "createNew": "Create New"
+  },
+  "journal": {
+    "title": "Journal",
+    "businessJournal": "Business Journal",
+    "createJournal": "Create Journal",
+    "journalName": "Journal Name",
+    "journalType": "Journal Type",
+    "currency": "Currency",
+    "contactInfo": "Contact Information",
+    "notFound": "Log not found :/",
+    "loading": "Loading Journal...",
+    "download": "Download",
+    "noMoreEntries": "No more entries",
+    "error": "Error",
+    "invalidData": "Invalid data for deletion.",
+    "entryDeleted": "Entry Deleted",
+    "entryDeletedSuccess": "\"{entryName}\" has been deleted successfully.",
+    "deletionFailed": "Deletion Failed",
+    "couldNotDelete": "Could not delete the entry.",
+    "unexpectedError": "An unexpected error occurred before deletion.",
+    "deleteEntry": "Delete Entry",
+    "confirmDeletion": "Confirm Deletion",
+    "confirmDeletionMessage": "Are you sure you want to delete {entryName}? This action cannot be undone and will permanently remove the item.",
+    "cancel": "Cancel",
+    "deleting": "Deleting...",
+    "noCustomer": "No Customer",
+    "due": "Due",
+    "itemCount": "{count} item(s)",
+    "notesLabel": "Notes",
+    "unknownUser": "Unknown User"
+  },
+  "errors": {
+    "loadJournals": "Failed to load journals.",
+    "createJournal": "Failed to create journal.",
+    "updateJournal": "Failed to update journal.",
+    "deleteJournal": "Failed to delete journal.",
+    "general": "Something went wrong. Please try again."
+  },
+  "About": {
+    "title": "About Ordena",
+    "description": "Ordena is a simple daily log app for small businesses.",
+    "button": "Try it",
+    "footer": "Made with ❤️ by "
+  },
+  "Share": {
+    "title": "Shared Journal",
+    "guestPrompt": "Someone has shared a journal with you. Please log in to access the shared content.",
+    "loginToAccept": "Log in to accept",
+    "invitedMessage": "You've been invited to access a shared journal",
+    "acceptInvitation": "Accept invitation",
+    "invalidJournalId": "Please enter a valid journal id.",
+    "genericError": "Oops, something went wrong :/",
+    "loadingDetails": "Loading share details..."
+  },
+  "LandingPage": {
+    "hero": {
+      "title": "Create Professional Estimates in Minutes",
+      "subtitle": "Simple Estimates helps you generate, customize, and print/share business estimates effortlessly.",
+      "logoAlt": "Simple Business Journals App Logo",
+      "tryFree": "Try it for free today!",
+      "signInWithGoogle": "Sign in with Google"
+    },
+    "howItWorks": {
+      "title": "Creating Estimates is as Easy as 1-2-3",
+      "step1": {
+        "title": "1. Add Items",
+        "description": "Quickly add items to your estimate, from your inventory or create new ones on the fly."
+      },
+      "step2": {
+        "title": "2. Customize",
+        "description": "Set prices, add discounts, include taxes, and personalize with your company logo and contact information."
+      },
+      "step3": {
+        "title": "3. Print or Share",
+        "description": "Generate a professional PDF estimate to print, or share directly with your client via a unique link."
+      }
+    },
+    "benefits": {
+      "title": "Why Use Simple Business Journals?",
+      "organized": {
+        "title": "Stay Organized",
+        "description": "Stop wasting time with spreadsheets. Create estimates in a fraction of the time."
+      },
+      "professional": {
+        "title": "Look Professional",
+        "description": "Impress clients with polished, branded estimates."
+      },
+      "easyToUse": {
+        "title": "Easy to Use",
+        "description": "No complicated software to learn. Get started instantly."
+      },
+      "inventory": {
+        "title": "Inventory",
+        "description": "Keep track of your inventory and prices"
+      }
+    },
+    "finalCta": {
+      "title": "Sign up now and start creating professional estimates in minutes!"
+    },
+    "footer": {
+      "copyright": "Simple Business Journals ©"
+    }
+  },
+  "estimate": {
+    "companyLogo": "Company",
+    "logo": "logo",
+    "defaultCompanyName": "Acme Industries",
+    "defaultPhone": "(555) 123-4567",
+    "defaultEmail": "billing@acmeindustries.com",
+    "statusDraft": "Draft",
+    "statusInProcess": "In Process",
+    "statusDelivered": "Delivered",
+    "loadingDetails": "Loading estimate details...",
+    "journalDetailsNotAvailable": "Journal details (currency, supplier) not available.",
+    "client": "Client",
+    "items": "Items",
+    "notes": "Notes",
+    "addNotesPlaceholder": "Add any additional notes...",
+    "back": "Back",
+    "print": "Print",
+    "newEstimate": "New Estimate",
+    "itemsList": {
+      "headerDescription": "Description",
+      "headerQty": "Qty",
+      "headerPrice": "Price",
+      "headerTotal": "Total",
+      "noItems": "Add items using the form below.",
+      "unit": "unit"
+    }
+  },
+  "contactInfo": {
+    "notSet": "Not set",
+    "cancelEditing": "Cancel editing",
+    "saveChanges": "Save Changes",
+    "saving": "Saving...",
+    "namePlaceholder": "John Doe",
+    "emailPlaceholder": "email@example.com",
+    "phonePlaceholder": "(555) 555-5555",
+    "streetAddress": "Street Address",
+    "streetPlaceholder": "123 Main St",
+    "city": "City",
+    "state": "State",
+    "zipCode": "ZIP Code",
+    "zipPlaceholder": "12345"
+  },
+  "newJournal": {
+    "newBusiness": "New Business",
+    "editBusiness": "Edit Business",
+    "updateInfo": "Update your business information.",
+    "createDescription": "Create a new business journal to manage estimates, inventory, and cash flow.",
+    "name": "Name",
+    "businessName": "Business Name",
+    "logo": "Logo",
+    "currency": "Currency",
+    "contactInformation": "Contact Information",
+    "email": "Email",
+    "emailPlaceholder": "Email address",
+    "phone": "Phone",
+    "phonePlaceholder": "Phone number",
+    "street": "Street",
+    "streetPlaceholder": "Street address",
+    "city": "City",
+    "state": "State",
+    "zip": "ZIP",
+    "zipPlaceholder": "ZIP Code",
+    "saving": "Saving...",
+    "creating": "Creating...",
+    "saveChanges": "Save Changes",
+    "createBusiness": "Create Business",
+    "successMessage": "Business \"{businessName}\" has been {action} successfully.",
+    "updated": "updated",
+    "created": "created",
+    "errorMessage": "Error {action} Business: {error}",
+    "updating": "Updating",
+    "creatingVerb": "Creating",
+    "unexpectedError": "An unexpected error occurred."
+  },
+  "newItemForm": {
+    "title": "Add New Item",
+    "description": "Description",
+    "descriptionPlaceholder": "Enter item description",
+    "unitPrice": "Unit Price",
+    "dimensionType": "Dimension Type",
+    "dimensionUnit": "Unit",
+    "dimensionAreaM2": "Area (m²)",
+    "dimensionAreaFt2": "Area (ft²)",
+    "length": "Length",
+    "width": "Width",
+    "area": "Area",
+    "quantity": "Quantity",
+    "serviceFee": "Service Fee",
+    "serviceFeeNone": "No fee",
+    "serviceFeePercentage": "",
+    "serviceFeeFlatRate": "Flat",
+    "serviceFeePerUnit": "Per Unit",
+    "laborPercentage": "Labor %",
+    "laborRate": "Labor Rate",
+    "material": "Material",
+    "serviceFeeSummary": "Service Fee",
+    "total": "Total",
+    "saving": "Saving...",
+    "addItem": "Add Item",
+    "permissionDenied": "You don't have permission to add items"
+  }
+}

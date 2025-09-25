@@ -13,8 +13,17 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
-import { Plus, ListPlus, Loader2 } from "lucide-react";
+import {
+  Plus,
+  ListPlus,
+  Loader2,
+  Percent,
+  CircleDollarSign,
+  Package,
+  Ban,
+} from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useTranslations } from "next-intl";
 import { LineItem } from "@backend/common/schemas/estimate_schema";
 import { allowedCurrencySchemaType } from "@backend/common/schemas/common_schemas";
 import { EntryItf } from "@backend/common/common_types";
@@ -126,6 +135,8 @@ export function NewItemForm({
   inventoryCache,
   userRole,
 }: NewItemFormProps) {
+  const t = useTranslations("newItemForm");
+  const tCommon = useTranslations("common");
   const [isOpen, setIsOpen] = useState(false);
   const isDesktop = useMediaQuery("(min-width: 1340px)");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -261,18 +272,18 @@ export function NewItemForm({
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(handleAddItem)}
-        className="space-y-4 px-4 flex flex-col flex-grow overflow-y-auto"
+        className="px-4 flex flex-col flex-grow overflow-y-auto"
         id="newItemForm"
       >
         <FormField
           control={form.control}
           name="description"
           render={({ field }) => (
-            <FormItem className="space-y-2">
-              <FormLabel>Description</FormLabel>
+            <FormItem className="space-y-0 mt-2">
+              <FormLabel>{t("description")}</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="Enter item description"
+                  placeholder={t("descriptionPlaceholder")}
                   {...field}
                   disabled={!canAdd}
                 />
@@ -286,8 +297,8 @@ export function NewItemForm({
           control={form.control}
           name="unitPrice"
           render={({ field }) => (
-            <FormItem className="space-y-2">
-              <FormLabel>Unit Price</FormLabel>
+            <FormItem className="space-y-0 mt-2">
+              <FormLabel>{t("unitPrice")}</FormLabel>
               <FormControl>
                 <NumericInput
                   value={field.value.toString()}
@@ -310,11 +321,11 @@ export function NewItemForm({
           control={form.control}
           name="dimensionType"
           render={({ field }) => (
-            <FormItem className="space-y-2">
-              <FormLabel>Dimension Type</FormLabel>
+            <FormItem className="space-y-0 mt-2">
+              <FormLabel>{t("dimensionType")}</FormLabel>
               <FormControl>
                 <RadioGroup
-                  className="flex flex-wrap gap-2"
+                  className="flex flex-wrap justify-between gap-1"
                   value={field.value}
                   onValueChange={(value) => {
                     field.onChange(value);
@@ -331,13 +342,17 @@ export function NewItemForm({
                   disabled={!canAdd}
                 >
                   {[
-                    { value: "unit-unit", label: "Unit" },
-                    { value: "area-m²", label: "Area (m²)" },
-                    { value: "area-ft²", label: "Area (ft²)" },
+                    { value: "unit-unit", label: t("dimensionUnit") },
+                    { value: "area-m²", label: t("dimensionAreaM2") },
+                    // { value: "area-ft²", label: t("dimensionAreaFt2") },
                   ].map((item) => (
                     <div
                       key={item.value}
-                      className="border-input hover:bg-accent/50 has-[data-state=checked]:border-primary has-[data-state=checked]:bg-secondary/50 relative flex flex-col items-start rounded-md border p-2 shadow-xs outline-none"
+                      className={`border-input hover:bg-accent/50 relative flex flex-col items-start rounded-md border p-2 shadow-xs outline-none ${
+                        field.value === item.value
+                          ? "border-primary border-2 bg-primary/10 shadow-md ring-2 ring-primary/20"
+                          : ""
+                      }`}
                     >
                       <div className="flex items-center gap-2">
                         <RadioGroupItem
@@ -349,8 +364,10 @@ export function NewItemForm({
                         <Label
                           htmlFor={`dim-${item.value}`}
                           className={`cursor-pointer ${
-                            !canAdd ? "cursor-not-allowed opacity-50" : ""
-                          }`}
+                            field.value === item.value
+                              ? "font-semibold text-primary"
+                              : ""
+                          } ${!canAdd ? "cursor-not-allowed opacity-50" : ""}`}
                         >
                           {item.label}
                         </Label>
@@ -370,8 +387,8 @@ export function NewItemForm({
               control={form.control}
               name="length"
               render={({ field }) => (
-                <FormItem className="space-y-2">
-                  <FormLabel>Length</FormLabel>
+                <FormItem className="space-y-0 mt-2">
+                  <FormLabel>{t("length")}</FormLabel>
                   <FormControl>
                     <NumericInput
                       className="peer text-center"
@@ -398,8 +415,8 @@ export function NewItemForm({
               control={form.control}
               name="width"
               render={({ field }) => (
-                <FormItem className="space-y-2">
-                  <FormLabel>Width</FormLabel>
+                <FormItem className="space-y-0 mt-2">
+                  <FormLabel>{t("width")}</FormLabel>
                   <FormControl>
                     <NumericInput
                       className="peer text-center"
@@ -422,10 +439,6 @@ export function NewItemForm({
                 </FormItem>
               )}
             />
-            <div className="col-span-2 text-right text-sm font-medium text-muted-foreground">
-              Area: {form.watch("quantity")}{" "}
-              {form.watch("dimensionType").split("-")[1] || ""}
-            </div>
           </div>
         )}
 
@@ -434,8 +447,8 @@ export function NewItemForm({
             control={form.control}
             name="quantity"
             render={({ field }) => (
-              <FormItem className="space-y-2">
-                <FormLabel>Quantity</FormLabel>
+              <FormItem className="space-y-0 mt-2">
+                <FormLabel>{t("quantity")}</FormLabel>
                 <FormControl>
                   <Input
                     type="number"
@@ -453,46 +466,71 @@ export function NewItemForm({
             )}
           />
         )}
+        <div className="text-right text-sm font-medium text-muted-foreground mt-0">
+          {form.watch("quantity")}{" "}
+          {form.watch("dimensionType").split("-")[1] || ""}
+        </div>
 
         <FormField
           control={form.control}
           name="laborType"
           render={({ field }) => (
-            <FormItem className="space-y-2">
-              <FormLabel>Service Fee</FormLabel>
+            <FormItem className="space-y-0 mt-2">
+              <FormLabel>{t("serviceFee")}</FormLabel>
               <FormControl>
                 <RadioGroup
-                  className="flex flex-wrap gap-2"
+                  className="grid grid-cols-2 gap-2"
                   value={field.value}
                   onValueChange={field.onChange}
                   disabled={!canAdd}
                 >
                   {[
-                    { value: "null", label: "No fee" },
-                    { value: "percentage", label: "%" },
-                    { value: "fixed", label: "Flat" },
-                    { value: "quantity", label: "Per Unit" },
+                    {
+                      value: "percentage",
+                      label: t("serviceFeePercentage"),
+                      icon: <Percent className="h-4 w-4" />,
+                    },
+                    {
+                      value: "fixed",
+                      label: t("serviceFeeFlatRate"),
+                      icon: <CircleDollarSign className="h-4 w-4" />,
+                    },
+                    {
+                      value: "quantity",
+                      label: t("serviceFeePerUnit"),
+                      icon: <Package className="h-4 w-4" />,
+                    },
+                    {
+                      value: "null",
+                      label: t("serviceFeeNone"),
+                      icon: <Ban className="h-4 w-4" />,
+                    },
                   ].map((item) => (
                     <div
                       key={item.value}
-                      className="border-input hover:bg-accent/50 has-[data-state=checked]:border-primary has-[data-state=checked]:bg-secondary/50 relative flex flex-col items-start rounded-md border p-2 shadow-xs outline-none"
+                      className={`border-input hover:bg-accent/50 relative flex flex-col items-center justify-center rounded-md border p-1 shadow-xs outline-none ${
+                        field.value === item.value
+                          ? "border-primary border-2 bg-primary/10 shadow-md ring-2 ring-primary/20"
+                          : ""
+                      }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <RadioGroupItem
-                          value={item.value}
-                          id={`labor-${item.value}`}
-                          className="after:absolute after:inset-0"
-                          disabled={!canAdd}
-                        />
-                        <Label
-                          htmlFor={`labor-${item.value}`}
-                          className={`cursor-pointer ${
-                            !canAdd ? "cursor-not-allowed opacity-50" : ""
-                          }`}
-                        >
-                          {item.label}
-                        </Label>
-                      </div>
+                      <RadioGroupItem
+                        value={item.value}
+                        id={`labor-${item.value}`}
+                        className="peer sr-only"
+                        disabled={!canAdd}
+                      />
+                      <Label
+                        htmlFor={`labor-${item.value}`}
+                        className={`flex h-full w-full cursor-pointer flex-row items-center justify-center gap-2 rounded-md p-2 text-center ${
+                          field.value === item.value
+                            ? "font-semibold text-primary"
+                            : ""
+                        } ${!canAdd ? "cursor-not-allowed opacity-50" : ""}`}
+                      >
+                        {item.icon}
+                        {item.label}
+                      </Label>
                     </div>
                   ))}
                 </RadioGroup>
@@ -502,53 +540,49 @@ export function NewItemForm({
           )}
         />
 
-        {form.watch("laborType") !== "null" && (
-          <FormField
-            control={form.control}
-            name="laborRate"
-            render={({ field }) => (
-              <FormItem className="space-y-2">
-                <FormLabel>
-                  {form.watch("laborType") === "percentage"
-                    ? "Labor %"
-                    : "Labor Rate"}
-                </FormLabel>
-                <FormControl>
-                  <NumericInput
-                    value={field.value?.toString() ?? "0"}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                      field.onChange(Number(e.target.value) || 0);
-                    }}
-                    prefix={
-                      form.watch("laborType") === "percentage"
-                        ? ""
-                        : currencyToSymbol(currency || "")
-                    }
-                    suffix={
-                      form.watch("laborType") === "percentage" ? "%" : ""
-                    }
-                    placeholder="0.00"
-                    className="peer text-center"
-                    disabled={!canAdd}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
+        <FormField
+          control={form.control}
+          name="laborRate"
+          render={({ field }) => (
+            <FormItem className="space-y-0 mt-2">
+              <FormLabel>
+                {form.watch("laborType") === "percentage"
+                  ? t("laborPercentage")
+                  : t("laborRate")}
+              </FormLabel>
+              <FormControl>
+                <NumericInput
+                  value={field.value?.toString() ?? "0"}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    field.onChange(Number(e.target.value) || 0);
+                  }}
+                  prefix={
+                    form.watch("laborType") === "percentage"
+                      ? ""
+                      : currencyToSymbol(currency || "")
+                  }
+                  suffix={form.watch("laborType") === "percentage" ? "%" : ""}
+                  placeholder="0.00"
+                  className="peer text-center"
+                  disabled={!canAdd || form.watch("laborType") === "null"}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         <div className="text-sm font-semibold text-right mt-auto pt-4 border-t">
           <div className="flex justify-between">
-            <span>Material:</span>
+            <span>{t("material")}:</span>
             <span>{formatCurrency(materialTotal, currency)}</span>
           </div>
           <div className="flex justify-between">
-            <span>Service Fee:</span>
+            <span>{t("serviceFeeSummary")}:</span>
             <span>{formatCurrency(laborTotal, currency)}</span>
           </div>
           <div className="flex justify-between border-t mt-2 pt-2 text-base">
-            <span>Total:</span>
+            <span>{t("total")}:</span>
             <span>{formatCurrency(grandTotal, currency)}</span>
           </div>
         </div>
@@ -563,7 +597,7 @@ export function NewItemForm({
         className="print:hidden fixed bottom-4 right-4 z-50 bg-background border rounded-lg p-4 w-[400px] shadow-lg max-h-[calc(100vh-4rem)] flex flex-col"
       >
         <div className="mb-4 flex-shrink-0">
-          <h3 className="text-lg font-semibold">Add New Item</h3>
+          <h3 className="text-lg font-semibold">{t("title")}</h3>
         </div>
         <div className="flex-grow overflow-y-auto pr-2">{formContent}</div>
         <div className="flex justify-end gap-2 mt-4 flex-shrink-0">
@@ -572,15 +606,15 @@ export function NewItemForm({
             form="newItemForm"
             disabled={isSubmitting || !canAdd}
             variant={"brutalist"}
-            title={!canAdd ? "You don't have permission to add items" : ""}
+            title={!canAdd ? t("permissionDenied") : ""}
           >
             {isSubmitting ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("saving")}
               </>
             ) : (
               <>
-                <Plus className="mr-2" size={16} /> Add Item
+                <Plus className="mr-2" size={16} /> {t("addItem")}
               </>
             )}
           </Button>
@@ -601,9 +635,9 @@ export function NewItemForm({
             className="w-full gap-2 print:hidden"
             variant={"brutalist"}
             disabled={!canAdd}
-            title={!canAdd ? "You don't have permission to add items" : ""}
+            title={!canAdd ? t("permissionDenied") : ""}
           >
-            <ListPlus size={16} /> Add New Item
+            <ListPlus size={16} /> {t("title")}
           </Button>
         </DrawerTrigger>
         <DrawerOverlay className="bg-black/40" />
@@ -611,7 +645,7 @@ export function NewItemForm({
           <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted flex-shrink-0" />
           <div className="max-w-md w-full mx-auto flex flex-col overflow-hidden p-4 rounded-t-[10px] flex-grow">
             <DrawerHeader className="flex-shrink-0">
-              <DrawerTitle>Add New Item</DrawerTitle>
+              <DrawerTitle>{t("title")}</DrawerTitle>
             </DrawerHeader>
             {formContent}
             <DrawerFooter className="pt-4 flex-shrink-0">
@@ -621,22 +655,22 @@ export function NewItemForm({
                 disabled={isSubmitting || !canAdd}
                 variant={"brutalist"}
                 className="w-full"
-                title={!canAdd ? "You don't have permission to add items" : ""}
+                title={!canAdd ? t("permissionDenied") : ""}
               >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
+                    {t("saving")}
                   </>
                 ) : (
                   <>
-                    <Plus className="mr-2" size={16} /> Add Item
+                    <Plus className="mr-2" size={16} /> {t("addItem")}
                   </>
                 )}
               </Button>
               <DrawerClose asChild>
                 <Button variant="outline" className="w-full">
-                  Cancel
+                  {tCommon("cancel")}
                 </Button>
               </DrawerClose>
             </DrawerFooter>

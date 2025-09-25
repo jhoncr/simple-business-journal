@@ -39,6 +39,8 @@ import { JOURNAL_TYPES } from "@/../../backend/functions/src/common/const"; // I
 import { LogoUpload } from "@/components/LogoUpload";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner"; // Import toast from sonner
+import { useTranslations } from "next-intl";
+
 // --- Define Frontend Schema for the Form ---
 // This schema matches the structure needed for the 'business' journal type details
 const BusinessFormSchema = z.object({
@@ -78,6 +80,8 @@ export function CreateNewJournal({
   const [isOpen, setIsOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const router = useRouter();
+  const t = useTranslations("newJournal");
+  const tCommon = useTranslations("common");
 
   // --- Initialize Form ---
   // Setup default values, mapping from potentially different initialData structure if needed
@@ -162,9 +166,9 @@ export function CreateNewJournal({
       console.log(`${functionName} successful:`, result.data);
 
       toast.success(
-        `Business "${data.title}" has been ${
-          isEdit ? "updated" : "created"
-        } successfully.`,
+        `${tCommon.business} "${data.title}" ${tCommon.hasBeen} ${
+          isEdit ? tCommon.updated : tCommon.created
+        } ${tCommon.successfully}.`,
       );
 
       form.reset(defaultValues); // Reset form to defaults after success
@@ -182,9 +186,9 @@ export function CreateNewJournal({
     } catch (error: any) {
       console.error(`${functionName} failed:`, error);
       toast.error(
-        `Error ${isEdit ? "Updating" : "Creating"} Business: ${
-          error.message || "An unexpected error occurred."
-        }`,
+        `${tCommon.error} ${isEdit ? tCommon.updating : tCommon.creating} ${
+          tCommon.business
+        }: ${error.message || tCommon.unexpectedError}`,
       );
     } finally {
       setPending(false);
@@ -216,7 +220,7 @@ export function CreateNewJournal({
           <div className="fixed bottom-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-content h-content print:hidden">
             <Button variant="brutalist" className="text-sm flex items-center">
               <Building2 className="pr-2" />
-              New Business
+              {t("newBusiness")}
             </Button>
           </div>
         )}
@@ -224,12 +228,10 @@ export function CreateNewJournal({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? "Edit Business" : "New Business"}
+            {isEdit ? t("editBusiness") : t("newBusiness")}
           </DialogTitle>
           <DialogDescription>
-            {isEdit
-              ? "Update your business information."
-              : "Create a new business journal to manage estimates, inventory, and cash flow."}
+            {isEdit ? t("updateBusinessInfo") : t("createNewBusinessJournal")}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -243,10 +245,10 @@ export function CreateNewJournal({
                 <FormItem>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <FormDescription className="text-start col-span-1">
-                      Name
+                      {t("name")}
                     </FormDescription>
                     <FormControl className="col-span-3">
-                      <Input placeholder="Business Name" {...field} />
+                      <Input placeholder={t("businessName")} {...field} />
                     </FormControl>
                   </div>
                   <FormMessage className="col-start-2 col-span-3" />{" "}
@@ -263,7 +265,7 @@ export function CreateNewJournal({
                 <FormItem>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <FormDescription className="text-start">
-                      Logo
+                      {t("logo")}
                     </FormDescription>
                     <div className="col-span-3">
                       <FormControl>
@@ -288,7 +290,7 @@ export function CreateNewJournal({
                 <FormItem>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <FormDescription className="text-start">
-                      Currency
+                      {t("currency")}
                     </FormDescription>
                     <FormControl className="col-span-3">
                       <select
@@ -313,7 +315,7 @@ export function CreateNewJournal({
             {/* --- Contact Information Fields --- */}
             <div className="space-y-4 border-t pt-4">
               <h3 className="font-medium text-sm col-span-4 mb-2">
-                Contact Information
+                {t("contactInformation")}
               </h3>
               {/* Email */}
               <FormField
@@ -323,11 +325,11 @@ export function CreateNewJournal({
                   <FormItem>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <FormDescription className="text-start">
-                        Email
+                        {t("email")}
                       </FormDescription>
                       <FormControl className="col-span-3">
                         <Input
-                          placeholder="Email address"
+                          placeholder={t("emailAddress")}
                           type="email"
                           {...field}
                           value={field.value || ""}
@@ -346,11 +348,11 @@ export function CreateNewJournal({
                   <FormItem>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <FormDescription className="text-start">
-                        Phone
+                        {t("phone")}
                       </FormDescription>
                       <FormControl className="col-span-3">
                         <Input
-                          placeholder="Phone number"
+                          placeholder={t("phoneNumber")}
                           {...field}
                           value={field.value || ""}
                         />
@@ -368,11 +370,11 @@ export function CreateNewJournal({
                   <FormItem>
                     <div className="grid grid-cols-4 items-center gap-4">
                       <FormDescription className="text-start">
-                        Street
+                        {t("street")}
                       </FormDescription>
                       <FormControl className="col-span-3">
                         <Input
-                          placeholder="Street address"
+                          placeholder={t("streetAddress")}
                           {...field}
                           value={field.value || ""}
                         />
@@ -390,7 +392,7 @@ export function CreateNewJournal({
                   render={({ field }) => (
                     <FormItem>
                       <FormDescription className="text-start">
-                        City
+                        {t("city")}
                       </FormDescription>
                       <FormControl>
                         <Input {...field} value={field.value || ""} />
@@ -405,7 +407,7 @@ export function CreateNewJournal({
                   render={({ field }) => (
                     <FormItem>
                       <FormDescription className="text-start">
-                        State
+                        {t("state")}
                       </FormDescription>
                       <FormControl>
                         <Input {...field} value={field.value || ""} />
@@ -420,11 +422,11 @@ export function CreateNewJournal({
                   render={({ field }) => (
                     <FormItem>
                       <FormDescription className="text-start">
-                        ZIP
+                        {t("zip")}
                       </FormDescription>
                       <FormControl>
                         <Input
-                          placeholder="ZIP Code"
+                          placeholder={t("zipCode")}
                           {...field}
                           value={field.value || ""}
                         />
@@ -441,11 +443,11 @@ export function CreateNewJournal({
                 <FilePlus2 className="pr-2" />
                 {pending
                   ? isEdit
-                    ? "Saving..."
-                    : "Creating..."
+                    ? t("saving") + "..."
+                    : t("creating") + "..."
                   : isEdit
-                  ? "Save Changes"
-                  : "Create Business"}
+                  ? t("saveChanges")
+                  : t("createBusiness")}
               </Button>
             </DialogFooter>
           </form>

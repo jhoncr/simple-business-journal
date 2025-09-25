@@ -6,6 +6,7 @@ import {
   DropdownMenu,
 } from "@/components/ui/dropdown-menu";
 import { WorkStatus } from "@/lib/custom_types";
+import { useTranslations } from "next-intl";
 
 const statusStyles: Record<WorkStatus, string> = {
   [WorkStatus.DRAFT]:
@@ -22,6 +23,24 @@ interface WorkStatusProps {
 }
 
 export function WorkStatusDropdown({ qstatus, setStatus }: WorkStatusProps) {
+  const t = useTranslations("estimate");
+
+  const getStatusLabel = (status: WorkStatus) => {
+    switch (status) {
+      case WorkStatus.DRAFT:
+        return t("statusDraft");
+      case WorkStatus.IN_PROCESS:
+        return t("statusInProcess");
+      case WorkStatus.DELIVERED:
+        return t("statusDelivered");
+      default:
+        return (
+          status.charAt(0).toUpperCase() +
+          status.slice(1).toLowerCase().replace("_", " ")
+        );
+    }
+  };
+
   const availableStatuses = () => {
     return Object.values(WorkStatus).filter((status) => status !== qstatus);
   };
@@ -35,15 +54,13 @@ export function WorkStatusDropdown({ qstatus, setStatus }: WorkStatusProps) {
             size="sm"
             className={`${statusStyles[qstatus]}`}
           >
-            {qstatus.charAt(0).toUpperCase() +
-              qstatus.slice(1).toLowerCase().replace("_", " ")}
+            {getStatusLabel(qstatus)}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {availableStatuses().map((status) => (
             <DropdownMenuItem key={status} onClick={() => setStatus(status)}>
-              {status.charAt(0).toUpperCase() +
-                status.slice(1).toLowerCase().replace("_", " ")}
+              {getStatusLabel(status)}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>

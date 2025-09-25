@@ -16,6 +16,7 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 import { Trash } from "lucide-react";
 import { functions } from "@/lib/auth_handler"; // Import configured functions
 import { useToast } from "@/hooks/use-toast"; // Import useToast
+import { useTranslations } from "next-intl";
 // --- Import EntryType and ENTRY_CONFIG keys ---
 import {
   EntryType,
@@ -56,6 +57,7 @@ export function DeleteEntryBtn({
   const [pending, setPending] = useState(false);
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+  const t = useTranslations("journal");
 
   const onSubmit = async () => {
     console.log(
@@ -70,8 +72,8 @@ export function DeleteEntryBtn({
     if (!validation.success) {
       console.error("Invalid delete payload:", validation.error.format());
       toast({
-        title: "Error",
-        description: "Invalid data for deletion.",
+        title: t("error"),
+        description: t("invalidData"),
         variant: "destructive",
       });
       setPending(false);
@@ -90,16 +92,16 @@ export function DeleteEntryBtn({
           await deleteEntryFn(validation.data); // Send validated data
 
           toast({
-            title: "Entry Deleted",
-            description: `"${entryName}" has been deleted successfully.`,
+            title: t("entryDeleted"),
+            description: t("entryDeletedSuccess", { entryName }),
           });
 
           onDeleted(); // Call the callback provided by the parent
         } catch (error: any) {
           console.error("Error during deletion call:", error);
           toast({
-            title: "Deletion Failed",
-            description: error.message || "Could not delete the entry.",
+            title: t("deletionFailed"),
+            description: error.message || t("couldNotDelete"),
             variant: "destructive",
           });
           // Don't call onDeleted if backend failed
@@ -112,8 +114,8 @@ export function DeleteEntryBtn({
       // Catch errors from validation or initial setup
       console.error("Error setting up deletion:", error);
       toast({
-        title: "Error",
-        description: "An unexpected error occurred before deletion.",
+        title: t("error"),
+        description: t("unexpectedError"),
         variant: "destructive",
       });
       setPending(false); // Ensure pending is false if outer try fails
@@ -136,15 +138,14 @@ export function DeleteEntryBtn({
           className="p-0 h-auto font-normal text-destructive hover:text-destructive/90 w-full justify-start"
         >
           <Trash className="h-4 w-4 inline mr-2" />
-          Delete Entry
+          {t("deleteEntry")}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Confirm Deletion</DialogTitle>
+          <DialogTitle>{t("confirmDeletion")}</DialogTitle>
           <DialogDescription>
-            Are you sure you want to delete {entryName}? This action cannot be
-            undone and will permanently remove the item.
+            {t("confirmDeletionMessage", { entryName })}
           </DialogDescription>
         </DialogHeader>
         <div className="flex justify-end gap-3 pt-4">
@@ -152,11 +153,11 @@ export function DeleteEntryBtn({
           {/* Added pt-4 */}
           <DialogClose asChild>
             <Button variant="outline" disabled={pending}>
-              Cancel
+              {t("cancel")}
             </Button>
           </DialogClose>
           <Button variant="destructive" onClick={onSubmit} disabled={pending}>
-            {pending ? "Deleting..." : "Delete Entry"}
+            {pending ? t("deleting") : t("deleteEntry")}
           </Button>
         </div>
       </DialogContent>

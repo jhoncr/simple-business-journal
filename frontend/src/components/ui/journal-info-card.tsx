@@ -54,6 +54,8 @@ interface InfoCardProps {
   journalSubcollections: Record<string, SubcollectionInfo>;
 }
 
+const DEFAULT_TYPE = "estimates";
+
 export function JournalInfoCard({
   id,
   currency,
@@ -106,21 +108,6 @@ export function JournalInfoCard({
     }
   };
 
-  // --- Get Subcollection Display Names (Example) ---
-  // You might want a mapping from subcollection key ('cashflow') to display name ('Cash Flow')
-  const getSubcollectionDisplayName = (key: string): string => {
-    const nameMap: Record<string, string> = {
-      cashflow: "Cash Flow",
-      inventory: "Inventory",
-      estimates: "Estimates",
-      naps: "Naps",
-      diapers: "Diapers",
-      feeds: "Feeds",
-      growth: "Growth",
-    };
-    return nameMap[key] || key.charAt(0).toUpperCase() + key.slice(1); // Default capitalization
-  };
-
   const DeleteAction = (
     <AlertDialog>
       <AlertDialogTrigger asChild>
@@ -166,78 +153,83 @@ export function JournalInfoCard({
 
       {/* --- Main Info Display --- */}
       <div className="flex justify-between items-start">
-        <div className="flex items-start gap-4 my-2">
-          {/* Logo and Currency */}
-          {(logo || currency) && (
-            <div className="flex-shrink-0 w-16 flex flex-col items-center gap-2">
-              {logo && (
-                <div className="w-16 h-16 relative bg-muted/50 rounded-md overflow-hidden">
-                  {" "}
-                  {/* Added background */}
-                  <Image
-                    src={logo || "/placeholder.svg"}
-                    alt="Logo"
-                    fill
-                    className="object-contain"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.src = "/placeholder.svg?height=64&width=64";
-                    }}
-                  />
-                </div>
-              )}
-              {currency && (
-                <Badge variant="outline" className="text-xs">
-                  {currency}
-                </Badge>
-              )}
-            </div>
-          )}
-
-          {/* Contact Info - without the title */}
-          <div className="flex-1 min-w-0">
-            <div className="space-y-1 text-sm text-muted-foreground">
-              {contactInfo.email && (
-                <div className="flex items-center gap-2">
-                  <Mail className="h-3.5 w-3.5" />
-                  <span className="truncate">{contactInfo.email}</span>
-                </div>
-              )}
-
-              {contactInfo.phone && (
-                <div className="flex items-center gap-2">
-                  <Phone className="h-3.5 w-3.5" />
-                  <span>{contactInfo.phone}</span>
-                </div>
-              )}
-
-              {hasAddress && (
-                <div className="flex items-start gap-2">
-                  <MapPin className="h-3.5 w-3.5 mt-0.5" />
-                  <div className="flex flex-col text-sm text-muted-foreground justify-start">
-                    {contactInfo.address.street && (
-                      <div className="text-left">
-                        {contactInfo.address.street}
-                      </div>
-                    )}
-                    {(contactInfo.address.city ||
-                      contactInfo.address.state ||
-                      contactInfo.address.zipCode) && (
-                      <span className="text-left">
-                        {contactInfo.address.city &&
-                          `${contactInfo.address.city}, `}
-                        {contactInfo.address.state &&
-                          `${contactInfo.address.state} `}
-                        {contactInfo.address.zipCode &&
-                          contactInfo.address.zipCode}
-                      </span>
-                    )}
+        <Link
+          href={`/journal?jid=${id}&type=${DEFAULT_TYPE}`}
+          className="flex-1 p-4"
+        >
+          <div className="flex items-start gap-4 my-2">
+            {/* Logo and Currency */}
+            {(logo || currency) && (
+              <div className="flex-shrink-0 w-16 flex flex-col items-center gap-2">
+                {logo && (
+                  <div className="w-16 h-16 relative bg-muted/50 rounded-md overflow-hidden">
+                    {" "}
+                    {/* Added background */}
+                    <Image
+                      src={logo || "/placeholder.svg"}
+                      alt="Logo"
+                      fill
+                      className="object-contain"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "/placeholder.svg?height=64&width=64";
+                      }}
+                    />
                   </div>
-                </div>
-              )}
+                )}
+                {currency && (
+                  <Badge variant="outline" className="text-xs">
+                    {currency}
+                  </Badge>
+                )}
+              </div>
+            )}
+
+            {/* Contact Info - without the title */}
+            <div className="flex-1 min-w-0">
+              <div className="space-y-1 text-sm text-muted-foreground">
+                {contactInfo.email && (
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-3.5 w-3.5" />
+                    <span className="truncate">{contactInfo.email}</span>
+                  </div>
+                )}
+
+                {contactInfo.phone && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-3.5 w-3.5" />
+                    <span>{contactInfo.phone}</span>
+                  </div>
+                )}
+
+                {hasAddress && (
+                  <div className="flex items-start gap-2">
+                    <MapPin className="h-3.5 w-3.5 mt-0.5" />
+                    <div className="flex flex-col text-sm text-muted-foreground justify-start">
+                      {contactInfo.address.street && (
+                        <div className="text-left">
+                          {contactInfo.address.street}
+                        </div>
+                      )}
+                      {(contactInfo.address.city ||
+                        contactInfo.address.state ||
+                        contactInfo.address.zipCode) && (
+                        <span className="text-left">
+                          {contactInfo.address.city &&
+                            `${contactInfo.address.city}, `}
+                          {contactInfo.address.state &&
+                            `${contactInfo.address.state} `}
+                          {contactInfo.address.zipCode &&
+                            contactInfo.address.zipCode}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </Link>
         {/* Vertical button menu - moved from header to body */}
         <div className="flex flex-col space-y-2 ml-auto h-full">
           <div className="p-1 hover:bg-muted rounded">{DeleteAction}</div>
@@ -261,22 +253,6 @@ export function JournalInfoCard({
       </div>
       {/* </CardHeader> */}
       {/* --- Footer for Subcollection Links --- */}
-      {Object.keys(journalSubcollections).length > 0 && (
-        // Link the entire footer to the main journal page for simplicity
-        <CardFooter className="border-t flex flex-wrap justify-start p-3 mt-2 bg-secondary/50 hover:bg-secondary/80 transition-colors cursor-pointer">
-          <span className="text-xs font-medium mr-2 text-secondary-foreground/80">
-            Sections:
-          </span>
-          {Object.entries(journalSubcollections).map(([key, info]) => (
-            <Link href={`/journal?jid=${id}&type=${key}`} key={key}>
-              <Badge variant="secondary" className="mr-1 mb-1 text-xs">
-                {/* Optionally add icon: getJournalIcon(key) */}
-                {key}
-              </Badge>
-            </Link>
-          ))}
-        </CardFooter>
-      )}
     </Card>
   );
 }

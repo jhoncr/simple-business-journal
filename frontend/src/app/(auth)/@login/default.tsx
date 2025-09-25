@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth_handler";
+import { useTranslations } from "next-intl";
 
 const GoogleIcon = () => (
   <div className="flex items-center justify-center w-6 h-6 rounded-full shadow">
@@ -36,6 +37,7 @@ const GoogleIcon = () => (
 );
 export default function LandingPage() {
   const { authUser, signInWithGoogle } = useAuth();
+  const t = useTranslations("LandingPage");
 
   const SignInButton = () => (
     <Button
@@ -45,7 +47,7 @@ export default function LandingPage() {
       onClick={() => signInWithGoogle()}
     >
       <GoogleIcon />
-      <span className="ml-2">Sign in with Google</span>
+      <span className="ml-2">{t("hero.signInWithGoogle")}</span>
     </Button>
   );
   return (
@@ -54,25 +56,20 @@ export default function LandingPage() {
       <header className="bg-primary text-primary-foreground py-12">
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-6xl font-bold mb-4">
-            Create Professional Estimates in Minutes
+            {t("hero.title")}
           </h1>
-          <p className="text-lg md:text-xl mb-8">
-            Simple Estimates helps you generate, customize, and print/share
-            business estimates effortlessly.
-          </p>
+          <p className="text-lg md:text-xl mb-8">{t("hero.subtitle")}</p>
 
           <div className="mt-8">
             <Image
               src="/logo.svg"
-              alt="Simple Business Journals App Logo"
+              alt={t("hero.logoAlt")}
               width={120}
               height={120}
               className="mx-auto"
             />
           </div>
-          <h3 className="text-2xl font-bold mt-8 mb-4">
-            Try it for free today!
-          </h3>
+          <h3 className="text-2xl font-bold mt-8 mb-4">{t("hero.tryFree")}</h3>
           <SignInButton />
         </div>
       </header>
@@ -82,21 +79,21 @@ export default function LandingPage() {
       {/* How It Works Section */}
       <section className="container mx-auto px-4 py-16">
         <h2 className="text-3xl font-bold text-center mb-12">
-          Creating Estimates is as Easy as 1-2-3
+          {t("howItWorks.title")}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <Card>
             <CardHeader>
               <Circle className="h-6 w-6" />
               <CardTitle>
-                <span className="font-bold">1. Add Items</span>
+                <span className="font-bold">
+                  {t("howItWorks.step1.title")}
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Quickly add items to your estimate, from your inventory or
-                create new ones on the fly.c cashflow entriss, inventrory,
-                estimates
+                {t("howItWorks.step1.description")}
               </p>
             </CardContent>
           </Card>
@@ -105,13 +102,14 @@ export default function LandingPage() {
             <CardHeader>
               <Circle className="h-6 w-6" />
               <CardTitle>
-                <span className="font-bold">2. Customize</span>
+                <span className="font-bold">
+                  {t("howItWorks.step2.title")}
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Set prices, add discounts, include taxes, and personalize with
-                your company logo and contact information.
+                {t("howItWorks.step2.description")}
               </p>
             </CardContent>
           </Card>
@@ -120,13 +118,14 @@ export default function LandingPage() {
             <CardHeader>
               <Circle className="h-6 w-6" />
               <CardTitle>
-                <span className="font-bold">3. Print or Share</span>
+                <span className="font-bold">
+                  {t("howItWorks.step3.title")}
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Generate a professional PDF estimate to print, or share
-                directly with your client via a unique link.
+                {t("howItWorks.step3.description")}
               </p>
             </CardContent>
           </Card>
@@ -138,43 +137,39 @@ export default function LandingPage() {
       {/* Benefits Section */}
       <section className="container mx-auto px-4 py-16">
         <h2 className="text-3xl font-bold text-center mb-12">
-          Why Use Simple Business Journals?
+          {t("benefits.title")}
         </h2>
         <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <li className="flex items-center space-x-4">
             <BookOpen className="h-6 w-6 text-primary" />
             <div>
-              <h3 className="font-semibold">Stay Organized</h3>
+              <h3 className="font-semibold">
+                {t("benefits.organized.title")}
+              </h3>
               <p className="text-muted-foreground">
-                Stop wasting time with spreadsheets. Create estimates in a
-                fraction of the time.
+                {t("benefits.organized.description")}
               </p>
             </div>
           </li>
           <li className="flex items-center space-x-4">
             <CalendarDays className="h-6 w-6 text-primary" />
             <div>
-              <h3 className="font-semibold">Look Professional</h3>
+              <h3 className="font-semibold">
+                {t("benefits.professional.title")}
+              </h3>
               <p className="text-muted-foreground">
-                Impress clients with polished, branded estimates.
+                {t("benefits.professional.description")}
               </p>
             </div>
           </li>
           <li className="flex items-center space-x-4">
             <Settings className="h-6 w-6 text-primary" />
             <div>
-              <h3 className="font-semibold">Easy to Use</h3>
+              <h3 className="font-semibold">
+                {t("benefits.easyToUse.title")}
+              </h3>
               <p className="text-muted-foreground">
-                No complicated software to learn. Get started instantly.
-              </p>
-            </div>
-          </li>
-          <li className="flex items-center space-x-4">
-            <PackagePlus className="h-6 w-6 text-primary" />
-            <div>
-              <h3 className="font-semibold">Inventory</h3>
-              <p className="text-muted-foreground">
-                Keep track of your inventory and prices
+                {t("benefits.easyToUse.description")}
               </p>
             </div>
           </li>
@@ -184,17 +179,16 @@ export default function LandingPage() {
       {/* Final CTA */}
       <section className=" py-16">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-8">
-            Sign up now and start creating professional estimates in minutes!{" "}
-          </h2>
-
+          <h2 className="text-3xl font-bold mb-8">{t("finalCta.title")}</h2>
           <SignInButton />
         </div>
       </section>
 
       {/* Footer */}
       <footer className="py-6 text-center text-muted-foreground">
-        <p>Simple Business Journals © {new Date().getFullYear()}</p>
+        <p>
+          {t("footer.copyright")} {new Date().getFullYear()}
+        </p>
       </footer>
     </div>
   );

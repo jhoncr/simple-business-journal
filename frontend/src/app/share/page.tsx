@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { redirect } from "next/navigation";
 import { useAuth } from "@/lib/auth_handler";
@@ -12,19 +12,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-const schema = z
-  .object({
-    journalID: z.string().min(20, "Please enter a valid journal id."),
-  })
-  .strict();
+import { useTranslations } from "next-intl";
 
 function SharePageContent() {
+  const t = useTranslations();
   const { authUser, loading, signOut, signInWithGoogle } = useAuth();
   const searchParams = useSearchParams();
   const [error, setError] = useState(null as string | null);
   const [accepted, setAccepted] = useState(false);
   const [journalId, setJournalId] = useState<string | null>(null);
+
+  const schema = useMemo(
+    () =>
+      z
+        .object({
+          journalID: z.string().min(20, t("Share.invalidJournalId")),
+        })
+        .strict(),
+    [t],
+  );
 
   useEffect(() => {
     const journal_id = searchParams.get("journal");
@@ -58,7 +64,7 @@ function SharePageContent() {
         setAccepted(true);
       } catch (error: any) {
         console.log("ops, something went wrong :/", error);
-        setError(error?.message ?? "ops, something went wrong :/");
+        setError(error?.message ?? t("Share.genericError"));
       }
     }
 
@@ -70,7 +76,7 @@ function SharePageContent() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
-        <p>Loading...</p>
+        <p>{t("common.loading")}</p>
       </div>
     );
   }
@@ -80,7 +86,7 @@ function SharePageContent() {
       <Dialog open={!!error}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Error</DialogTitle>
+            <DialogTitle>{t("common.error")}</DialogTitle>
           </DialogHeader>
           <p>{error}</p>
           <Button
@@ -90,7 +96,7 @@ function SharePageContent() {
               signOut();
             }}
           >
-            Logout
+            {t("navigation.logout")}
           </Button>
         </DialogContent>
       </Dialog>
@@ -104,29 +110,24 @@ function SharePageContent() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
       <div className="max-w-md w-full p-6 rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold mb-4">Shared Journal</h1>
+        <h1 className="text-2xl font-bold mb-4">{t("Share.title")}</h1>
 
         {!authUser ? (
           <>
-            <p className="mb-4">
-              Someone has shared a journal with you. Please log in to access
-              the shared content.
-            </p>
+            <p className="mb-4">{t("Share.guestPrompt")}</p>
             <Button className="w-full" onClick={() => signInWithGoogle()}>
-              Log in to accept
+              {t("Share.loginToAccept")}
             </Button>
           </>
         ) : (
           <>
-            <p className="mb-4">
-              {"You've been invited to access a shared journal"}
-            </p>
+            <p className="mb-4">{t("Share.invitedMessage")}</p>
             <Button
               onClick={accept}
               className="w-full mb-2"
               disabled={!journalId}
             >
-              Accept invitation
+              {t("Share.acceptInvitation")}
             </Button>
           </>
         )}
@@ -137,10 +138,11 @@ function SharePageContent() {
 
 // Loading fallback for the Suspense boundary
 function SharePageLoading() {
+  const t = useTranslations();
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4">
       <div className="max-w-md w-full p-6 rounded-lg shadow-md">
-        <p>Loading share details...</p>
+        <p>{t("Share.loadingDetails")}</p>
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import { formatCurrency, formattedDate } from "@/lib/utils";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { ClipboardList } from "lucide-react"; // Icon for estimate
+import { useTranslations } from "next-intl";
 
 // --- Define Props Interface ---
 interface EstimateEntryProps {
@@ -44,6 +45,8 @@ export const EstimateEntry = React.memo(function EstimateEntry({
   role,
   removeFn,
 }: EstimateEntryProps) {
+  const t = useTranslations("journal");
+
   // --- Basic validation ---
   if (!journalId || !entry || entryType !== "estimate" || !entry.details) {
     console.error("Invalid props for EstimateEntry:", {
@@ -101,9 +104,9 @@ export const EstimateEntry = React.memo(function EstimateEntry({
             <ClipboardList className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <span
               className="font-medium truncate"
-              title={customer?.name || "No Customer"}
+              title={customer?.name || t("noCustomer")}
             >
-              {customer?.name || "No Customer"}
+              {customer?.name || t("noCustomer")}
             </span>
             {displayNumber && (
               <span className="text-xs text-muted-foreground">
@@ -128,7 +131,7 @@ export const EstimateEntry = React.memo(function EstimateEntry({
         {dueDate && ( // Show if dueDate exists
           <div className="text-xs text-muted-foreground mt-1 mb-1">
             <span>
-              Due: {dueDate ? formattedDate(new Date(dueDate)) : "N/A"}
+              {t("due")}: {dueDate ? formattedDate(new Date(dueDate)) : "N/A"}
             </span>
           </div>
         )}
@@ -136,9 +139,15 @@ export const EstimateEntry = React.memo(function EstimateEntry({
         {/* Bottom Row: Summary of items/notes */}
         <div className="text-xs text-muted-foreground space-y-1">
           {confirmedItems.length > 0 && (
-            <p className="truncate">{confirmedItems.length} item(s)</p>
+            <p className="truncate">
+              {t("itemCount", { count: confirmedItems.length })}
+            </p>
           )}
-          {notes && <p className="truncate italic">Notes: {notes}</p>}
+          {notes && (
+            <p className="truncate italic">
+              {t("notesLabel")}: {notes}
+            </p>
+          )}
         </div>
 
         {/* Creator and Date Info */}
@@ -146,7 +155,7 @@ export const EstimateEntry = React.memo(function EstimateEntry({
           {entry.createdBy ||
             user?.displayName ||
             user?.email ||
-            "Unknown User"}{" "}
+            t("unknownUser")}{" "}
           | {formattedDate(entry.createdAt)}
         </div>
       </Link>

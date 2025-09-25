@@ -9,6 +9,7 @@ import { DatePickerWithRange } from "./actions/date-pick-with-range";
 import { format } from "date-fns";
 import { X } from "lucide-react";
 import ExportToCSV from "./actions/export-to-csv";
+import { useTranslations } from "next-intl";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getAddEntryForm, getJournalIcon } from "./journal-types/config";
 import { ROLES_THAT_ADD } from "@/../../backend/functions/src/common/const";
@@ -55,11 +56,14 @@ const FilterRangeBadge = ({
   ) : null;
 };
 
-const NotFound = () => (
-  <main className="flex flex-col items-center justify-center w-full mt-12 h-screen">
-    <p className="text-2xl font-bold">Log not found :/</p>
-  </main>
-);
+const NotFound = () => {
+  const t = useTranslations("journal");
+  return (
+    <main className="flex flex-col items-center justify-center w-full mt-12 h-screen">
+      <p className="text-2xl font-bold">{t("notFound")}</p>
+    </main>
+  );
+};
 
 export default function ListJournalPage() {
   const { authUser } = useAuth();
@@ -72,6 +76,7 @@ export default function ListJournalPage() {
   const router = useRouter();
   const journalId = params.get("jid");
   const displayEntryType: EntryType = "estimate"; // Hardcoded to estimate
+  const t = useTranslations("journal");
 
   useEffect(() => {
     if (!journalId) {
@@ -112,7 +117,7 @@ export default function ListJournalPage() {
               </Badge>
             )}
           </div>
-        </div>
+        </div>,
       );
 
       const AddEntryForm = getAddEntryForm(displayEntryType);
@@ -142,7 +147,7 @@ export default function ListJournalPage() {
       journalId,
       displayEntryType,
       dateRange.from,
-      dateRange.to
+      dateRange.to,
     );
     setFilterList(entries);
   }, [dateRange, journalId, displayEntryType]);
@@ -161,7 +166,7 @@ export default function ListJournalPage() {
 
   if (!journalId) return null;
   if (journal === undefined)
-    return <div className="text-center p-6">Loading Journal...</div>;
+    return <div className="text-center p-6">{t("loading")}</div>;
   if (journal === null) return <NotFound />;
 
   return (
@@ -184,7 +189,7 @@ export default function ListJournalPage() {
                   entry_list={filterList}
                   filename={`${journal.title}-Estimates-${format(
                     dateRange.from,
-                    "yyyyMMdd"
+                    "yyyyMMdd",
                   )}-${format(dateRange.to, "yyyyMMdd")}.csv`}
                   access={journal.access as any}
                 />

@@ -1,0 +1,230 @@
+{
+  "common": {
+    "loading": "Carregando...",
+    "error": "Erro",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "create": "Criar",
+    "update": "Atualizar",
+    "confirm": "Confirmar",
+    "yes": "Sim",
+    "no": "Não"
+  },
+  "navigation": {
+    "dashboard": "Painel",
+    "journals": "Diários",
+    "settings": "Configurações",
+    "logout": "Sair"
+  },
+  "dashboard": {
+    "title": "Painel",
+    "noJournals": "Nenhum diário encontrado. Crie um novo negócio para começar!",
+    "loadingJournals": "Carregando diários...",
+    "createNew": "Criar novo"
+  },
+  "journal": {
+    "title": "Diário",
+    "businessJournal": "Diário de negócios",
+    "createJournal": "Criar diário",
+    "journalName": "Nome do diário",
+    "journalType": "Tipo de diário",
+    "currency": "Moeda",
+    "contactInfo": "Informações de contato",
+    "notFound": "Log não encontrado :/",
+    "loading": "Carregando Diário...",
+    "download": "Baixar",
+    "noMoreEntries": "Não há mais entradas",
+    "error": "Erro",
+    "invalidData": "Dados inválidos para exclusão.",
+    "entryDeleted": "Entrada Excluída",
+    "entryDeletedSuccess": "\"{entryName}\" foi excluído com sucesso.",
+    "deletionFailed": "Falha na Exclusão",
+    "couldNotDelete": "Não foi possível excluir a entrada.",
+    "unexpectedError": "Ocorreu um erro inesperado antes da exclusão.",
+    "deleteEntry": "Excluir Entrada",
+    "confirmDeletion": "Confirmar Exclusão",
+    "confirmDeletionMessage": "Tem certeza de que deseja excluir {entryName}? Esta ação não pode ser desfeita e removerá permanentemente o item.",
+    "cancel": "Cancelar",
+    "deleting": "Excluindo...",
+    "noCustomer": "Sem Cliente",
+    "due": "Vencimento",
+    "itemCount": "{count} item(ns)",
+    "notesLabel": "Notas",
+    "unknownUser": "Usuário Desconhecido"
+  },
+  "errors": {
+    "loadJournals": "Falha ao carregar diários.",
+    "createJournal": "Falha ao criar diário.",
+    "updateJournal": "Falha ao atualizar diário.",
+    "deleteJournal": "Falha ao excluir diário.",
+    "general": "Algo deu errado. Tente novamente."
+  },
+  "About": {
+    "title": "Sobre o Ordena",
+    "description": "Ordena é um aplicativo simples de registro diário para pequenas empresas.",
+    "button": "Experimente",
+    "footer": "Feito com ❤️ por "
+  },
+  "Share": {
+    "title": "Diário Compartilhado",
+    "guestPrompt": "Alguém compartilhou um diário com você. Faça login para acessar o conteúdo compartilhado.",
+    "loginToAccept": "Entrar para aceitar",
+    "invitedMessage": "Você foi convidado(a) para acessar um diário compartilhado",
+    "acceptInvitation": "Aceitar convite",
+    "invalidJournalId": "Por favor, insira um ID de diário válido.",
+    "genericError": "Ops, algo deu errado :/",
+    "loadingDetails": "Carregando detalhes do compartilhamento..."
+  },
+  "LandingPage": {
+    "hero": {
+      "title": "Crie Orçamentos Profissionais em Minutos",
+      "subtitle": "Simple Estimates ajuda você a gerar, personalizar e imprimir/compartilhar orçamentos de negócios sem esforço.",
+      "logoAlt": "Logo do App Simple Business Journals",
+      "tryFree": "Experimente gratuitamente hoje!",
+      "signInWithGoogle": "Entrar com Google"
+    },
+    "howItWorks": {
+      "title": "Criar Orçamentos é Fácil como 1-2-3",
+      "step1": {
+        "title": "1. Adicionar Itens",
+        "description": "Adicione rapidamente itens ao seu orçamento, do seu inventário ou crie novos na hora."
+      },
+      "step2": {
+        "title": "2. Personalizar",
+        "description": "Defina preços, adicione descontos, inclua impostos e personalize com o logo da sua empresa e informações de contato."
+      },
+      "step3": {
+        "title": "3. Imprimir ou Compartilhar",
+        "description": "Gere um orçamento PDF profissional para imprimir, ou compartilhe diretamente com seu cliente via link único."
+      }
+    },
+    "benefits": {
+      "title": "Por que Usar Simple Business Journals?",
+      "organized": {
+        "title": "Mantenha-se Organizado",
+        "description": "Pare de perder tempo com planilhas. Crie orçamentos em uma fração do tempo."
+      },
+      "professional": {
+        "title": "Profissional",
+        "description": "Orçamentos polidos e com sua marca."
+      },
+      "easyToUse": {
+        "title": "Fácil de Usar",
+        "description": "Nenhum software complicado para aprender. Comece instantaneamente."
+      },
+      "inventory": {
+        "title": "Inventário",
+        "description": "Acompanhe seu inventário e preços"
+      }
+    },
+    "finalCta": {
+      "title": "Cadastre-se agora e comece a criar orçamentos profissionais em minutos!"
+    },
+    "footer": {
+      "copyright": "Simple Business Journals ©"
+    }
+  },
+  "estimate": {
+    "companyLogo": "Empresa",
+    "logo": "logo",
+    "defaultCompanyName": "Acme Industries",
+    "defaultPhone": "(555) 123-4567",
+    "defaultEmail": "billing@acmeindustries.com",
+    "statusDraft": "Rascunho",
+    "statusInProcess": "Em Andamento",
+    "statusDelivered": "Entregue",
+    "loadingDetails": "Carregando detalhes do orçamento...",
+    "journalDetailsNotAvailable": "Detalhes do diário (moeda, fornecedor) não disponíveis.",
+    "client": "Cliente",
+    "items": "Itens",
+    "notes": "Notas",
+    "addNotesPlaceholder": "Adicione quaisquer notas adicionais...",
+    "back": "Voltar",
+    "print": "Imprimir",
+    "newEstimate": "Novo Orçamento",
+    "itemsList": {
+      "headerDescription": "Descrição",
+      "headerQty": "Qtd",
+      "headerPrice": "Preço",
+      "headerTotal": "Total",
+      "noItems": "Adicione itens usando o formulário abaixo.",
+      "unit": "unid"
+    }
+  },
+  "contactInfo": {
+    "notSet": "Não definido",
+    "cancelEditing": "Cancelar edição",
+    "saveChanges": "Salvar alterações",
+    "saving": "Salvando...",
+    "namePlaceholder": "João da Silva",
+    "emailPlaceholder": "email@exemplo.com",
+    "phonePlaceholder": "(99) 99999-9999",
+    "streetAddress": "Endereço",
+    "streetPlaceholder": "Rua Principal, 123",
+    "city": "Cidade",
+    "state": "Estado",
+    "zipCode": "CEP",
+    "zipPlaceholder": "12345-678"
+  },
+  "newJournal": {
+    "newBusiness": "Novo Negócio",
+    "editBusiness": "Editar Negócio",
+    "updateInfo": "Atualize as informações do seu negócio.",
+    "createDescription": "Crie um novo diário de negócios para gerenciar orçamentos, estoque e fluxo de caixa.",
+    "name": "Nome",
+    "businessName": "Nome do Negócio",
+    "logo": "Logo",
+    "currency": "Moeda",
+    "contactInformation": "Informações de Contato",
+    "email": "Email",
+    "emailPlaceholder": "Endereço de email",
+    "phone": "Telefone",
+    "phonePlaceholder": "Número de telefone",
+    "street": "Rua",
+    "streetPlaceholder": "Endereço",
+    "city": "Cidade",
+    "state": "Estado",
+    "zip": "CEP",
+    "zipPlaceholder": "Código Postal",
+    "saving": "Salvando...",
+    "creating": "Criando...",
+    "saveChanges": "Salvar Alterações",
+    "createBusiness": "Criar Negócio",
+    "successMessage": "O negócio \"{businessName}\" foi {action} com sucesso.",
+    "updated": "atualizado",
+    "created": "criado",
+    "errorMessage": "Erro ao {action} Negócio: {error}",
+    "updating": "Atualizando",
+    "creatingVerb": "Criando",
+    "unexpectedError": "Ocorreu um erro inesperado."
+  },
+  "newItemForm": {
+    "title": "Adicionar Novo Item",
+    "description": "Descrição",
+    "descriptionPlaceholder": "Digite a descrição do item",
+    "unitPrice": "Preço Unitário",
+    "dimensionType": "Tipo de Dimensão",
+    "dimensionUnit": "Unidade",
+    "dimensionAreaM2": "Área (m²)",
+    "dimensionAreaFt2": "Área (ft²)",
+    "length": "Comprimento",
+    "width": "Largura",
+    "area": "Área",
+    "quantity": "Quantidade",
+    "serviceFee": "Taxa de Serviço",
+    "serviceFeeNone": "Sem taxa",
+    "serviceFeePercentage": "",
+    "serviceFeeFlatRate": "Fixo",
+    "serviceFeePerUnit": "Por Unidade",
+    "laborPercentage": "Mão de Obra %",
+    "laborRate": "Taxa de Mão de Obra",
+    "material": "Material",
+    "serviceFeeSummary": "Taxa de Serviço",
+    "total": "Total",
+    "saving": "Salvando...",
+    "addItem": "Adicionar Item",
+    "permissionDenied": "Você não tem permissão para adicionar itens"
+  }
+}

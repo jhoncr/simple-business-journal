@@ -6,6 +6,7 @@ import { ChevronsUp, User } from "lucide-react";
 import { Entry } from "./Entry";
 import { useFetchEntries } from "./useFetch";
 import { useAuth } from "@/lib/auth_handler";
+import { useTranslations } from "next-intl";
 
 import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap"; // Import EntryType
 
@@ -74,12 +75,13 @@ const MessageList = memo(function MessageList({
   };
 
   const Loading = () => {
+    const t = useTranslations("journal");
     return (
       <div className="w-full h-14">
         {loading ? (
-          <p className="text-center text-xs">Loading...</p>
+          <p className="text-center text-xs">{t("loading")}</p>
         ) : (
-          <p className="text-center text-xs">No more entries</p>
+          <p className="text-center text-xs">{t("noMoreEntries")}</p>
         )}
       </div>
     );
