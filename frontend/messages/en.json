@@ -144,6 +144,11 @@
     "back": "Back",
     "print": "Print",
     "newEstimate": "New Estimate",
+    "orderId": "Order ID",
+    "created": "Created",
+    "status": "Status",
+    "notYetAssigned": "Not yet assigned",
+    "notSet": "Not set",
     "itemsList": {
       "headerDescription": "Description",
       "headerQty": "Qty",
@@ -222,9 +227,67 @@
     "laborRate": "Labor Rate",
     "material": "Material",
     "serviceFeeSummary": "Service Fee",
+    "serviceFeeDescriptions": {
+      "percentage": "↳ service fee of {rate}% of line total",
+      "fixed": "↳ service fee fixed at {rate}",
+      "quantity": "↳ service fee of {rate} per unit"
+    },
+    "laborItemDescription": "Labor",
+    "validationErrors": {
+      "descriptionRequired": "Description is required",
+      "maxCharacters": "Max {count} characters",
+      "quantityRequired": "Quantity must be greater than 0",
+      "unitPriceRequired": "Unit price must be greater than 0",
+      "lengthRequiredForArea": "Length > 0 required for area",
+      "widthRequiredForArea": "Width > 0 required for area",
+      "laborRateRequired": "Labor rate required"
+    },
     "total": "Total",
     "saving": "Saving...",
     "addItem": "Add Item",
     "permissionDenied": "You don't have permission to add items"
+  },
+  "adjustments": {
+    "subtotal": "Subtotal",
+    "addition": "Addition",
+    "discount": "Discount",
+    "deleteAdjustment": "Delete adjustment",
+    "noPermissionRemoveAdjustments": "You don't have permission to remove adjustments",
+    "totalBeforeTax": "Total before Tax",
+    "tax": "Tax ({percentage}%)",
+    "deleteTax": "Delete tax",
+    "noPermissionRemoveTax": "You don't have permission to remove tax",
+    "total": "Total",
+    "paymentsTotal": "Payments Total",
+    "balanceDue": "Balance Due"
+  },
+  "adjustmentForm": {
+    "addAdjustment": "Add Adjustment",
+    "feeFlat": "Fee flat ($)",
+    "feePercent": "Fee %",
+    "discountFlat": "Discount flat $",
+    "discountPercent": "Discount %",
+    "taxPercent": "Tax %",
+    "description": "Description",
+    "optional": "(Optional)",
+    "descriptionOptional": "Description (Optional)",
+    "value": "Value",
+    "add": "Add"
+  },
+  "payments": {
+    "title": "Payments",
+    "noPaymentsYet": "No payments recorded yet.",
+    "method": "Method",
+    "na": "N/A",
+    "addPayment": "Add Payment",
+    "amount": "Amount",
+    "date": "Date",
+    "methodOptional": "Method (Optional)",
+    "pickDate": "Pick a date",
+    "placeholder": "e.g., Card, Bank Transfer",
+    "errors": {
+      "invalidAmount": "Payment amount must be a positive number.",
+      "dateRequired": "Please select a date for the payment."
+    }
   }
 }

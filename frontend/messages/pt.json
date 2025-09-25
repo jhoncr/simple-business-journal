@@ -144,6 +144,11 @@
     "back": "Voltar",
     "print": "Imprimir",
     "newEstimate": "Novo Orçamento",
+    "orderId": "ID",
+    "created": "Criado",
+    "status": "Status",
+    "notYetAssigned": "Ainda não atribuído",
+    "notSet": "Não definido",
     "itemsList": {
       "headerDescription": "Descrição",
       "headerQty": "Qtd",
@@ -222,9 +227,67 @@
     "laborRate": "Taxa de Mão de Obra",
     "material": "Material",
     "serviceFeeSummary": "Taxa de Serviço",
+    "serviceFeeDescriptions": {
+      "percentage": "↳ taxa de serviço de {rate}% do total da linha",
+      "fixed": "↳ taxa de serviço fixa de {rate}",
+      "quantity": "↳ taxa de serviço de {rate} por unidade"
+    },
+    "laborItemDescription": "Mão de Obra",
+    "validationErrors": {
+      "descriptionRequired": "Descrição é obrigatória",
+      "maxCharacters": "Máximo {count} caracteres",
+      "quantityRequired": "A quantidade deve ser maior que 0",
+      "unitPriceRequired": "O preço unitário deve ser maior que 0",
+      "lengthRequiredForArea": "Comprimento > 0 obrigatório para área",
+      "widthRequiredForArea": "Largura > 0 obrigatória para área",
+      "laborRateRequired": "Taxa de mão de obra obrigatória"
+    },
     "total": "Total",
     "saving": "Salvando...",
     "addItem": "Adicionar Item",
     "permissionDenied": "Você não tem permissão para adicionar itens"
+  },
+  "adjustments": {
+    "subtotal": "Subtotal",
+    "addition": "Adição",
+    "discount": "Desconto",
+    "deleteAdjustment": "Excluir ajuste",
+    "noPermissionRemoveAdjustments": "Você não tem permissão para remover ajustes",
+    "totalBeforeTax": "Total antes dos Impostos",
+    "tax": "Imposto ({percentage}%)",
+    "deleteTax": "Excluir imposto",
+    "noPermissionRemoveTax": "Você não tem permissão para remover impostos",
+    "total": "Total",
+    "paymentsTotal": "Total de Pagamentos",
+    "balanceDue": "Saldo Devedor"
+  },
+  "adjustmentForm": {
+    "addAdjustment": "Adicionar Ajuste",
+    "feeFlat": "Taxa fixa ($)",
+    "feePercent": "Taxa %",
+    "discountFlat": "Desconto fixo $",
+    "discountPercent": "Desconto %",
+    "taxPercent": "Imposto %",
+    "description": "Descrição",
+    "optional": "(Opcional)",
+    "descriptionOptional": "Descrição (Opcional)",
+    "value": "Valor",
+    "add": "Adicionar"
+  },
+  "payments": {
+    "title": "Pagamentos",
+    "noPaymentsYet": "Nenhum pagamento registrado ainda.",
+    "method": "Método",
+    "na": "N/A",
+    "addPayment": "Adicionar Pagamento",
+    "amount": "Valor",
+    "date": "Data",
+    "methodOptional": "Método (Opcional)",
+    "pickDate": "Escolha uma data",
+    "placeholder": "ex.: Cartão, Transferência Bancária",
+    "errors": {
+      "invalidAmount": "O valor do pagamento deve ser um número positivo.",
+      "dateRequired": "Por favor, selecione uma data para o pagamento."
+    }
   }
 }

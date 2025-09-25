@@ -1,5 +1,5 @@
 // frontend/src/app/(auth)/journal/journal-types/estimate/subcomponents/NewItemForm.tsx
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,12 +15,14 @@ import {
 } from "@/components/ui/drawer";
 import {
   Plus,
-  ListPlus,
+  PackagePlus,
   Loader2,
   Percent,
   CircleDollarSign,
   Package,
   Ban,
+  GripHorizontal,
+  RectangleHorizontal,
 } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "next-intl";
@@ -51,71 +53,65 @@ interface NewItemFormProps {
   userRole: (typeof ROLES)[number];
 }
 
-const getLaborDescription = (
-  laborType: "quantity" | "fixed" | "percentage",
-  laborRate: number,
-  currencySymbol: string,
-) => {
-  const formattedRate = formatCurrency(laborRate, currencySymbol);
-  switch (laborType) {
-    case "percentage":
-      return `↳ service fee of ${laborRate}% of line total`;
-    case "fixed":
-      return `↳ service fee fixed at ${formattedRate}`;
-    case "quantity":
-      return `↳ service fee of ${formattedRate} per unit`;
-    default:
-      return "";
-  }
-};
+const createItemFormSchema = (
+  t: (key: string, values?: Record<string, any>) => string,
+) =>
+  z
+    .object({
+      description: z
+        .string()
+        .min(1, t("validationErrors.descriptionRequired"))
+        .max(254, t("validationErrors.maxCharacters", { count: 254 })),
+      inventoryMaterialName: z
+        .string()
+        .max(254, t("validationErrors.maxCharacters", { count: 254 }))
+        .optional(),
+      quantity: z.number().min(0.01, t("validationErrors.quantityRequired")),
+      unitPrice: z.number().min(0.01, t("validationErrors.unitPriceRequired")),
+      dimensionType: z.string(),
+      length: z.number().optional(),
+      width: z.number().optional(),
+      laborType: z.enum(["null", "percentage", "fixed", "quantity"]),
+      laborRate: z.number().min(0).optional(),
+    })
+    .refine(
+      (data) => {
+        if (data.dimensionType.startsWith("area")) {
+          return data.length !== undefined && data.length > 0;
+        }
+        return true;
+      },
+      {
+        message: t("validationErrors.lengthRequiredForArea"),
+        path: ["length"],
+      },
+    )
+    .refine(
+      (data) => {
+        if (data.dimensionType.startsWith("area")) {
+          return data.width !== undefined && data.width > 0;
+        }
+        return true;
+      },
+      {
+        message: t("validationErrors.widthRequiredForArea"),
+        path: ["width"],
+      },
+    )
+    .refine(
+      (data) => {
+        if (data.laborType !== "null") {
+          return data.laborRate !== undefined && data.laborRate >= 0;
+        }
+        return true;
+      },
+      {
+        message: t("validationErrors.laborRateRequired"),
+        path: ["laborRate"],
+      },
+    );
 
-const itemFormSchema = z
-  .object({
-    description: z
-      .string()
-      .min(1, "Description is required")
-      .max(254, "Max 254 characters"),
-    inventoryMaterialName: z
-      .string()
-      .max(254, "Max 254 characters")
-      .optional(),
-    quantity: z.number().min(0.01, "Quantity must be greater than 0"),
-    unitPrice: z.number().min(0.01, "Unit price must be greater than 0"),
-    dimensionType: z.string(),
-    length: z.number().optional(),
-    width: z.number().optional(),
-    laborType: z.enum(["null", "percentage", "fixed", "quantity"]),
-    laborRate: z.number().min(0).optional(),
-  })
-  .refine(
-    (data) => {
-      if (data.dimensionType.startsWith("area")) {
-        return data.length !== undefined && data.length > 0;
-      }
-      return true;
-    },
-    { message: "Length > 0 required for area", path: ["length"] },
-  )
-  .refine(
-    (data) => {
-      if (data.dimensionType.startsWith("area")) {
-        return data.width !== undefined && data.width > 0;
-      }
-      return true;
-    },
-    { message: "Width > 0 required for area", path: ["width"] },
-  )
-  .refine(
-    (data) => {
-      if (data.laborType !== "null") {
-        return data.laborRate !== undefined && data.laborRate >= 0;
-      }
-      return true;
-    },
-    { message: "Labor rate required", path: ["laborRate"] },
-  );
-
-type ItemFormValues = z.infer<typeof itemFormSchema>;
+type ItemFormValues = z.infer<ReturnType<typeof createItemFormSchema>>;
 
 const defaultFormValues: ItemFormValues = {
   description: "",
@@ -142,6 +138,32 @@ export function NewItemForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canAdd = useMemo(() => ROLES_THAT_ADD.has(userRole), [userRole]);
+
+  const getLaborDescription = useCallback(
+    (
+      laborType: "quantity" | "fixed" | "percentage",
+      laborRate: number,
+      currencySymbol: string,
+    ): string => {
+      switch (laborType) {
+        case "percentage":
+          return t("serviceFeeDescriptions.percentage", { rate: laborRate });
+        case "fixed":
+          return t("serviceFeeDescriptions.fixed", {
+            rate: formatCurrency(laborRate, currencySymbol),
+          });
+        case "quantity":
+          return t("serviceFeeDescriptions.quantity", {
+            rate: formatCurrency(laborRate, currencySymbol),
+          });
+        default:
+          return "";
+      }
+    },
+    [t],
+  );
+
+  const itemFormSchema = useMemo(() => createItemFormSchema(t), [t]);
 
   const form = useForm<ItemFormValues>({
     resolver: zodResolver(itemFormSchema),
@@ -233,7 +255,7 @@ export function NewItemForm({
         ),
         material: {
           id: crypto.randomUUID(),
-          description: "Labor",
+          description: t("laborItemDescription"),
           unitPrice: laborUnitPrice,
           currency: currency,
           dimensions: { type: "unit", unitLabel: "unit" },
@@ -325,7 +347,7 @@ export function NewItemForm({
               <FormLabel>{t("dimensionType")}</FormLabel>
               <FormControl>
                 <RadioGroup
-                  className="flex flex-wrap justify-between gap-1"
+                  className="grid grid-cols-2 gap-2"
                   value={field.value}
                   onValueChange={(value) => {
                     field.onChange(value);
@@ -342,33 +364,42 @@ export function NewItemForm({
                   disabled={!canAdd}
                 >
                   {[
-                    { value: "unit-unit", label: t("dimensionUnit") },
-                    { value: "area-m²", label: t("dimensionAreaM2") },
+                    {
+                      value: "unit-unit",
+                      label: t("dimensionUnit"),
+                      icon: <GripHorizontal className="h-4 w-4" />,
+                    },
+                    {
+                      value: "area-m²",
+                      label: t("dimensionAreaM2"),
+                      icon: <RectangleHorizontal className="h-4 w-4" />,
+                    },
                     // { value: "area-ft²", label: t("dimensionAreaFt2") },
                   ].map((item) => (
                     <div
                       key={item.value}
-                      className={`border-input hover:bg-accent/50 relative flex flex-col items-start rounded-md border p-2 shadow-xs outline-none ${
+                      className={`border-input hover:bg-accent/50 relative flex flex-col items-center justify-center rounded-md border p-2 shadow-xs outline-none ${
                         field.value === item.value
-                          ? "border-primary border-2 bg-primary/10 shadow-md ring-2 ring-primary/20"
+                          ? "border-4 bg-primary/10 shadow-md border-primary"
                           : ""
                       }`}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center">
                         <RadioGroupItem
                           value={item.value}
                           id={`dim-${item.value}`}
-                          className="after:absolute after:inset-0"
+                          className="peer sr-only"
                           disabled={!canAdd}
                         />
                         <Label
                           htmlFor={`dim-${item.value}`}
-                          className={`cursor-pointer ${
+                          className={`cursor-pointer flex h-full w-full items-center justify-center gap-2 ${
                             field.value === item.value
                               ? "font-semibold text-primary"
                               : ""
                           } ${!canAdd ? "cursor-not-allowed opacity-50" : ""}`}
                         >
+                          {item.icon}
                           {item.label}
                         </Label>
                       </div>
@@ -508,9 +539,9 @@ export function NewItemForm({
                   ].map((item) => (
                     <div
                       key={item.value}
-                      className={`border-input hover:bg-accent/50 relative flex flex-col items-center justify-center rounded-md border p-1 shadow-xs outline-none ${
+                      className={`border-input hover:bg-accent/50 relative flex flex-col items-center justify-center border p-1 shadow-xs outline-none ${
                         field.value === item.value
-                          ? "border-primary border-2 bg-primary/10 shadow-md ring-2 ring-primary/20"
+                          ? "border-primary border-4 bg-primary/10"
                           : ""
                       }`}
                     >
@@ -522,7 +553,7 @@ export function NewItemForm({
                       />
                       <Label
                         htmlFor={`labor-${item.value}`}
-                        className={`flex h-full w-full cursor-pointer flex-row items-center justify-center gap-2 rounded-md p-2 text-center ${
+                        className={`flex h-full w-full cursor-pointer flex-row items-center justify-center gap-2 p-2 text-center ${
                           field.value === item.value
                             ? "font-semibold text-primary"
                             : ""
@@ -637,7 +668,7 @@ export function NewItemForm({
             disabled={!canAdd}
             title={!canAdd ? t("permissionDenied") : ""}
           >
-            <ListPlus size={16} /> {t("title")}
+            <PackagePlus size={16} /> {t("title")}
           </Button>
         </DrawerTrigger>
         <DrawerOverlay className="bg-black/40" />

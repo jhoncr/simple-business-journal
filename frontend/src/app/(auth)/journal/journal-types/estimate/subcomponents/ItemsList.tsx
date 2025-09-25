@@ -49,7 +49,7 @@ export const ItemsList = ({
               }`}
             >
               <td className="py-1 px-1 align-top">
-                <div className="text-xs">
+                <div className="text-sm leading-snug break-words font-semibold">
                   {item.description}
                   {item.description &&
                     (item.material?.description ||
@@ -101,7 +101,7 @@ export const ItemsList = ({
                   </span>
                 </div>
               </td>
-              <td className="py-1 px-1 text-right align-top">
+              <td className="py-1 px-1 text-right align-top font-semibold">
                 {currencyFormat(
                   item.quantity * (item.material?.unitPrice || 0),
                 )}
