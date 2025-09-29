@@ -233,7 +233,7 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
                       </div>
                       <FormControl>
                         <Input
-                          placeholder={t("streetAddressPlaceholder")}
+                          placeholder={t("streetPlaceholder")}
                           value={field.value ?? ""}
                           onChange={field.onChange}
                           onBlur={field.onBlur}

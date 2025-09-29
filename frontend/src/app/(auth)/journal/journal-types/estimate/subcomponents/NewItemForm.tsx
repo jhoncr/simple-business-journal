@@ -147,15 +147,23 @@ export function NewItemForm({
     ): string => {
       switch (laborType) {
         case "percentage":
-          return t("serviceFeeDescriptions.percentage", { rate: laborRate });
+          return (
+            "   " + t("serviceFeeDescriptions.percentage", { rate: laborRate })
+          );
         case "fixed":
-          return t("serviceFeeDescriptions.fixed", {
-            rate: formatCurrency(laborRate, currencySymbol),
-          });
+          return (
+            "   " +
+            t("serviceFeeDescriptions.fixed", {
+              rate: formatCurrency(laborRate, currencySymbol),
+            })
+          );
         case "quantity":
-          return t("serviceFeeDescriptions.quantity", {
-            rate: formatCurrency(laborRate, currencySymbol),
-          });
+          return (
+            "   " +
+            t("serviceFeeDescriptions.quantity", {
+              rate: formatCurrency(laborRate, currencySymbol),
+            })
+          );
         default:
           return "";
       }

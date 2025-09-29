@@ -73,8 +73,8 @@ export async function fetchDateRangeEntries(
   const config = getEntryConfig(entryType);
   if (
     !config ||
-    !config.sortField ||
-    !config.sortField.startsWith("details.")
+    !config.sortField
+    // || !config.sortField.startsWith("details.")
   ) {
     // Added null check for sortField
     console.error(
@@ -87,6 +87,14 @@ export async function fetchDateRangeEntries(
 
   try {
     const colPath = `${JOURNAL_COLLECTION}/${journalId}/${subcollectionName}`;
+
+    // add a day to 'to' to make the range inclusive of the end date
+    to = new Date(to);
+    to.setHours(23, 59, 59, 999);
+
+    from = new Date(from);
+    from.setHours(0, 0, 0, 0);
+
     const q = query(
       collection(db, colPath),
       where("isActive", "==", true),

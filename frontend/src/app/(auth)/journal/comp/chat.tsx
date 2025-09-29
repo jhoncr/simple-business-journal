@@ -10,7 +10,6 @@ import { useTranslations } from "next-intl";
 
 import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap"; // Import EntryType
 
-//TODO: handle delete of entries
 interface MessageListProps {
   messages: DBentry[];
   journalId: string; // --- ADD journalId ---
@@ -20,6 +19,7 @@ interface MessageListProps {
   role: string; // Logged-in user's role
   BottomFn?: () => void;
   removeFn: (entry: DBentry) => void;
+  onDuplicated?: (newEntryId: string) => void; // Callback for duplicated entries
 }
 const MessageList = memo(function MessageList({
   messages,
@@ -30,6 +30,7 @@ const MessageList = memo(function MessageList({
   role,
   BottomFn,
   removeFn,
+  onDuplicated,
 }: MessageListProps) {
   const [showToTopButton, setShowToTopButton] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -64,7 +65,7 @@ const MessageList = memo(function MessageList({
       // Show this button on top of the scroll
       <Button
         // show button on top center of the scroll component
-        className={`h-14 w-14 rounded-full transform -translate-x-1/2 -translate-y-1/2 z-50 absolute top-10 left-1/2 bg-primary
+        className={`h-14 w-14 rounded-full transform -translate-x-1/2 -translate-y-1/2 z-50 absolute top-10 left-1/2
             ${showToTopButton ? "visible" : "invisible"}`}
         variant="outline"
         onClick={goTopFn}
@@ -124,6 +125,7 @@ const MessageList = memo(function MessageList({
               user={userProps} // Pass creator info or fallback with required fields
               removeFn={removeFn}
               role={role} // Pass logged-in user's role
+              onDuplicated={onDuplicated} // Pass the duplicate callback
             />
           ) : null;
         })}
@@ -142,8 +144,8 @@ interface ChatBoxProps {
   hasFilter: boolean;
   // journalType is replaced by entryType
   removeFilterEntry: (entry: DBentry) => void;
+  onDuplicated?: (newEntryId: string) => void; // Callback for duplicated entries
 }
-// Create a component to render the chat box
 export function ChatBox({
   journalId, // Use journalId
   entryType, // --- Get entryType ---
@@ -152,6 +154,7 @@ export function ChatBox({
   filterList,
   hasFilter,
   removeFilterEntry,
+  onDuplicated,
 }: ChatBoxProps) {
   const [page, setPage] = useState(0);
   // --- Update useFetchEntries if needed ---
@@ -185,6 +188,7 @@ export function ChatBox({
             loading={loading}
             role={viewerRole} // Pass viewer role
             removeFn={removeFilterEntry}
+            onDuplicated={onDuplicated}
           />
         ) : (
           <MessageList
@@ -196,6 +200,7 @@ export function ChatBox({
             loading={loading}
             role={viewerRole} // Pass viewer role
             removeFn={removeEntry}
+            onDuplicated={onDuplicated}
           />
         ))}
       <div

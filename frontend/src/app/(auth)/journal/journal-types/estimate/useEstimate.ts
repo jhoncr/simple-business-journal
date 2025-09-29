@@ -73,7 +73,6 @@ export const useEstimate = ({
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [dueDate, setDueDate] = useState<Date | null>(null);
   const [createdAt, setCreatedAt] = useState<Date | null>(null);
   const [entryId, setEntryId] = useState<string | null | undefined>(
     initialEntryId,
@@ -140,10 +139,6 @@ export const useEstimate = ({
             console.log("Fetched estimate entry createdAt:", newCreatedAt);
             const processedDetails = {
               ...details,
-              dueDate:
-                details.dueDate && typeof details.dueDate.toDate === "function"
-                  ? details.dueDate.toDate()
-                  : details.dueDate,
               payments:
                 details.payments?.map(
                   (payment: { date: { toDate: () => Date } }) => ({
@@ -176,12 +171,6 @@ export const useEstimate = ({
               setTaxPercentage(validData.taxPercentage || 0);
               setNotes(validData.notes || "");
               setCanUpdate(true);
-
-              if (validData.dueDate) {
-                setDueDate(validData.dueDate);
-              } else {
-                setDueDate(new Date());
-              }
               setPayments((validData.payments as Payment[]) || []);
             }
           }
@@ -198,7 +187,6 @@ export const useEstimate = ({
         setAdjustments([]);
         setTaxPercentage(0);
         setNotes("");
-        setDueDate(null);
         setPayments([]);
         setLoading(false);
         // setCanUpdate(true); // Allow creating a new estimate
@@ -234,7 +222,6 @@ export const useEstimate = ({
       taxPercentage: updates.taxPercentage ?? taxPercentage,
       currency: journalCurrency,
       notes: updates.notes ?? notes,
-      dueDate: updates.dueDate ?? dueDate,
       payments: updates.payments ?? payments,
     };
 
@@ -335,7 +322,6 @@ export const useEstimate = ({
       taxPercentage,
       notes,
       entryId,
-      dueDate,
       payments,
       router,
       buildPayload,
@@ -400,7 +386,6 @@ export const useEstimate = ({
     adjustments,
     taxPercentage,
     notes,
-    dueDate,
     payments,
     loading,
     isSaving,
@@ -412,7 +397,6 @@ export const useEstimate = ({
     setAdjustments,
     setTaxPercentage,
     setNotes,
-    setDueDate,
     setPayments,
     addConfirmedItem,
     removeConfirmedItem,

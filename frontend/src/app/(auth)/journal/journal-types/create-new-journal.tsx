@@ -166,9 +166,10 @@ export function CreateNewJournal({
       console.log(`${functionName} successful:`, result.data);
 
       toast.success(
-        `${tCommon.business} "${data.title}" ${tCommon.hasBeen} ${
-          isEdit ? tCommon.updated : tCommon.created
-        } ${tCommon.successfully}.`,
+        t("successMessage", {
+          businessName: data.title,
+          action: isEdit ? t("updated") : t("created"),
+        }),
       );
 
       form.reset(defaultValues); // Reset form to defaults after success
@@ -186,9 +187,10 @@ export function CreateNewJournal({
     } catch (error: any) {
       console.error(`${functionName} failed:`, error);
       toast.error(
-        `${tCommon.error} ${isEdit ? tCommon.updating : tCommon.creating} ${
-          tCommon.business
-        }: ${error.message || tCommon.unexpectedError}`,
+        t("errorMessage", {
+          action: isEdit ? t("updating") : t("creatingVerb"),
+          error: error.message || t("unexpectedError"),
+        }),
       );
     } finally {
       setPending(false);
@@ -426,7 +428,7 @@ export function CreateNewJournal({
                       </FormDescription>
                       <FormControl>
                         <Input
-                          placeholder={t("zipCode")}
+                          placeholder={t("zipPlaceholder")}
                           {...field}
                           value={field.value || ""}
                         />

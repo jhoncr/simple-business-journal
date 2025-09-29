@@ -84,7 +84,6 @@ export const estimateDetailsStateSchema = z.object({
     .nullable(),
 
   // Fields from invoice
-  dueDate: z.coerce.date().optional().nullable(),
   payments: z.array(paymentSchema).optional(),
 });
 

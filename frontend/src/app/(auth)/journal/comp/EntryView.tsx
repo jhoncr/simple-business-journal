@@ -1,8 +1,12 @@
 // frontend/src/app/(auth)/journal/comp/EntryView.tsx
 import React, { memo } from "react";
 import { DBentry, AccessUser } from "@/lib/custom_types"; // Keep using DBentry
-import { ROLES_CAN_DELETE } from "@/../../backend/functions/src/common/const";
+import {
+  ROLES_CAN_DELETE,
+  ROLES_THAT_ADD,
+} from "@/../../backend/functions/src/common/const";
 import { DeleteEntryBtn } from "../actions/delete-entry";
+import { DuplicateEstimateBtn } from "../actions/duplicate-estimate";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -21,6 +25,7 @@ export interface EntryViewProps<T extends DBentry> {
   user: AccessUser; // User who created the entry (from access map)
   role: string; // Role of the *logged-in* user viewing the entry
   removeFn: (entry: T) => void; // Callback for UI removal
+  onDuplicated?: (newEntryId: string) => void; // Callback for when entry is duplicated
   children: React.ReactNode; // Type-specific content
 }
 
@@ -31,6 +36,7 @@ export const EntryView = memo(function EntryView<T extends DBentry>({
   user,
   role, // This is the viewing user's role
   removeFn,
+  onDuplicated,
   children,
 }: EntryViewProps<T>) {
   return (
@@ -47,8 +53,9 @@ export const EntryView = memo(function EntryView<T extends DBentry>({
           {children} {/* Render type-specific details here */}
         </div>
 
-        {/* --- Check role for delete permission --- */}
-        {ROLES_CAN_DELETE.has(role) && (
+        {/* --- Check role for actions (delete/duplicate) --- */}
+        {(ROLES_CAN_DELETE.has(role) ||
+          (ROLES_THAT_ADD.has(role) && entryType === "estimate")) && (
           <div className="flex-shrink-0 ml-auto" id={`entry-menu-${entry.id}`}>
             {" "}
             {/* Use ml-auto */}
@@ -60,19 +67,39 @@ export const EntryView = memo(function EntryView<T extends DBentry>({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive focus:bg-destructive/10 p-0" // Remove default padding
-                  onSelect={(e) => e.preventDefault()} // Prevent default close/action
-                >
-                  {/* --- Pass props to DeleteEntryBtn --- */}
-                  <DeleteEntryBtn
-                    journalId={journalId} // Pass journalId
-                    entryId={entry.id}
-                    entryType={entryType} // --- Pass entryType ---
-                    entryName={entry.name || entryType} // Pass entry name or type
-                    onDeleted={() => removeFn(entry)}
-                  />
-                </DropdownMenuItem>
+                {/* Duplicate option for estimates */}
+                {ROLES_THAT_ADD.has(role) &&
+                  entryType === "estimate" &&
+                  onDuplicated && (
+                    <DropdownMenuItem
+                      className="p-0"
+                      onSelect={(e) => e.preventDefault()}
+                    >
+                      <DuplicateEstimateBtn
+                        journalId={journalId}
+                        entryId={entry.id}
+                        entryName={entry.name}
+                        onDuplicated={onDuplicated}
+                      />
+                    </DropdownMenuItem>
+                  )}
+
+                {/* Delete option */}
+                {ROLES_CAN_DELETE.has(role) && (
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive focus:bg-destructive/10 p-0" // Remove default padding
+                    onSelect={(e) => e.preventDefault()} // Prevent default close/action
+                  >
+                    {/* --- Pass props to DeleteEntryBtn --- */}
+                    <DeleteEntryBtn
+                      journalId={journalId} // Pass journalId
+                      entryId={entry.id}
+                      entryType={entryType} // --- Pass entryType ---
+                      entryName={entry.name || entryType} // Pass entry name or type
+                      onDeleted={() => removeFn(entry)}
+                    />
+                  </DropdownMenuItem>
+                )}
                 {/* Add Edit option here later if needed */}
                 {/* <DropdownMenuItem>Edit</DropdownMenuItem> */}
               </DropdownMenuContent>

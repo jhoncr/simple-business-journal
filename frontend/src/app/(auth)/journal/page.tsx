@@ -15,6 +15,7 @@ import { getAddEntryForm, getJournalIcon } from "./journal-types/config";
 import { ROLES_THAT_ADD } from "@/../../backend/functions/src/common/const";
 import { useAuth } from "@/lib/auth_handler";
 import { useJournalContext } from "@/context/JournalContext";
+import { useToast } from "@/hooks/use-toast";
 import { DBentry, Journal } from "@/lib/custom_types";
 import {
   EntryType,
@@ -72,6 +73,7 @@ export default function ListJournalPage() {
   const [actionButton, setActionButton] = useState<React.ReactNode>(null);
   const { setToolBar } = useToolbar();
   const { journal, loading, error } = useJournalContext();
+  const { toast } = useToast();
   const params = useSearchParams();
   const router = useRouter();
   const journalId = params.get("jid");
@@ -164,16 +166,29 @@ export default function ListJournalPage() {
     setFilterList((prevList) => prevList.filter((x) => x.id !== entry.id));
   }, []);
 
+  const handleDuplicated = useCallback(
+    (newEntryId: string) => {
+      // Show success toast - the real-time subscription will handle showing the new entry
+      toast({
+        title: t("estimateDuplicated") || "Estimate Duplicated",
+        description:
+          t("duplicateSuccess") ||
+          "The estimate has been duplicated successfully.",
+      });
+    },
+    [toast, t],
+  );
+
   if (!journalId) return null;
   if (journal === undefined)
     return <div className="text-center p-6">{t("loading")}</div>;
   if (journal === null) return <NotFound />;
 
   return (
-    <div className="flex flex-col items-center justify-start w-full px-4 sm:px-6 lg:px-8">
+    <div className="flex flex-col items-center justify-start w-full px-2 sm:px-6 lg:px-8">
       <div
         id="filter-badges"
-        className="flex flex-row items-center justify-center space-x-2 my-4"
+        className="flex flex-row items-center justify-center space-x-2"
       >
         <FilterRangeBadge dateRange={dateRange} setdateRange={setDateRange} />
       </div>
@@ -200,6 +215,7 @@ export default function ListJournalPage() {
             filterList={filterList}
             hasFilter={!!dateRange}
             removeFilterEntry={removeFilterEntry}
+            onDuplicated={handleDuplicated}
           />
         )}
       </div>

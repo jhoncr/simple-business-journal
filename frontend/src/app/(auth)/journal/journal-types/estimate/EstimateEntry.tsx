@@ -23,6 +23,7 @@ interface EstimateEntryProps {
   user: AccessUser | null;
   role: string;
   removeFn: (entry: DBentry) => void;
+  onDuplicated?: (newEntryId: string) => void;
 }
 
 // --- Main Component ---
@@ -33,6 +34,7 @@ export const EstimateEntry = React.memo(function EstimateEntry({
   user,
   role,
   removeFn,
+  onDuplicated,
 }: EstimateEntryProps) {
   const t = useTranslations("journal");
 
@@ -49,7 +51,6 @@ export const EstimateEntry = React.memo(function EstimateEntry({
   const details = entry.details as EstimateDetails;
   const {
     customer,
-    dueDate,
     confirmedItems = [],
     currency,
     notes,
@@ -100,47 +101,54 @@ export const EstimateEntry = React.memo(function EstimateEntry({
       user={user}
       role={role}
       removeFn={removeFn}
+      onDuplicated={onDuplicated}
     >
       <Link
         href={`/journal/entry?jid=${journalId}&eid=${entry.id}&jtype=estimate`}
         className="block hover:bg-accent/50 transition-colors rounded-md -m-2 p-2"
       >
-        {/* Top Row: Customer Name, Grand Total, Status */}
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 mb-1">
-          <div className="flex items-center gap-2 min-w-0">
-            <ClipboardList className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span
-              className="font-medium truncate"
-              title={customer?.name || t("noCustomer")}
-            >
-              {customer?.name || t("noCustomer")}
-            </span>
+        <div className="flex flex-col md:grid md:grid-cols-[minmax(0,1fr)_auto_auto_auto] md:items-center md:gap-4">
+          {/* Col 1: Customer and Notes */}
+          <div className="flex items-start gap-2 min-w-0">
+            <ClipboardList className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1 hidden md:block" />
+            <div className="flex-grow min-w-0">
+              <div className="flex items-center justify-between">
+                <span
+                  className="font-medium truncate"
+                  title={customer?.name || t("noCustomer")}
+                >
+                  {customer?.name || t("noCustomer")}
+                </span>
+                <span className="font-semibold text-base whitespace-nowrap md:hidden">
+                  {formatCurrency(grandTotal, currency || "USD")}
+                </span>
+              </div>
+              {notes && (
+                <p className="italic whitespace-normal text-xs text-muted-foreground">
+                  {notes}
+                </p>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <WorkStatusBadge status={status} />
-            <span className="font-semibold text-base">
-              {formatCurrency(grandTotal, currency || "USD")}
-            </span>
+
+          {/* Col 2: Status and Date */}
+          <div className="flex items-center justify-between mt-2 md:mt-0 md:contents">
+            <div className="flex items-center gap-2 md:justify-center">
+              <WorkStatusBadge status={status} />
+            </div>
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              {formattedDate(entry.createdAt)}
+            </div>
+          </div>
+
+          {/* Col 3: Grand Total (Desktop) */}
+          <div className="hidden md:block font-semibold text-base whitespace-nowrap text-right">
+            {formatCurrency(grandTotal, currency || "USD")}
           </div>
         </div>
-
-        {/* Bottom Row: Summary of items/notes */}
-        <div className="text-xs text-muted-foreground space-y-1">
-          {confirmedItems.length > 0 && (
-            <p className="truncate">
-              {t("itemCount", { count: confirmedItems.length })}
-            </p>
-          )}
-          {notes && (
-            <p className="truncate italic">
-              {t("notesLabel")}: {notes}
-            </p>
-          )}
-        </div>
-
-        {/* Creator and Date Info */}
-        <div className="text-xs text-muted-foreground mt-2 text-right">
-          {entry.id} | {formattedDate(entry.createdAt)}
+        {/* ID shown for debugging or reference */}
+        <div className="text-xs text-muted-foreground/50 mt-1 text-right">
+          {entry.id}
         </div>
       </Link>
     </EntryView>
