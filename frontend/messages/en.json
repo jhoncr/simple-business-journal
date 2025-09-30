@@ -241,9 +241,9 @@
     "material": "Material",
     "serviceFeeSummary": "Service Fee",
     "serviceFeeDescriptions": {
-      "percentage": "↳ service fee of {rate}% of line total",
-      "fixed": "↳ service fee fixed at {rate}",
-      "quantity": "↳ service fee of {rate} per unit"
+      "percentage": "service fee of {rate}% of line total",
+      "fixed": "service fee fixed at {rate}",
+      "quantity": "service fee of {rate} per unit"
     },
     "laborItemDescription": "Labor",
     "validationErrors": {

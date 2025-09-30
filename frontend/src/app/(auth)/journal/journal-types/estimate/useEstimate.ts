@@ -352,6 +352,7 @@ export const useEstimate = ({
   };
 
   const calculateSubtotal = useCallback(() => {
+    console.debug("Calculating subtotal for items:", confirmedItems);
     return confirmedItems.reduce(
       (sum, item) =>
         sum +

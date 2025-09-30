@@ -241,9 +241,9 @@
     "material": "Material",
     "serviceFeeSummary": "Taxa de Serviço",
     "serviceFeeDescriptions": {
-      "percentage": "↳ taxa de serviço de {rate}% do total da linha",
-      "fixed": "↳ taxa de serviço fixa de {rate}",
-      "quantity": "↳ taxa de serviço de {rate} por unidade"
+      "percentage": "taxa de serviço de {rate}% do total da linha",
+      "fixed": "taxa de serviço fixa de {rate}",
+      "quantity": "taxa de serviço de {rate} por unidade"
     },
     "laborItemDescription": "Mão de Obra",
     "validationErrors": {

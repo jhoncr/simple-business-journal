@@ -7,14 +7,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "next-intl";
 import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerClose,
-  DrawerFooter,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { NumericInput } from "@/components/InputUnit";
@@ -40,7 +40,7 @@ interface AdjustmentFormProps {
 // Define adjustment types for better type safety
 const ADJUSTMENT_TYPE_VALUES = [
   "addFixed",
-  "addPercent", 
+  "addPercent",
   "discountFixed",
   "discountPercent",
   "taxPercent",
@@ -92,7 +92,7 @@ export function AdjustmentForm({
 }: AdjustmentFormProps) {
   const t = useTranslations("adjustmentForm");
   const tCommon = useTranslations("common");
-  
+
   // Consolidated form state
   const [formState, setFormState] = useState<{
     type: Adjustment["type"];
@@ -105,7 +105,7 @@ export function AdjustmentForm({
   });
 
   const isMobile = useMediaQuery("(max-width: 768px)");
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const id = useId();
 
   // --- Add permission check ---
@@ -162,7 +162,7 @@ export function AdjustmentForm({
     }
 
     resetForm();
-    if (isMobile) setDrawerOpen(false);
+    if (isMobile) setDialogOpen(false);
   };
 
   const isPercentType = formState.type.includes("Percent");
@@ -207,7 +207,9 @@ export function AdjustmentForm({
             id="adjustmentDescription"
             value={formState.description}
             onChange={(e) => updateField("description", e.target.value)}
-            placeholder={isTaxType ? t("taxPercent") : t("descriptionOptional")}
+            placeholder={
+              isTaxType ? t("taxPercent") : t("descriptionOptional")
+            }
             disabled={isTaxType || !canModify} // Disable input
             className="transition-all"
           />
@@ -254,8 +256,8 @@ export function AdjustmentForm({
   if (isMobile) {
     return (
       <div className="mobile-form print:hidden">
-        <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-          <DrawerTrigger asChild>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
             <Button
               variant="brutalist"
               className="w-full"
@@ -264,13 +266,16 @@ export function AdjustmentForm({
               <ListPlus className="mr-2" />
               {t("addAdjustment")}
             </Button>
-          </DrawerTrigger>
-          <DrawerContent className="sm:max-w-[420px] px-6 pt-2">
-            <DrawerHeader>
-              <DrawerTitle>{t("addAdjustment")}</DrawerTitle>
-            </DrawerHeader>
-            {formContent}
-            <DrawerFooter className="pt-2">
+          </DialogTrigger>
+          <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+            <DialogHeader className="flex-shrink-0">
+              <DialogTitle>{t("addAdjustment")}</DialogTitle>
+            </DialogHeader>
+            <div className="flex-grow overflow-y-auto pr-2">{formContent}</div>
+            <DialogFooter className="pt-4 flex-shrink-0 gap-2">
+              <DialogClose asChild>
+                <Button variant="outline">{tCommon("cancel")}</Button>
+              </DialogClose>
               <Button
                 type="submit"
                 form="estimate-adjustments-form"
@@ -279,12 +284,9 @@ export function AdjustmentForm({
               >
                 <Plus className="mr-1" /> {t("add")}
               </Button>
-              <Button variant="outline" onClick={() => setDrawerOpen(false)}>
-                {tCommon("cancel")}
-              </Button>
-            </DrawerFooter>
-          </DrawerContent>
-        </Drawer>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }

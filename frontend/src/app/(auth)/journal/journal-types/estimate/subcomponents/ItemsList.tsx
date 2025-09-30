@@ -45,17 +45,26 @@ export const ItemsList = ({
             <tr
               key={item.id}
               className={`border-b border-dashed last:border-0 ${
-                item.parentId === "root" ? "bg-secondary/30" : ""
+                item.parentId === "root"
+                  ? "bg-secondary/30"
+                  : "bg-secondary/10"
               }`}
             >
               <td className="py-1 px-1 align-top">
-                <div className="text-sm leading-snug break-words font-semibold">
+                <div
+                  className={`text-sm leading-snug break-words ${
+                    item.parentId !== "root"
+                      ? "font-normal text-muted-foreground"
+                      : "font-semibold"
+                  }`}
+                >
+                  {item.parentId !== "root" && " ↳ "}
                   {item.description}
                   {item.description &&
                     (item.material?.description ||
                       (item.material?.dimensions?.type === "area" &&
                         item.dimensions)) &&
-                    " - "}
+                    " "}
                   <span className="text-2xs text-muted-foreground">
                     {item.material?.description &&
                     item.description !== item.material.description &&
@@ -67,6 +76,7 @@ export const ItemsList = ({
                         {item.material.dimensions.unitLabel}
                       </>
                     ) : item.material?.description &&
+                      !item.parentId &&
                       item.description !== item.material.description ? (
                       <>{item.material.description}</>
                     ) : item.material?.dimensions?.type === "area" &&

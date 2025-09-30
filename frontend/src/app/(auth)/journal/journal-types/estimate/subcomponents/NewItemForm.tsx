@@ -4,15 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerOverlay,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Plus,
   PackagePlus,
@@ -667,8 +666,8 @@ export function NewItemForm({
       id="estimate-add-item-form"
       className="relative mb-6 print:hidden print:m-0"
     >
-      <Drawer open={isOpen} onOpenChange={setIsOpen}>
-        <DrawerTrigger asChild>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogTrigger asChild>
           <Button
             size="sm"
             className="w-full gap-2 print:hidden"
@@ -678,44 +677,40 @@ export function NewItemForm({
           >
             <PackagePlus size={16} /> {t("title")}
           </Button>
-        </DrawerTrigger>
-        <DrawerOverlay className="bg-black/40" />
-        <DrawerContent className="flex flex-col max-h-[96%] rounded-t-[10px] bg-background">
-          <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted flex-shrink-0" />
-          <div className="max-w-md w-full mx-auto flex flex-col overflow-hidden p-4 rounded-t-[10px] flex-grow">
-            <DrawerHeader className="flex-shrink-0">
-              <DrawerTitle>{t("title")}</DrawerTitle>
-            </DrawerHeader>
-            {formContent}
-            <DrawerFooter className="pt-4 flex-shrink-0">
-              <Button
-                type="submit"
-                form="newItemForm"
-                disabled={isSubmitting || !canAdd}
-                variant={"brutalist"}
-                className="w-full"
-                title={!canAdd ? t("permissionDenied") : ""}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {t("saving")}
-                  </>
-                ) : (
-                  <>
-                    <Plus className="mr-2" size={16} /> {t("addItem")}
-                  </>
-                )}
+        </DialogTrigger>
+        <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle>{t("title")}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-grow overflow-y-auto pr-2">{formContent}</div>
+          <DialogFooter className="pt-4 flex-shrink-0 gap-2">
+            <DialogClose asChild>
+              <Button variant="outline" className="w-full">
+                {tCommon("cancel")}
               </Button>
-              <DrawerClose asChild>
-                <Button variant="outline" className="w-full">
-                  {tCommon("cancel")}
-                </Button>
-              </DrawerClose>
-            </DrawerFooter>
-          </div>
-        </DrawerContent>
-      </Drawer>
+            </DialogClose>
+            <Button
+              type="submit"
+              form="newItemForm"
+              disabled={isSubmitting || !canAdd}
+              variant={"brutalist"}
+              className="w-full"
+              title={!canAdd ? t("permissionDenied") : ""}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t("saving")}
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2" size={16} /> {t("addItem")}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
