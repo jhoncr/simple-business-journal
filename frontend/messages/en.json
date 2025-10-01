@@ -165,7 +165,9 @@
       "headerPrice": "Price",
       "headerTotal": "Total",
       "noItems": "Add items using the form below.",
-      "unit": "unit"
+      "unit": "unit",
+      "editItem": "Edit Item",
+      "removeItem": "Remove Item"
     }
   },
   "contactInfo": {

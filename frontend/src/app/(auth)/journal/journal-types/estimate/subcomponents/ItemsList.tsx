@@ -1,7 +1,13 @@
 import { Button } from "@/components/ui/button";
-import { MinusCircle } from "lucide-react";
+import { EllipsisVertical, MinusCircle } from "lucide-react";
 import { LineItem } from "@/../../backend/functions/src/common/schemas/estimate_schema";
 import { useTranslations } from "next-intl";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface ItemsListProps {
   confirmedItems: LineItem[];
@@ -117,15 +123,31 @@ export const ItemsList = ({
                 )}
               </td>
               <td className="py-1 px-1 print:hidden align-top">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => removeConfirmedItem(item.id)}
-                  disabled={isSaving || !canUpdate}
-                  className="h-6 w-6"
-                >
-                  <MinusCircle className="h-3 w-3 text-muted-foreground" />
-                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      disabled={isSaving || !canUpdate}
+                      className="h-6 w-6"
+                    >
+                      <EllipsisVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem
+                      onClick={() => console.log("Edit disabled")}
+                      disabled={true}
+                    >
+                      {t("editItem")}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => removeConfirmedItem(item.id)}
+                    >
+                      {t("removeItem")}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </td>
             </tr>
           ))}

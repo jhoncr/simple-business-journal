@@ -683,7 +683,7 @@ export function NewItemForm({
             <DialogTitle>{t("title")}</DialogTitle>
           </DialogHeader>
           <div className="flex-grow overflow-y-auto pr-2">{formContent}</div>
-          <DialogFooter className="pt-4 flex-shrink-0 gap-2">
+          <DialogFooter className="pt-4 flex flex-row -shrink-0 gap-2">
             <DialogClose asChild>
               <Button variant="outline" className="w-full">
                 {tCommon("cancel")}

@@ -165,7 +165,9 @@
       "headerPrice": "Preço",
       "headerTotal": "Total",
       "noItems": "Adicione itens usando o formulário abaixo.",
-      "unit": "unid"
+      "unit": "unid",
+      "editItem": "Editar Item",
+      "removeItem": "Remover Item"
     }
   },
   "contactInfo": {
@@ -258,6 +260,8 @@
     "total": "Total",
     "saving": "Salvando...",
     "addItem": "Adicionar Item",
+    "editItem": "Editar Item",
+    "removeItem": "Remover Item",
     "permissionDenied": "Você não tem permissão para adicionar itens"
   },
   "adjustments": {

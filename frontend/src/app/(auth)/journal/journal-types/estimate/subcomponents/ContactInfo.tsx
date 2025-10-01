@@ -38,7 +38,7 @@ const ContactSummary = ({ info }: { info: contactInfoSchemaType }) => {
       {/* Name and company info */}
       <div className="flex flex-col">
         <div className="flex items-center space-x-2">
-          <User className="h-4 w-4 text-primary print:h-3 print:w-3" />
+          <User className="h-4 w-4 text-primary print:h-4 print:w-4" />
           <h2 className="text-base font-bold print:text-sm">
             {info.name || t("notSet")}
           </h2>
@@ -48,7 +48,7 @@ const ContactSummary = ({ info }: { info: contactInfoSchemaType }) => {
         {info.address?.street && ( // Add optional chaining to safely access address properties
           <div className="mt-1 text-2xs text-muted-foreground print:text-2xs">
             <div className="flex items-center space-x-2">
-              <MapPin className="h-3 w-3 text-muted-foreground" />
+              <MapPin className="h-4 w-4 text-muted-foreground" />
               <div className="flex flex-wrap gap-x-1">
                 <span>{info.address.street}</span>
                 <div>
@@ -62,9 +62,9 @@ const ContactSummary = ({ info }: { info: contactInfoSchemaType }) => {
       </div>
 
       {/* Contact details on right side */}
-      <div className="flex flex-col items-end space-y-1 text-2xs">
+      <div className="flex flex-col md:items-end space-y-1 text-2xs">
         <div className="flex items-center space-x-1">
-          <Phone className="h-3 w-3 text-muted-foreground" />
+          <Phone className="h-4 w-4 text-muted-foreground" />
           <a
             href={`tel:${info.phone}`}
             className="text-muted-foreground hover:text-primary print:text-2xs"
@@ -73,7 +73,7 @@ const ContactSummary = ({ info }: { info: contactInfoSchemaType }) => {
           </a>
         </div>
         <div className="flex items-center space-x-1">
-          <Mail className="h-3 w-3 text-muted-foreground" />
+          <Mail className="h-4 w-4 text-muted-foreground" />
           <a
             href={`mailto:${info.email}`}
             className="text-muted-foreground hover:text-primary print:text-2xs"
@@ -340,7 +340,7 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
               </form>
             </Form>
           ) : (
-            <div className="space-x-4 print:hidden flex flex-row justify-between items-center">
+            <div className="space-x-4 print:hidden flex flex-row justify-between items-top">
               <ContactSummary info={info} />
               <Button
                 variant="brutalist"
