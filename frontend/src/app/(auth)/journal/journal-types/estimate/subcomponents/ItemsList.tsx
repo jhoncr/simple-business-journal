@@ -65,10 +65,12 @@ export const ItemsList = ({
             <tr
               key={item.id}
               className={`border-b border-dashed last:border-0 ${
-                item.parentId === "root"
+                isItemBeingEdited(item)
+                  ? "bg-orange-500/20"
+                  : item.parentId === "root"
                   ? "bg-secondary/30"
                   : "bg-secondary/10"
-              } ${isItemBeingEdited(item) ? "bg-orange-500/20" : ""}`}
+              }`}
             >
               <td className="py-1 px-1 align-top">
                 <div

@@ -365,6 +365,11 @@ export const useEstimate = ({
   };
 
   const removeConfirmedItem = (id: string) => {
+    // remove edited item if it's being deleted
+    if (editingItem && editingItem.id === id) {
+      setEditingItem(null);
+    }
+
     const newItems = confirmedItems.filter(
       (item) => item.id !== id && item.parentId !== id,
     );
