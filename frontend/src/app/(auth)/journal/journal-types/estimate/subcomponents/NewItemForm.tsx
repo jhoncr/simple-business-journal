@@ -1,5 +1,5 @@
 // frontend/src/app/(auth)/journal/journal-types/estimate/subcomponents/NewItemForm.tsx
-import { useState, useMemo, useCallback } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +50,9 @@ interface NewItemFormProps {
   currency: allowedCurrencySchemaType;
   inventoryCache: Record<string, EntryItf>;
   userRole: (typeof ROLES)[number];
+  editingItem?: LineItem | null;
+  onCancelEdit?: () => void;
+  confirmedItems?: LineItem[]; // Add this to find labor items
 }
 
 const createItemFormSchema = (
@@ -129,6 +132,9 @@ export function NewItemForm({
   currency,
   inventoryCache,
   userRole,
+  editingItem,
+  onCancelEdit,
+  confirmedItems = [],
 }: NewItemFormProps) {
   const t = useTranslations("newItemForm");
   const tCommon = useTranslations("common");
@@ -137,6 +143,68 @@ export function NewItemForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const canAdd = useMemo(() => ROLES_THAT_ADD.has(userRole), [userRole]);
+
+  const populateFormFromLineItem = useCallback(
+    (item: LineItem): ItemFormValues => {
+      const material = item.material;
+      const dimensions = item.dimensions;
+
+      // Determine dimension type
+      let dimensionType = "unit-unit";
+      if (material?.dimensions?.type === "area") {
+        dimensionType = `area-${material.dimensions.unitLabel}`;
+      }
+
+      // Find any labor item that belongs to this item
+      const laborItem = confirmedItems.find((ci) => ci.parentId === item.id);
+      let laborType: "null" | "percentage" | "fixed" | "quantity" = "null";
+      let laborRate = 0;
+
+      if (laborItem && laborItem.material) {
+        const laborUnitPrice = laborItem.material.unitPrice;
+        const materialTotal = item.quantity * (material?.unitPrice || 0);
+
+        // Try to determine the labor type based on the relationship
+        if (laborItem.quantity === 1 && materialTotal > 0) {
+          // Check if it's a percentage
+          const possiblePercentage = (laborUnitPrice / materialTotal) * 100;
+          if (
+            possiblePercentage >= 0 &&
+            possiblePercentage <= 100 &&
+            Math.abs(
+              materialTotal * (possiblePercentage / 100) - laborUnitPrice,
+            ) < 0.01
+          ) {
+            laborType = "percentage";
+            laborRate = possiblePercentage;
+          } else {
+            laborType = "fixed";
+            laborRate = laborUnitPrice;
+          }
+        } else if (laborItem.quantity === item.quantity) {
+          laborType = "quantity";
+          laborRate = laborUnitPrice;
+        } else {
+          // Default to fixed if we can't determine
+          laborType = "fixed";
+          laborRate = laborUnitPrice * laborItem.quantity;
+        }
+      }
+
+      return {
+        description: item.description,
+        inventoryMaterialName: material?.description || item.description,
+        quantity: item.quantity,
+        unitPrice: material?.unitPrice || 0,
+        dimensionType,
+        length: dimensions?.length,
+        width: dimensions?.width,
+        laborType,
+        laborRate,
+      };
+    },
+    [confirmedItems],
+  );
 
   const getLaborDescription = useCallback(
     (
@@ -177,131 +245,224 @@ export function NewItemForm({
     defaultValues: defaultFormValues,
   });
 
-  const calculateAreaQuantity = (length?: number, width?: number) => {
-    if (length === undefined || width === undefined) return 0;
+  // Effect to populate form when editing an item
+  useEffect(() => {
+    if (editingItem && editingItem.parentId === "root") {
+      const formValues = populateFormFromLineItem(editingItem);
+      form.reset(formValues);
+      setIsOpen(true); // Open dialog on mobile
+    } else if (!editingItem) {
+      form.reset(defaultFormValues);
+      setIsOpen(false); // Close dialog when not editing
+    }
+  }, [editingItem, form, populateFormFromLineItem]);
+
+  const calculateAreaQuantity = (length?: number, width?: number): number => {
+    if (
+      length === undefined ||
+      width === undefined ||
+      length <= 0 ||
+      width <= 0
+    ) {
+      return 0;
+    }
     return Number((length * width).toFixed(2));
   };
 
   const { watch } = form;
   const formValues = watch();
-  const quantity = formValues.quantity || 0;
-  const unitPrice = formValues.unitPrice || 0;
-  const laborType = formValues.laborType;
-  const laborRate = formValues.laborRate || 0;
 
-  const materialTotal = quantity * unitPrice;
+  // Memoize calculated values to prevent unnecessary recalculations
+  const { quantity = 0, unitPrice = 0, laborType, laborRate = 0 } = formValues;
 
-  const calculateLaborPrice = (): number => {
-    if (laborType === "null" || laborRate === undefined) return 0;
+  const materialTotal = useMemo(() => {
+    return Number((quantity * unitPrice).toFixed(2));
+  }, [quantity, unitPrice]);
+
+  const laborTotal = useMemo(() => {
+    if (laborType === "null" || laborRate === undefined || laborRate < 0) {
+      return 0;
+    }
+
     try {
+      let total = 0;
       switch (laborType) {
         case "percentage":
-          return Number((materialTotal * (laborRate / 100)).toFixed(2));
+          total = materialTotal * (laborRate / 100);
+          break;
         case "fixed":
-          return Number(laborRate.toFixed(2));
+          total = laborRate;
+          break;
         case "quantity":
-          return Number((laborRate * quantity).toFixed(2));
+          total = laborRate * quantity;
+          break;
         default:
           return 0;
       }
+
+      // Ensure result is valid
+      return isFinite(total) && !isNaN(total) ? Number(total.toFixed(2)) : 0;
     } catch (error) {
       console.error("Error calculating labor price:", error);
       return 0;
     }
-  };
+  }, [laborType, laborRate, materialTotal, quantity]);
 
-  const laborTotal = calculateLaborPrice();
-  const grandTotal = materialTotal + laborTotal;
+  const grandTotal = useMemo(() => {
+    return Number((materialTotal + laborTotal).toFixed(2));
+  }, [materialTotal, laborTotal]);
 
-  const createLineItemFromForm = (values: ItemFormValues): LineItem => {
-    const [dimensionType, unitLabel] = values.dimensionType.split("-");
-    return {
-      id: crypto.randomUUID(),
-      parentId: "root",
-      quantity: values.quantity,
-      dimensions: {
-        length: values.length,
-        width: values.width,
-      },
-      description: values.description,
-      material: {
-        id: crypto.randomUUID(),
-        description: values.inventoryMaterialName || "",
-        unitPrice: values.unitPrice,
-        dimensions: {
-          type: dimensionType as "area" | "unit",
-          unitLabel: unitLabel as "m²" | "ft²" | "unit",
-        },
-        currency: currency,
-        labor: null,
-      },
-    };
-  };
+  const createLineItemFromForm = useCallback(
+    (values: ItemFormValues): LineItem => {
+      const [dimensionType, unitLabel] = values.dimensionType.split("-");
 
-  const createLaborItem = (
-    values: ItemFormValues,
-    parentItem: LineItem,
-  ): LineItem | null => {
-    if (values.laborType === "null" || values.laborRate === undefined) {
-      return null;
-    }
+      // Validate dimension type and unit label
+      const validDimensionTypes = ["area", "unit"];
+      const validUnitLabels = ["m²", "ft²", "unit"];
 
-    const laborQuantity =
-      values.laborType === "quantity" ? values.quantity : 1;
-    const laborUnitPrice = laborTotal / laborQuantity;
+      if (!validDimensionTypes.includes(dimensionType)) {
+        console.error(`Invalid dimension type: ${dimensionType}`);
+        throw new Error("Invalid dimension type");
+      }
 
-    if (!isNaN(laborUnitPrice) && isFinite(laborUnitPrice)) {
+      if (!validUnitLabels.includes(unitLabel)) {
+        console.error(`Invalid unit label: ${unitLabel}`);
+        throw new Error("Invalid unit label");
+      }
+
       return {
-        id: crypto.randomUUID(),
+        id: editingItem?.id || crypto.randomUUID(), // Preserve ID when editing
+        parentId: "root",
+        quantity: Number(values.quantity.toFixed(2)),
+        dimensions: {
+          length: values.length ? Number(values.length.toFixed(2)) : undefined,
+          width: values.width ? Number(values.width.toFixed(2)) : undefined,
+        },
+        description: values.description.trim(),
+        material: {
+          id: editingItem?.material?.id || crypto.randomUUID(), // Preserve material ID when editing
+          description: values.inventoryMaterialName?.trim() || "",
+          unitPrice: Number(values.unitPrice.toFixed(2)),
+          dimensions: {
+            type: dimensionType as "area" | "unit",
+            unitLabel: unitLabel as "m²" | "ft²" | "unit",
+          },
+          currency: currency,
+          labor: null,
+        },
+      };
+    },
+    [currency, editingItem],
+  );
+
+  const createLaborItem = useCallback(
+    (
+      values: ItemFormValues,
+      parentItem: LineItem,
+      calculatedLaborTotal: number,
+    ): LineItem | null => {
+      if (
+        values.laborType === "null" ||
+        values.laborRate === undefined ||
+        values.laborRate <= 0
+      ) {
+        return null;
+      }
+
+      const laborQuantity =
+        values.laborType === "quantity" ? values.quantity : 1;
+
+      // Avoid division by zero
+      if (laborQuantity <= 0) {
+        console.warn("Labor quantity must be greater than 0");
+        return null;
+      }
+
+      const laborUnitPrice = calculatedLaborTotal / laborQuantity;
+
+      // Validate the calculated unit price
+      if (
+        isNaN(laborUnitPrice) ||
+        !isFinite(laborUnitPrice) ||
+        laborUnitPrice < 0
+      ) {
+        console.warn(
+          `Invalid labor unit price calculated: ${laborUnitPrice}. Skipping labor item.`,
+        );
+        return null;
+      }
+
+      // Find existing labor item if editing
+      const existingLaborItem = editingItem
+        ? confirmedItems.find((ci) => ci.parentId === editingItem.id)
+        : null;
+
+      return {
+        id: existingLaborItem?.id || crypto.randomUUID(), // Preserve ID when editing
         parentId: parentItem.id,
-        quantity: laborQuantity,
+        quantity: Number(laborQuantity.toFixed(2)),
         description: getLaborDescription(
           values.laborType as "percentage" | "fixed" | "quantity",
-          values.laborRate || 0,
+          values.laborRate,
           currency,
         ),
         material: {
-          id: crypto.randomUUID(),
+          id: existingLaborItem?.material?.id || crypto.randomUUID(), // Preserve material ID
           description: t("laborItemDescription"),
-          unitPrice: laborUnitPrice,
+          unitPrice: Number(laborUnitPrice.toFixed(2)),
           currency: currency,
           dimensions: { type: "unit", unitLabel: "unit" },
           labor: null,
         },
       };
-    }
-    console.warn(
-      "Calculated labor unit price is invalid, skipping labor item.",
-    );
-    return null;
-  };
+    },
+    [currency, getLaborDescription, t, editingItem, confirmedItems],
+  );
 
   const handleAddItem = async (values: ItemFormValues) => {
+    if (!canAdd) {
+      console.warn("User does not have permission to add items");
+      return;
+    }
+
+    // Ensure inventoryMaterialName is set
     values.inventoryMaterialName = values.description;
 
     setIsSubmitting(true);
-    const lineItem = createLineItemFromForm(values);
-    const laborItem = createLaborItem(values, lineItem);
 
-    const itemsToAdd = [lineItem];
-    if (laborItem) {
-      itemsToAdd.push(laborItem);
+    try {
+      const lineItem = createLineItemFromForm(values);
+      const laborItem = createLaborItem(values, lineItem, laborTotal);
+
+      const itemsToAdd = [lineItem];
+      if (laborItem) {
+        itemsToAdd.push(laborItem);
+      }
+
+      const success = await onAddItem(itemsToAdd);
+
+      if (success) {
+        form.reset(defaultFormValues);
+        setIsOpen(false);
+        if (editingItem && onCancelEdit) {
+          onCancelEdit(); // Clear editing state
+        }
+      }
+    } catch (error) {
+      console.error("Error adding item:", error);
+      // Consider showing a toast notification here
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const success = await onAddItem(itemsToAdd);
-
-    if (success) {
-      form.reset(defaultFormValues);
-      setIsOpen(false);
-    }
-    setIsSubmitting(false);
   };
 
   const formContent = (
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(handleAddItem)}
-        className="px-4 flex flex-col flex-grow overflow-y-auto"
+        className={`px-4 flex flex-col flex-grow overflow-y-auto ${
+          editingItem ? "bg-orange-500/20" : ""
+        }`}
         id="newItemForm"
       >
         <FormField
@@ -339,6 +500,7 @@ export function NewItemForm({
                   placeholder="0.00"
                   className="peer text-center"
                   disabled={!canAdd}
+                  aria-label={t("unitPrice")}
                 />
               </FormControl>
               <FormMessage />
@@ -488,15 +650,15 @@ export function NewItemForm({
               <FormItem className="space-y-0 mt-2">
                 <FormLabel>{t("quantity")}</FormLabel>
                 <FormControl>
-                  <Input
-                    type="number"
+                  <NumericInput
                     className="peer text-center"
-                    {...field}
-                    value={field.value}
-                    onChange={(e) =>
-                      field.onChange(Number(e.target.value) || 0)
-                    }
+                    value={field.value.toString()}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      const value = Number(e.target.value);
+                      field.onChange(value >= 0 ? value : 0);
+                    }}
                     disabled={!canAdd}
+                    aria-label={t("quantity")}
                   />
                 </FormControl>
                 <FormMessage />
@@ -592,7 +754,16 @@ export function NewItemForm({
                 <NumericInput
                   value={field.value?.toString() ?? "0"}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                    field.onChange(Number(e.target.value) || 0);
+                    const value = Number(e.target.value);
+                    // Prevent negative values and excessive percentages
+                    if (
+                      form.watch("laborType") === "percentage" &&
+                      value > 100
+                    ) {
+                      field.onChange(100);
+                    } else {
+                      field.onChange(value >= 0 ? value : 0);
+                    }
                   }}
                   prefix={
                     form.watch("laborType") === "percentage"
@@ -603,6 +774,11 @@ export function NewItemForm({
                   placeholder="0.00"
                   className="peer text-center"
                   disabled={!canAdd || form.watch("laborType") === "null"}
+                  aria-label={
+                    form.watch("laborType") === "percentage"
+                      ? t("laborPercentage")
+                      : t("laborRate")
+                  }
                 />
               </FormControl>
               <FormMessage />
@@ -635,10 +811,24 @@ export function NewItemForm({
         className="print:hidden fixed bottom-4 right-4 z-50 bg-background border rounded-lg p-4 w-[400px] shadow-lg max-h-[calc(100vh-4rem)] flex flex-col"
       >
         <div className="mb-4 flex-shrink-0">
-          <h3 className="text-lg font-semibold">{t("title")}</h3>
+          <h3 className="text-lg font-semibold">
+            {editingItem ? t("editItem") : t("title")}
+          </h3>
         </div>
         <div className="flex-grow overflow-y-auto pr-2">{formContent}</div>
         <div className="flex justify-end gap-2 mt-4 flex-shrink-0">
+          {editingItem && onCancelEdit && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                form.reset(defaultFormValues);
+                onCancelEdit();
+              }}
+            >
+              {t("cancel")}
+            </Button>
+          )}
           <Button
             type="submit"
             form="newItemForm"
@@ -652,7 +842,8 @@ export function NewItemForm({
               </>
             ) : (
               <>
-                <Plus className="mr-2" size={16} /> {t("addItem")}
+                <Plus className="mr-2" size={16} />
+                {editingItem ? t("updateItem") : t("addItem")}
               </>
             )}
           </Button>
@@ -666,7 +857,16 @@ export function NewItemForm({
       id="estimate-add-item-form"
       className="relative mb-6 print:hidden print:m-0"
     >
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog
+        open={isOpen}
+        onOpenChange={(open) => {
+          setIsOpen(open);
+          // If dialog is closing and we're in edit mode, cancel the edit
+          if (!open && editingItem && onCancelEdit) {
+            onCancelEdit();
+          }
+        }}
+      >
         <DialogTrigger asChild>
           <Button
             size="sm"
@@ -680,13 +880,15 @@ export function NewItemForm({
         </DialogTrigger>
         <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader className="flex-shrink-0">
-            <DialogTitle>{t("title")}</DialogTitle>
+            <DialogTitle>
+              {editingItem ? t("editItem") : t("title")}
+            </DialogTitle>
           </DialogHeader>
           <div className="flex-grow overflow-y-auto pr-2">{formContent}</div>
           <DialogFooter className="pt-4 flex flex-row -shrink-0 gap-2">
             <DialogClose asChild>
               <Button variant="outline" className="w-full">
-                {tCommon("cancel")}
+                {editingItem ? t("cancel") : tCommon("cancel")}
               </Button>
             </DialogClose>
             <Button
@@ -704,7 +906,8 @@ export function NewItemForm({
                 </>
               ) : (
                 <>
-                  <Plus className="mr-2" size={16} /> {t("addItem")}
+                  <Plus className="mr-2" size={16} />
+                  {editingItem ? t("updateItem") : t("addItem")}
                 </>
               )}
             </Button>

@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
-import { WorkStatusDropdown } from "./estimateStatus";
+import { WorkStatusDropdown, getStatusLabel } from "./estimateStatus";
 import { WorkStatus } from "@/../../backend/functions/src/common/common_types";
 import { useTranslations } from "next-intl";
 
@@ -42,7 +42,7 @@ export const InvoiceDetails = ({
       <div className="hidden print:block">
         <Label className="print:text-2xs">{t("status")}</Label>
         <div className="text-xs font-medium text-muted-foreground print:text-2xs">
-          {status}
+          {getStatusLabel(status, t)}
         </div>
       </div>
       <div className="print:hidden">

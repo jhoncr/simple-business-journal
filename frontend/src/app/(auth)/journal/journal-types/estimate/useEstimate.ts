@@ -78,6 +78,7 @@ export const useEstimate = ({
     initialEntryId,
   );
   const [entryError, setEntryError] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<LineItem | null>(null);
 
   const customerRef = useRef<ContactInfoRef>(null);
   const router = useRouter();
@@ -189,7 +190,7 @@ export const useEstimate = ({
         setNotes("");
         setPayments([]);
         setLoading(false);
-        // setCanUpdate(true); // Allow creating a new estimate
+        setCanUpdate(true); // Allow creating a new estimate
         setCreatedAt(new Date()); // Set created date for new estimate
       }
     }
@@ -202,10 +203,12 @@ export const useEstimate = ({
       const isValid = await customerRef.current.validate();
       if (!isValid) {
         toast.error("Please correct customer details before saving.");
+        setIsSaving(false);
         return false;
       }
     } else {
       toast.error("Could not validate customer info.");
+      setIsSaving(false);
       return false;
     }
     return true;
@@ -289,19 +292,17 @@ export const useEstimate = ({
       }
       setIsSaving(true);
 
-      if (!(await validateCustomer())) {
-        setIsSaving(false);
-        setCanUpdate(true);
-        return false;
-      }
-
-      const payload = buildPayload(updates);
-      if (!payload) {
-        setIsSaving(false);
-        return false;
-      }
-
       try {
+        if (!(await validateCustomer())) {
+          return false;
+        }
+
+        const payload = buildPayload(updates);
+        if (!payload) {
+          setIsSaving(false);
+          return false;
+        }
+
         const result = await addLogFn(payload);
         return handleSaveSuccess(result, payload.details);
       } catch (error: unknown) {
@@ -330,10 +331,35 @@ export const useEstimate = ({
   );
 
   const addConfirmedItem = async (items: LineItem[]) => {
-    const newItems = [...confirmedItems, ...items];
+    let newItems: LineItem[];
+
+    // Check if any item in the array has an existing ID (edit mode)
+    const itemsToUpdate = items.filter((item) =>
+      confirmedItems.some((existingItem) => existingItem.id === item.id),
+    );
+
+    if (itemsToUpdate.length > 0) {
+      // Update existing items
+      newItems = confirmedItems.map((existingItem) => {
+        const updateItem = items.find((item) => item.id === existingItem.id);
+        return updateItem || existingItem;
+      });
+
+      // Add any new items that don't exist
+      const newItemsToAdd = items.filter(
+        (item) =>
+          !confirmedItems.some((existingItem) => existingItem.id === item.id),
+      );
+      newItems = [...newItems, ...newItemsToAdd];
+    } else {
+      // Add new items
+      newItems = [...confirmedItems, ...items];
+    }
+
     const success = await handleSave({ confirmedItems: newItems });
     if (success) {
       setConfirmedItems(newItems);
+      setEditingItem(null); // Clear editing state on success
     }
     return success;
   };
@@ -344,6 +370,18 @@ export const useEstimate = ({
     );
     setConfirmedItems(newItems);
     handleSave({ confirmedItems: newItems });
+  };
+
+  const editItem = (item: LineItem) => {
+    // Prevent editing if already editing or saving
+    if (isSaving || editingItem) {
+      return;
+    }
+    setEditingItem(item);
+  };
+
+  const cancelEdit = () => {
+    setEditingItem(null);
   };
 
   const handleStatusChange = (newStatus: WorkStatus) => {
@@ -394,6 +432,7 @@ export const useEstimate = ({
     entryError,
     userRole,
     customerRef,
+    editingItem,
     setCustomer,
     setAdjustments,
     setTaxPercentage,
@@ -401,6 +440,8 @@ export const useEstimate = ({
     setPayments,
     addConfirmedItem,
     removeConfirmedItem,
+    editItem,
+    cancelEdit,
     handleStatusChange,
     handleSave,
     calculateSubtotal,

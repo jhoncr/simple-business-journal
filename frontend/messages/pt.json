@@ -190,6 +190,7 @@
     "editBusiness": "Editar Negócio",
     "updateInfo": "Atualize as informações do seu negócio.",
     "createDescription": "Crie um novo diário de negócios para gerenciar orçamentos, estoque e fluxo de caixa.",
+    "createNewBusinessJournal": "Crie um novo diário de negócios para gerenciar orçamentos, estoque e fluxo de caixa.",
     "name": "Nome",
     "businessName": "Nome do Negócio",
     "logo": "Logo",
@@ -260,7 +261,10 @@
     "total": "Total",
     "saving": "Salvando...",
     "addItem": "Adicionar Item",
+    "updateItem": "Atualizar Item",
     "editItem": "Editar Item",
+    "editMode": "Modo de Edição",
+    "cancel": "Cancelar",
     "removeItem": "Remover Item",
     "permissionDenied": "Você não tem permissão para adicionar itens"
   },

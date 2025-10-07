@@ -6,3 +6,8 @@ simple-biz_flat.txt
 
 # exclude the _flat.txt files
 *_flat.txt
+
+# ignore design docs (ending in features.md)
+**/*features.md
+**/*feature.md
+

@@ -53,12 +53,15 @@ export const EstimateDetails = React.memo(function EstimateDetails(
     entryError,
     userRole,
     customerRef,
+    editingItem,
     setCustomer,
     setAdjustments,
     setTaxPercentage,
     setNotes,
     addConfirmedItem,
     removeConfirmedItem,
+    editItem,
+    cancelEdit,
     handleStatusChange,
     handleSave,
     calculateSubtotal,
@@ -120,6 +123,8 @@ export const EstimateDetails = React.memo(function EstimateDetails(
               <ItemsList
                 confirmedItems={confirmedItems}
                 removeConfirmedItem={removeConfirmedItem}
+                editItem={editItem}
+                editingItem={editingItem}
                 currencyFormat={currencyFormat}
                 isSaving={isSaving}
                 canUpdate={canUpdate}
@@ -130,6 +135,9 @@ export const EstimateDetails = React.memo(function EstimateDetails(
                   currency={props.journalCurrency}
                   inventoryCache={props.journalInventoryCache}
                   userRole={userRole}
+                  editingItem={editingItem}
+                  onCancelEdit={cancelEdit}
+                  confirmedItems={confirmedItems}
                 />
               </div>
               <InvoiceBottomLines

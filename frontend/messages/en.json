@@ -190,6 +190,7 @@
     "editBusiness": "Edit Business",
     "updateInfo": "Update your business information.",
     "createDescription": "Create a new business journal to manage estimates, inventory, and cash flow.",
+    "createNewBusinessJournal": "Create a new business journal to manage estimates, inventory, and cash flow.",
     "name": "Name",
     "businessName": "Business Name",
     "logo": "Logo",
@@ -260,6 +261,10 @@
     "total": "Total",
     "saving": "Saving...",
     "addItem": "Add Item",
+    "updateItem": "Update Item",
+    "editItem": "Edit Item",
+    "editMode": "Edit Mode",
+    "cancel": "Cancel",
     "permissionDenied": "You don't have permission to add items"
   },
   "adjustments": {

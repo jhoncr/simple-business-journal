@@ -12,6 +12,8 @@ import {
 interface ItemsListProps {
   confirmedItems: LineItem[];
   removeConfirmedItem: (id: string) => void;
+  editItem: (item: LineItem) => void;
+  editingItem?: LineItem | null;
   currencyFormat: (amount: number) => string;
   isSaving: boolean;
   canUpdate: boolean;
@@ -20,11 +22,23 @@ interface ItemsListProps {
 export const ItemsList = ({
   confirmedItems,
   removeConfirmedItem,
+  editItem,
+  editingItem,
   currencyFormat,
   isSaving,
   canUpdate,
 }: ItemsListProps) => {
   const t = useTranslations("estimate.itemsList");
+
+  const isItemBeingEdited = (item: LineItem) => {
+    if (!editingItem) return false;
+    // Check if this item is the one being edited
+    if (item.id === editingItem.id) return true;
+    // Check if this item is a child of the item being edited
+    if (item.parentId === editingItem.id) return true;
+    return false;
+  };
+
   return (
     <div className="space-y-1">
       <table className="w-full text-xs">
@@ -54,7 +68,7 @@ export const ItemsList = ({
                 item.parentId === "root"
                   ? "bg-secondary/30"
                   : "bg-secondary/10"
-              }`}
+              } ${isItemBeingEdited(item) ? "bg-orange-500/20" : ""}`}
             >
               <td className="py-1 px-1 align-top">
                 <div
@@ -123,25 +137,34 @@ export const ItemsList = ({
                 )}
               </td>
               <td className="py-1 px-1 print:hidden align-top">
-                <DropdownMenu>
+                <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       size="icon"
                       disabled={isSaving || !canUpdate}
                       className="h-6 w-6"
+                      onAbort={(e) => e.preventDefault()}
                     >
                       <EllipsisVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
                     <DropdownMenuItem
-                      onClick={() => console.log("Edit disabled")}
-                      disabled={true}
+                      onSelect={(e) => e.preventDefault()}
+                      onClick={(e) => {
+                        editItem(item);
+                      }}
+                      disabled={
+                        !canUpdate || item.parentId !== "root" || !!editingItem
+                      }
                     >
-                      {t("editItem")}
+                      {editingItem?.id === item.id
+                        ? "Editing..."
+                        : t("editItem")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
+                      onSelect={(e) => e.preventDefault()}
                       onClick={() => removeConfirmedItem(item.id)}
                     >
                       {t("removeItem")}
