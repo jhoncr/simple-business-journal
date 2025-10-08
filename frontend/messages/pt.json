@@ -164,10 +164,14 @@
       "headerQty": "Qtd",
       "headerPrice": "Preço",
       "headerTotal": "Total",
-      "noItems": "Adicione itens usando o formulário abaixo.",
-      "unit": "unid",
-      "editItem": "Editar Item",
-      "removeItem": "Remover Item"
+      "editItem": "Editar",
+      "removeItem": "Remover",
+      "noItems": "Nenhum item adicionado ainda.",
+      "unit": "unid.",
+      "viewExpanded": "Expandido",
+      "viewAggregated": "Agregado",
+      "headerItemTotal": "Subtotal",
+      "headerService": "Serviço"
     }
   },
   "contactInfo": {

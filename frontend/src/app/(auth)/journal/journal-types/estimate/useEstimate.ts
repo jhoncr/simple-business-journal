@@ -331,34 +331,36 @@ export const useEstimate = ({
   );
 
   const addConfirmedItem = async (items: LineItem[]) => {
-    let newItems: LineItem[];
+    let currentItems = [...confirmedItems];
 
-    // Check if any item in the array has an existing ID (edit mode)
-    const itemsToUpdate = items.filter((item) =>
-      confirmedItems.some((existingItem) => existingItem.id === item.id),
-    );
+    // Handle updates and additions from the input `items`
+    items.forEach((item) => {
+      const existingIndex = currentItems.findIndex((i) => i.id === item.id);
+      if (existingIndex !== -1) {
+        // If a lone item is updated, remove its old children
+        if (items.length === 1) {
+          currentItems = currentItems.filter((i) => i.parentId !== item.id);
+        }
+        currentItems[existingIndex] = item;
+      } else {
+        // if parentID is != root, add the child item right after its parent
+        if (item.parentId) {
+          const parentIndex = currentItems.findIndex(
+            (i) => i.id === item.parentId,
+          );
+          if (parentIndex !== -1) {
+            currentItems.splice(parentIndex + 1, 0, item);
+            return; // Skip pushing to the end
+          }
+        } else {
+          currentItems.push(item);
+        }
+      }
+    });
 
-    if (itemsToUpdate.length > 0) {
-      // Update existing items
-      newItems = confirmedItems.map((existingItem) => {
-        const updateItem = items.find((item) => item.id === existingItem.id);
-        return updateItem || existingItem;
-      });
-
-      // Add any new items that don't exist
-      const newItemsToAdd = items.filter(
-        (item) =>
-          !confirmedItems.some((existingItem) => existingItem.id === item.id),
-      );
-      newItems = [...newItems, ...newItemsToAdd];
-    } else {
-      // Add new items
-      newItems = [...confirmedItems, ...items];
-    }
-
-    const success = await handleSave({ confirmedItems: newItems });
+    const success = await handleSave({ confirmedItems: currentItems });
     if (success) {
-      setConfirmedItems(newItems);
+      setConfirmedItems(currentItems);
       setEditingItem(null); // Clear editing state on success
     }
     return success;

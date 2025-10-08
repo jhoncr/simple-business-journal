@@ -55,6 +55,7 @@ interface NewItemFormProps {
   confirmedItems?: LineItem[]; // Add this to find labor items
 }
 
+// TODO: consolidate with estimate_schema.ts
 const createItemFormSchema = (
   t: (key: string, values?: Record<string, any>) => string,
 ) =>
@@ -164,10 +165,13 @@ export function NewItemForm({
         const laborUnitPrice = laborItem.material.unitPrice;
         const materialTotal = item.quantity * (material?.unitPrice || 0);
 
+        // TODO: this should be a property in the estimate schema
         // Try to determine the labor type based on the relationship
         if (laborItem.quantity === 1 && materialTotal > 0) {
           // Check if it's a percentage
-          const possiblePercentage = (laborUnitPrice / materialTotal) * 100;
+          const possiblePercentage = Number(
+            ((laborUnitPrice / materialTotal) * 100).toFixed(2),
+          );
           if (
             possiblePercentage >= 0 &&
             possiblePercentage <= 100 &&
@@ -758,7 +762,7 @@ export function NewItemForm({
                     // Prevent negative values and excessive percentages
                     if (
                       form.watch("laborType") === "percentage" &&
-                      value > 100
+                      value > 1000 // max of 1000% to prevent absurd entries
                     ) {
                       field.onChange(100);
                     } else {
