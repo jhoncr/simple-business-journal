@@ -114,7 +114,7 @@ export const EstimateEntry = React.memo(function EstimateEntry({
             <div className="flex-grow min-w-0">
               <div className="flex items-center justify-between">
                 <span
-                  className="font-medium truncate"
+                  className="truncate font-medium"
                   title={customer?.name || t("noCustomer")}
                 >
                   {customer?.name || t("noCustomer")}
@@ -131,24 +131,23 @@ export const EstimateEntry = React.memo(function EstimateEntry({
             </div>
           </div>
 
-          {/* Col 2: Status and Date */}
-          <div className="flex items-center justify-between mt-2 md:mt-0 md:contents">
-            <div className="flex items-center gap-2 md:justify-center">
-              <WorkStatusBadge status={status} />
-            </div>
-            <div className="text-sm text-muted-foreground whitespace-nowrap">
-              {formattedDate(entry.createdAt)}
-            </div>
-          </div>
-
           {/* Col 3: Grand Total (Desktop) */}
           <div className="hidden md:block font-semibold text-base whitespace-nowrap text-right">
             {formatCurrency(grandTotal, currency || "USD")}
           </div>
         </div>
-        {/* ID shown for debugging or reference */}
-        <div className="text-xs text-muted-foreground/50 mt-1 text-right">
-          {entry.id}
+        <div className="flex justify-between items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 justify-start">
+            <WorkStatusBadge status={status} />
+
+            <div className="text-sm text-muted-foreground whitespace-nowrap">
+              {formattedDate(entry.createdAt)}
+            </div>
+          </div>
+          {/* ID shown for debugging or reference */}
+          <div className="text-xs text-muted-foreground/50 text-right">
+            {entry.id}
+          </div>
         </div>
       </Link>
     </EntryView>

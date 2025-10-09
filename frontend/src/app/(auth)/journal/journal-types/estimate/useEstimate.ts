@@ -352,9 +352,8 @@ export const useEstimate = ({
             currentItems.splice(parentIndex + 1, 0, item);
             return; // Skip pushing to the end
           }
-        } else {
-          currentItems.push(item);
         }
+        currentItems.push(item);
       }
     });
 
