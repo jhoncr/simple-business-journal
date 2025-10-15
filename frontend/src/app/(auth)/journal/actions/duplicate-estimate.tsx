@@ -78,7 +78,7 @@ export function DuplicateEstimateBtn({
       toast({
         title: t("estimateDuplicated") || "Estimate Duplicated",
         description:
-          t("estimateDuplicatedSuccess", { entryName }) ||
+          t("duplicateSuccess", { entryName }) ||
           `Estimate "${entryName}" created successfully`,
       });
 

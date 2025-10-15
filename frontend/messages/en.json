@@ -313,5 +313,29 @@
       "invalidAmount": "Payment amount must be a positive number.",
       "dateRequired": "Please select a date for the payment."
     }
+  },
+  "contributors": {
+    "title": "Add Contributors",
+    "description": "Add contributors to your journal",
+    "email": "Email",
+    "role": "Role",
+    "selectRole": "Select a role",
+    "addNewContributor": "Add new contributor",
+    "pending": "Pending",
+    "remove": "Remove",
+    "close": "Close",
+    "roles": {
+      "admin": "Admin",
+      "staff": "Staff",
+      "viewer": "Viewer"
+    },
+    "validEmail": "Please enter a valid email.",
+    "errorUpdatingContributors": "Something went wrong updating contributors",
+    "noPermissionModify": "You don't have permission to modify contributors",
+    "invalidContributorInfo": "Invalid contributor information provided",
+    "emailAlreadyInList": "This email is already in the list with the same role.",
+    "cannotChangeAdminRole": "You cannot change the role of an admin.",
+    "failedToAdd": "Failed to add contributor. Please try again.",
+    "failedToRemove": "Failed to remove contributor. Please try again."
   }
 }

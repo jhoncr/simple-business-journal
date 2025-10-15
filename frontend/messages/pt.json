@@ -314,5 +314,29 @@
       "invalidAmount": "O valor do pagamento deve ser um número positivo.",
       "dateRequired": "Por favor, selecione uma data para o pagamento."
     }
+  },
+  "contributors": {
+    "title": "Adicionar Colaboradores",
+    "description": "Adicione colaboradores ao seu diário",
+    "email": "Email",
+    "role": "Função",
+    "selectRole": "Selecione uma função",
+    "addNewContributor": "Adicionar novo colaborador",
+    "pending": "Pendente",
+    "remove": "Remover",
+    "close": "Fechar",
+    "roles": {
+      "admin": "Administrador",
+      "staff": "Equipe",
+      "viewer": "Visualizador"
+    },
+    "validEmail": "Por favor, insira um email válido.",
+    "errorUpdatingContributors": "Algo deu errado ao atualizar colaboradores",
+    "noPermissionModify": "Você não tem permissão para modificar colaboradores",
+    "invalidContributorInfo": "Informações de colaborador inválidas fornecidas",
+    "emailAlreadyInList": "Este email já está na lista com a mesma função.",
+    "cannotChangeAdminRole": "Você não pode alterar a função de um administrador.",
+    "failedToAdd": "Falha ao adicionar colaborador. Tente novamente.",
+    "failedToRemove": "Falha ao remover colaborador. Tente novamente."
   }
 }

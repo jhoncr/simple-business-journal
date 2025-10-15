@@ -79,6 +79,7 @@ export default function ListJournalPage() {
   const journalId = params.get("jid");
   const displayEntryType: EntryType = "estimate"; // Hardcoded to estimate
   const t = useTranslations("journal");
+  const t_c = useTranslations("contributors");
 
   useEffect(() => {
     if (!journalId) {
@@ -115,7 +116,7 @@ export default function ListJournalPage() {
               )}
             {authUser?.uid && journal?.access?.[authUser.uid]?.role && (
               <Badge variant="secondary">
-                {journal.access[authUser.uid].role}
+                {t_c(`roles.${journal.access[authUser.uid].role}`) || "-"}
               </Badge>
             )}
           </div>

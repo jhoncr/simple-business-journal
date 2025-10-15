@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/form";
 import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useTranslations } from "next-intl";
 
 import { useForm } from "react-hook-form";
 
@@ -40,15 +41,7 @@ import {
 import { functions } from "@/lib/auth_handler";
 
 import { SharableLink } from "@/components/ui/sharable-link";
-//schema for an array of emails
-const schema = z
-  .object({
-    email: z.string().email({ message: "Please enter a valid email." }),
-    role: z.enum(["admin", "reporter", "viewer"]),
-  })
-  .strict();
-
-type PersonType = z.infer<typeof schema>;
+// Schema will be created inside component to use translations
 
 type AccessList = { email: string; role: string; is_pending?: boolean };
 
@@ -67,6 +60,18 @@ export function AddContributers({
   access: AccessMap;
   pendingAccess: pendingAccessSchemaType;
 }) {
+  const t = useTranslations("contributors");
+
+  // Create schema with translations
+  const schema = z
+    .object({
+      email: z.string().email({ message: t("validEmail") }),
+      role: z.enum(["admin", "staff", "viewer"]),
+    })
+    .strict();
+
+  type PersonType = z.infer<typeof schema>;
+
   const [isOpen, setIsOpen] = useState(false);
   const [people, setPeople] = useState([] as AccessList[]);
   const [pending, setPending] = useState(false);
@@ -90,14 +95,13 @@ export function AddContributers({
     } catch (error: any) {
       console.error("Failed to update contributors:", error);
       // Extract error message for display
-      const errorMessage =
-        error.message || "Something went wrong updating contributors";
+      const errorMessage = error.message || t("errorUpdatingContributors");
       setError(errorMessage);
       // Handle specific error codes if the Firebase function returns them
       if (error.code === "functions/permission-denied") {
-        setError("You don't have permission to modify contributors");
+        setError(t("noPermissionModify"));
       } else if (error.code === "functions/invalid-argument") {
-        setError("Invalid contributor information provided");
+        setError(t("invalidContributorInfo"));
       }
       return false;
     } finally {
@@ -140,11 +144,11 @@ export function AddContributers({
         const cur = people.find((person) => person.email === email);
         if (cur) {
           if (role === cur.role) {
-            setError("This email is already in the list with the same role.");
+            setError(t("emailAlreadyInList"));
             return;
           }
           if (cur.role == "admin") {
-            setError("You cannot change the role of an admin.");
+            setError(t("cannotChangeAdminRole"));
             return;
           }
         }
@@ -171,7 +175,7 @@ export function AddContributers({
           })
           .catch((error) => {
             console.error("Error adding contributor:", error);
-            setError("Failed to add contributor. Please try again.");
+            setError(t("failedToAdd"));
           });
       }
     });
@@ -192,12 +196,12 @@ export function AddContributers({
           setPeople(updatedPeople);
           console.log("Contributor removed successfully");
         } else {
-          setError("Failed to remove contributor. Please try again.");
+          setError(t("failedToRemove"));
         }
       })
       .catch((error) => {
         console.error("Error removing contributor:", error);
-        setError("Failed to remove contributor. Please try again.");
+        setError(t("failedToRemove"));
       });
   };
 
@@ -213,19 +217,17 @@ export function AddContributers({
       </DialogTrigger>
       <DialogContent className="" onCloseAutoFocus={onClose}>
         <DialogHeader>
-          <DialogTitle>Add Contributors</DialogTitle>
-          <DialogDescription>
-            Add contributors to your journal
-          </DialogDescription>
+          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogDescription>{t("description")}</DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <div className="grid grid-cols-6 gap-2 -mb-5 -mt-2">
             <div className="col-span-3">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("email")}</Label>
             </div>
             <div className="col-span-2">
-              <Label htmlFor="role">Role</Label>
+              <Label htmlFor="role">{t("role")}</Label>
             </div>
           </div>
           <form className="space-y-6">
@@ -263,12 +265,18 @@ export function AddContributers({
                           defaultValue={field.value}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Select a role" />
+                            <SelectValue placeholder={t("selectRole")} />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="reporter">Reporter</SelectItem>
-                            <SelectItem value="viewer">Viewer</SelectItem>
+                            <SelectItem value="admin">
+                              {t("roles.admin")}
+                            </SelectItem>
+                            <SelectItem value="staff">
+                              {t("roles.staff")}
+                            </SelectItem>
+                            <SelectItem value="viewer">
+                              {t("roles.viewer")}
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                       </FormControl>
@@ -283,7 +291,7 @@ export function AddContributers({
                 variant="outline"
                 size="icon"
                 onClick={onAddClick}
-                aria-label="Add new contributor"
+                aria-label={t("addNewContributor")}
                 disabled={pending}
               >
                 <Plus />
@@ -310,7 +318,9 @@ export function AddContributers({
                   <div className="max-w-[80%] overflow-hidden">
                     <p className="truncate">{person.email}</p>
                     <p className="text-xs text-ellipsis">
-                      {`${person.is_pending ? "Pending:" : ""} ${person.role}`}
+                      {`${person.is_pending ? t("pending") + ":" : ""} ${t(
+                        `roles.${person.role}`,
+                      )}`}
                     </p>
                   </div>
 
@@ -328,7 +338,7 @@ export function AddContributers({
                     disabled={pending}
                   >
                     <UserX />
-                    <span className="sr-only">Remove</span>
+                    <span className="sr-only">{t("remove")}</span>
                   </Button>
                 </div>
               ))}
@@ -345,7 +355,7 @@ export function AddContributers({
                 variant={"outline"}
                 onClick={() => setIsOpen(false)}
               >
-                Close
+                {t("close")}
               </Button>
             </div>
           </DialogFooter>

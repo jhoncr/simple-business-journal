@@ -233,7 +233,7 @@ export function CreateNewJournal({
             {isEdit ? t("editBusiness") : t("newBusiness")}
           </DialogTitle>
           <DialogDescription>
-            {isEdit ? t("updateBusinessInfo") : t("createNewBusinessJournal")}
+            {isEdit ? t("updateInfo") : t("createNewBusinessJournal")}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>

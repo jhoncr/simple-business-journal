@@ -1,5 +1,5 @@
-import * as z from 'zod';
-import { contactInfoSchema, allowedCurrencySchema } from './common_schemas';
+import * as z from "zod";
+import { contactInfoSchema, allowedCurrencySchema } from "./common_schemas";
 
 export const currencyCodeSchema = allowedCurrencySchema; // ISO 4217 currency codes are 3 letters
 // Add this near the top of the file, before the schemas
@@ -13,7 +13,7 @@ export const currencySchema = z
 
 export const paymentSchema = z.object({
   id: z.string().cuid().optional(),
-  amount: z.number().positive('Payment amount must be positive.'),
+  amount: z.number().positive("Payment amount must be positive."),
   date: z.coerce.date(),
   method: z.string().optional().nullable(),
   transactionId: z.string().optional().nullable(),
@@ -25,9 +25,15 @@ export const materialSchema = z.object({
   description: z.string(),
   unitPrice: z.number(),
   dimensions: z.object({
-    type: z.enum(['area', 'unit']),
-    unitLabel: z.enum(['m²', 'ft²', 'unit']),
+    type: z.enum(["area", "unit"]),
+    unitLabel: z.enum(["m²", "ft²", "unit"]),
   }),
+  serviceFee: z
+    .object({
+      type: z.enum(["percent", "fixed", "perUnit", "none"]),
+      value: z.number().nonnegative(),
+    })
+    .optional(), // Make serviceFee optional to handle legacy data
   currency: currencyCodeSchema,
   labor: z.any().nullable(),
 });
@@ -46,27 +52,27 @@ export const lineItemSchema = z.object({
   description: z
     .string()
     .min(1, {
-      message: 'The description must be at least 1 characters.',
+      message: "The description must be at least 1 characters.",
     })
     .max(254, {
-      message: 'A max of 254 characters is allowed in the description.',
+      message: "A max of 254 characters is allowed in the description.",
     }),
   material: materialSchema,
 });
 
 export const adjustmentSchema = z.object({
   type: z.enum([
-    'addPercent',
-    'addFixed',
-    'discountPercent',
-    'discountFixed',
-    'taxPercent',
+    "addPercent",
+    "addFixed",
+    "discountPercent",
+    "discountFixed",
+    "taxPercent",
   ]),
   value: z.number().nonnegative(),
   description: z.string(),
 });
 
-import { WorkStatus } from '../common_types';
+import { WorkStatus } from "../common_types";
 
 export const estimateDetailsStateSchema = z.object({
   confirmedItems: z.array(lineItemSchema),
@@ -79,7 +85,7 @@ export const estimateDetailsStateSchema = z.object({
   currency: currencyCodeSchema,
   notes: z
     .string()
-    .max(250, { message: 'Notes must be less than 250 characters' })
+    .max(250, { message: "Notes must be less than 250 characters" })
     .optional()
     .nullable(),
 
