@@ -1,7 +1,5 @@
 import Image from "next/image";
-import { Building2, Mail, Phone } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { Mail, Phone } from "lucide-react";
 import { contactInfoSchemaType } from "../../../../../../../../backend/functions/src/common/schemas/common_schemas";
 import { useTranslations } from "next-intl";
 
@@ -21,7 +19,7 @@ export function EstimateHeader({
       {/* Mobile-first responsive layout */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-2 print:gap-1">
         {/* Logo and company info */}
-        <div className="flex items-start space-x-3 sm:space-x-2 print:space-x-1 min-w-0 flex-1">
+        <div className="flex items-center space-x-3 sm:space-x-2 print:space-x-1 min-w-0 flex-1">
           <div className="flex-shrink-0">
             <Image
               src={logo || "/placeholder.svg"}
