@@ -2,94 +2,131 @@ import React, { useState, useEffect, useCallback, memo, useRef } from "react";
 import { DBentry } from "../../../../lib/custom_types";
 import { AccessMap } from "@/../../backend/functions/src/common/schemas/common_schemas";
 import { Button } from "@/components/ui/button";
-import { ChevronsUp, User } from "lucide-react";
+import { ChevronsUp } from "lucide-react";
 import { Entry } from "./Entry";
 import { useFetchEntries } from "./useFetch";
 import { useAuth } from "@/lib/auth_handler";
+import { useTranslations } from "next-intl";
+import { useToast } from "@/hooks/use-toast";
+import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap";
 
-import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap"; // Import EntryType
-
-//TODO: handle delete of entries
 interface MessageListProps {
   messages: DBentry[];
-  journalId: string; // --- ADD journalId ---
-  entryType: EntryType; // --- ADD entryType ---
+  journalId: string;
+  entryType: EntryType;
   access: AccessMap;
   loading: boolean;
-  role: string; // Logged-in user's role
-  BottomFn?: () => void;
+  error?: string | null;
+  hasMore: boolean;
+  role: string;
+  onLoadMore: () => void;
   removeFn: (entry: DBentry) => void;
+  onDuplicated?: (newEntryId: string) => void;
 }
+
 const MessageList = memo(function MessageList({
   messages,
-  journalId, // Get prop
-  entryType, // Get prop
+  journalId,
+  entryType,
   access,
   loading,
+  error,
+  hasMore,
   role,
-  BottomFn,
+  onLoadMore,
   removeFn,
+  onDuplicated,
 }: MessageListProps) {
   const [showToTopButton, setShowToTopButton] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const bottomSentinelRef = useRef<HTMLDivElement>(null);
 
-  const handleScroll = useCallback(
-    (event: React.UIEvent<HTMLDivElement>) => {
-      const { scrollTop, clientHeight, scrollHeight } = event.currentTarget;
-      console.log("scrolling");
-      setShowToTopButton(scrollTop > 10);
-      // check if we are at the bottom of the page and user is scrolling down
-      if (scrollTop + clientHeight >= scrollHeight - 1) {
-        BottomFn && BottomFn();
-      }
-    },
-    [BottomFn],
-  );
+  // Set up Intersection Observer for bottom detection
+  useEffect(() => {
+    if (!bottomSentinelRef.current || !scrollRef.current) return;
 
-  const ButtonGoTop = () => {
-    const goTopFn = useCallback(() => {
-      // smooth scroll to top
-      console.log("scrolling to top");
-      // scroll to top if the scrollTop function is available
-      if (scrollRef.current) {
-        scrollRef.current.scrollTo({
-          top: -10,
-          behavior: "smooth",
-        });
-      }
-    }, []);
+    // Clean up previous observer
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+    }
 
-    return (
-      // Show this button on top of the scroll
-      <Button
-        // show button on top center of the scroll component
-        className={`h-14 w-14 rounded-full transform -translate-x-1/2 -translate-y-1/2 z-50 absolute top-10 left-1/2 bg-primary
-            ${showToTopButton ? "visible" : "invisible"}`}
-        variant="outline"
-        onClick={goTopFn}
-      >
-        <ChevronsUp />
-      </Button>
+    // Create new observer with explicit root
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting && hasMore && !loading) {
+          console.log("[MessageList] Bottom sentinel visible, loading more");
+          onLoadMore();
+        }
+      },
+      {
+        root: scrollRef.current, // Explicitly set the scroll container as root
+        rootMargin: "200px", // Trigger 200px before reaching bottom for smoother UX
+        threshold: 0,
+      },
     );
-  };
 
-  const Loading = () => {
+    observerRef.current.observe(bottomSentinelRef.current);
+
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [hasMore, loading, onLoadMore]);
+
+  // Simple scroll handler for "back to top" button
+  const handleScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop } = event.currentTarget;
+    setShowToTopButton(scrollTop > 100);
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    }
+  }, []);
+
+  const LoadingIndicator = () => {
+    const t = useTranslations("journal");
     return (
-      <div className="w-full h-14">
-        {loading ? (
-          <p className="text-center text-xs">Loading...</p>
-        ) : (
-          <p className="text-center text-xs">No more entries</p>
-        )}
+      <div className="w-full py-4">
+        {error ? (
+          <p className="text-center text-sm text-red-500">{error}</p>
+        ) : loading ? (
+          <p className="text-center text-sm text-muted-foreground">
+            {t("loading")}
+          </p>
+        ) : !hasMore ? (
+          <p className="text-center text-sm text-muted-foreground">
+            {t("noMoreEntries")}
+          </p>
+        ) : null}
       </div>
     );
   };
 
   return (
-    <div className="w-full h-full relative">
-      <ButtonGoTop />
+    <div className="w-full h-full relative overflow-hidden">
+      {/* Back to top button */}
+      <Button
+        className={`h-14 w-14 rounded-full transform -translate-x-1/2 z-50 absolute top-10 left-1/2 transition-opacity duration-200 ${
+          showToTopButton ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+        variant="outline"
+        onClick={scrollToTop}
+        aria-label="Scroll to top"
+      >
+        <ChevronsUp />
+      </Button>
+
+      {/* Scrollable message list */}
       <div
-        className="w-full flex flex-col overflow-y-auto h-screen space-y-2"
+        className="w-full h-full flex flex-col overflow-y-auto overflow-x-hidden space-y-2 px-2"
         ref={scrollRef}
         onScroll={handleScroll}
       >
@@ -99,106 +136,100 @@ const MessageList = memo(function MessageList({
             console.warn(
               `Creator info missing for user ID: ${entry.createdBy} on entry ${entry.id}`,
             );
-            // Optionally render a placeholder or skip
-            // return null;
           }
-          // Ensure the fallback object includes all required fields for the User type
-          // If creatorInfo exists, spread it and add the uid. Otherwise, use the fallback.
+
           const userProps = creatorInfo
-            ? { ...creatorInfo, uid: entry.createdBy } // Add uid from entry.createdBy
+            ? { ...creatorInfo, uid: entry.createdBy }
             : {
-                uid: entry.createdBy, // Use the creatorBy ID as the fallback uid
+                uid: entry.createdBy,
                 displayName: "Unknown User",
-                email: "", // Provide a default empty string or placeholder
-                role: "viewer", // Provide a default role or handle appropriately
-                // photoURL is optional
+                email: "",
+                role: "viewer" as const,
               };
+
           return entry?.createdBy ? (
             <Entry
               key={entry.id}
-              journalId={journalId} // --- Pass journalId ---
-              entryType={entryType} // --- Pass entryType ---
+              journalId={journalId}
+              entryType={entryType}
               entry={entry}
-              user={userProps} // Pass creator info or fallback with required fields
+              user={userProps}
               removeFn={removeFn}
-              role={role} // Pass logged-in user's role
+              role={role}
+              onDuplicated={onDuplicated}
             />
           ) : null;
         })}
-        <Loading />
+
+        {/* Loading indicator */}
+        <LoadingIndicator />
+
+        {/* Bottom sentinel for Intersection Observer */}
+        <div ref={bottomSentinelRef} className="h-1 w-full" />
       </div>
     </div>
   );
 });
 
 interface ChatBoxProps {
-  journalId: string; // Changed journalId to journalId
-  entryType: EntryType; // --- ADD entryType ---
+  journalId: string;
+  entryType: EntryType;
   access: AccessMap;
   actionButton: React.ReactNode;
-  filterList: DBentry[]; // Assuming filter list is of the same entryType
+  filterList: DBentry[];
   hasFilter: boolean;
-  // journalType is replaced by entryType
   removeFilterEntry: (entry: DBentry) => void;
+  onDuplicated?: (newEntryId: string) => void;
 }
-// Create a component to render the chat box
+
 export function ChatBox({
-  journalId, // Use journalId
-  entryType, // --- Get entryType ---
+  journalId,
+  entryType,
   access,
   actionButton,
   filterList,
   hasFilter,
   removeFilterEntry,
+  onDuplicated,
 }: ChatBoxProps) {
-  const [page, setPage] = useState(0);
-  // --- Update useFetchEntries if needed ---
-  const { loading, error, list, removeEntry } = useFetchEntries(
-    journalId,
-    entryType,
-    page,
-  ); // Pass entryType
+  const { loading, error, list, hasMore, fetchMore, removeEntry } =
+    useFetchEntries(journalId, entryType);
   const { authUser } = useAuth();
-  const viewerRole = (authUser && access[authUser.uid]?.role) || "viewer"; // Get viewer role safely
+  const viewerRole = (authUser && access[authUser.uid]?.role) || "viewer";
+  const { toast } = useToast();
+  const t = useTranslations("journal");
 
-  const handleAtBottom = useCallback(() => {
-    console.log("AtBottom Function called");
-    setPage((prevPage) => prevPage + 1); // Use functional update
-  }, []);
+  // Display error toast when fetch fails
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: t("error") || "Error",
+        description: error,
+        variant: "destructive",
+      });
+    }
+  }, [error, toast, t]);
 
-  // Render the chat box, if on mobile, the chat box will be full screen
-  // if on desktop, the chat box will cover 2/3 of the screen
   return (
-    <div className="h-full flex flex-col space-y-1 md:max-w-2xl w-full mx-auto">
-      {" "}
-      {/* Added mx-auto */}
-      {authUser &&
-        (hasFilter ? (
-          <MessageList
-            messages={filterList}
-            journalId={journalId} // Pass journalId
-            entryType={entryType} // Pass entryType
-            access={access}
-            BottomFn={handleAtBottom} // Pass directly
-            loading={loading}
-            role={viewerRole} // Pass viewer role
-            removeFn={removeFilterEntry}
-          />
-        ) : (
-          <MessageList
-            messages={list}
-            journalId={journalId} // Pass journalId
-            entryType={entryType} // Pass entryType
-            access={access}
-            BottomFn={handleAtBottom} // Pass directly
-            loading={loading}
-            role={viewerRole} // Pass viewer role
-            removeFn={removeEntry}
-          />
-        ))}
+    <div className="relative flex flex-col space-y-1 md:max-w-2xl w-full mx-auto h-full overflow-hidden">
+      {authUser && (
+        <MessageList
+          messages={hasFilter ? filterList : list}
+          journalId={journalId}
+          entryType={entryType}
+          access={access}
+          loading={loading}
+          error={error}
+          hasMore={hasMore}
+          role={viewerRole}
+          onLoadMore={fetchMore}
+          removeFn={hasFilter ? removeFilterEntry : removeEntry}
+          onDuplicated={onDuplicated}
+        />
+      )}
       <div
         id="action-btn"
-        className="fixed bottom-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-content h-content"
+        className="fixed bottom-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-content h-content z-40"
       >
         {actionButton}
       </div>

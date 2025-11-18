@@ -1,16 +1,16 @@
-"use client"
-import { useState } from "react"
-import { CalendarSearch } from "lucide-react"
-import { addDays, format } from "date-fns"
+"use client";
+import { useState } from "react";
+import { CalendarSearch } from "lucide-react";
+import { addDays, format } from "date-fns";
 // import { DateRange } from "react-day-picker"
-import { Button } from "@/components/ui/button"
-import { Calendar } from "@/components/ui/calendar"
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import { on } from "events"
+} from "@/components/ui/popover";
+import { on } from "events";
 
 /*
   * Date picker with range
@@ -21,64 +21,60 @@ import { on } from "events"
 */
 
 interface DateRange {
-  from: Date
-  to: Date
+  from: Date;
+  to: Date;
 }
 
 export function DatePickerWithRange({
   daterange,
-  setDate
+  setDate,
 }: {
-  daterange: DateRange | undefined
-  setDate: React.Dispatch<React.SetStateAction<DateRange | undefined>>
+  daterange: DateRange | undefined;
+  setDate: React.Dispatch<React.SetStateAction<DateRange | undefined>>;
 }) {
+  const [selected, setSelected] = useState<DateRange | undefined>(daterange);
+  const [open, setOpen] = useState(false);
 
-  const [selected, setSelected] = useState<DateRange | undefined>(daterange)
+  const handleGo = () => {
+    setDate(selected);
+    setOpen(false);
+  };
 
-
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      console.log("closing", selected)
-      setDate(selected)
-    }
-  }
+  const handleCancel = () => {
+    setSelected(daterange);
+    setOpen(false);
+  };
 
   return (
-      <Popover onOpenChange={handleOpenChange}>
-        <PopoverTrigger asChild>
-          <Button
-            id="daterange"
-            variant={"outline"}
-            size={"icon"}
-          >
-            <CalendarSearch className="h-5 w-5" />
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button id="daterange" variant={"outline"} size={"icon"}>
+          <CalendarSearch className="h-5 w-5" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          initialFocus
+          mode="range"
+          defaultMonth={daterange?.from ?? new Date()}
+          selected={selected}
+          onSelect={(date) => {
+            date && setSelected(date as DateRange);
+          }}
+          numberOfMonths={2}
+        />
+        <div className="flex justify-end gap-2 p-2">
+          <Button variant="outline" onClick={handleCancel}>
+            Cancel
           </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar
-            initialFocus
-            mode="range"
-            defaultMonth={ daterange?.from ?? new Date() }
-            selected={selected}
-            onSelect={ (date) => { date && setSelected(date as DateRange) } }
-            numberOfMonths={2}
-            
-          />
-        </PopoverContent>
-      </Popover>
-
-  )
+          <Button
+            onClick={handleGo}
+            disabled={!selected?.from || !selected?.to}
+          >
+            Go
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
-
-// {date?.from ? (
-//   date.to ? (
-//     <>
-//       {format(date.from, "LLL dd, y")} -{" "}
-//       {format(date.to, "LLL dd, y")}
-//     </>
-//   ) : (
-//     format(date.from, "LLL dd, y")
-//   )
-// ) : (
-//   <span>Pick a date</span>
-// )}

@@ -4,6 +4,7 @@ import { Download } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
 import { AccessMap } from "@/../../backend/functions/src/common/schemas/common_schemas";
 import { Button } from "@/components/ui/button";
+import { useTranslations } from "next-intl";
 
 interface DataObject {
   [key: string]: any;
@@ -67,6 +68,8 @@ const dataToCSV = (entry_list: DataObject[], access: AccessMap) => {
 };
 
 const ExportToCSV = ({ entry_list, filename, access }: Props) => {
+  const t = useTranslations("journal");
+
   const downloadCSV = () => {
     const csv = dataToCSV(entry_list, access);
     const blob = new Blob([csv], { type: "text/csv" });
@@ -85,7 +88,7 @@ const ExportToCSV = ({ entry_list, filename, access }: Props) => {
       variant="brutalist"
     >
       <Download size={16} />
-      <p>Download</p>
+      <p>{t("download")}</p>
     </Button>
   );
 };

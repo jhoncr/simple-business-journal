@@ -13,6 +13,7 @@ export interface EntryProps {
   user: AccessUser; // Creator user info
   role: string; // Logged-in user's role
   removeFn: (entry: DBentry) => void;
+  onDuplicated?: (newEntryId: string) => void; // Callback for when entry is duplicated
 }
 
 export const Entry = memo(function Entry({
@@ -22,6 +23,7 @@ export const Entry = memo(function Entry({
   user,
   role,
   removeFn,
+  onDuplicated,
 }: EntryProps) {
   // Use updated props type
   // --- Determine Component based on entryType ---
@@ -46,6 +48,7 @@ export const Entry = memo(function Entry({
       user,
       role,
       removeFn,
+      onDuplicated, // Pass down the callback
     },
   );
 });

@@ -1,26 +1,22 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { fetchDateRangeEntries, useWatchJournal } from "@/lib/db_handler";
+import { fetchDateRangeEntries } from "@/lib/db_handler";
 import { AddContributers } from "@/components/ui/add-contributors";
 import { useToolbar } from "../nav_tool_handler";
 import { ChatBox } from "./comp/chat";
-import Link from "next/link";
 import { DatePickerWithRange } from "./actions/date-pick-with-range";
 import { format } from "date-fns";
 import { X } from "lucide-react";
 import ExportToCSV from "./actions/export-to-csv";
+import { useTranslations } from "next-intl";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getAddEntryForm, getJournalIcon } from "./journal-types/config";
 import { ROLES_THAT_ADD } from "@/../../backend/functions/src/common/const";
 import { useAuth } from "@/lib/auth_handler";
 import { useJournalContext } from "@/context/JournalContext";
-import { DBentry, Journal } from "@/lib/custom_types";
-import {
-  EntryType,
-  ENTRY_CONFIG,
-} from "@/../../backend/functions/src/common/schemas/configmap";
-import { JOURNAL_TYPES } from "@/../../backend/functions/src/common/const";
-import { BusinessDetailsType } from "@/../../backend/functions/src/common/schemas/JournalSchema";
+import { useToast } from "@/hooks/use-toast";
+import { DBentry } from "@/lib/custom_types";
+import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap";
 import { pendingAccessSchemaType } from "@/../../backend/functions/src/common/schemas/common_schemas";
 import { Badge } from "@/components/ui/badge";
 
@@ -55,11 +51,14 @@ const FilterRangeBadge = ({
   ) : null;
 };
 
-const NotFound = () => (
-  <main className="flex flex-col items-center justify-center w-full mt-12 h-screen">
-    <p className="text-2xl font-bold">Log not found :/</p>
-  </main>
-);
+const NotFound = () => {
+  const t = useTranslations("journal");
+  return (
+    <main className="flex flex-col items-center justify-center w-full mt-12 h-screen">
+      <p className="text-2xl font-bold">{t("notFound")}</p>
+    </main>
+  );
+};
 
 export default function ListJournalPage() {
   const { authUser } = useAuth();
@@ -68,10 +67,13 @@ export default function ListJournalPage() {
   const [actionButton, setActionButton] = useState<React.ReactNode>(null);
   const { setToolBar } = useToolbar();
   const { journal, loading, error } = useJournalContext();
+  const { toast } = useToast();
   const params = useSearchParams();
   const router = useRouter();
   const journalId = params.get("jid");
   const displayEntryType: EntryType = "estimate"; // Hardcoded to estimate
+  const t = useTranslations("journal");
+  const t_c = useTranslations("contributors");
 
   useEffect(() => {
     if (!journalId) {
@@ -108,11 +110,11 @@ export default function ListJournalPage() {
               )}
             {authUser?.uid && journal?.access?.[authUser.uid]?.role && (
               <Badge variant="secondary">
-                {journal.access[authUser.uid].role}
+                {t_c(`roles.${journal.access[authUser.uid].role}`) || "-"}
               </Badge>
             )}
           </div>
-        </div>
+        </div>,
       );
 
       const AddEntryForm = getAddEntryForm(displayEntryType);
@@ -142,7 +144,7 @@ export default function ListJournalPage() {
       journalId,
       displayEntryType,
       dateRange.from,
-      dateRange.to
+      dateRange.to,
     );
     setFilterList(entries);
   }, [dateRange, journalId, displayEntryType]);
@@ -159,20 +161,33 @@ export default function ListJournalPage() {
     setFilterList((prevList) => prevList.filter((x) => x.id !== entry.id));
   }, []);
 
+  const handleDuplicated = useCallback(
+    (newEntryId: string) => {
+      // Show success toast - the real-time subscription will handle showing the new entry
+      toast({
+        title: t("estimateDuplicated") || "Estimate Duplicated",
+        description:
+          t("duplicateSuccess") ||
+          "The estimate has been duplicated successfully.",
+      });
+    },
+    [toast, t],
+  );
+
   if (!journalId) return null;
   if (journal === undefined)
-    return <div className="text-center p-6">Loading Journal...</div>;
+    return <div className="text-center p-6">{t("loading")}</div>;
   if (journal === null) return <NotFound />;
 
   return (
-    <div className="flex flex-col items-center justify-start w-full px-4 sm:px-6 lg:px-8">
+    <div className="flex flex-col items-center justify-start w-full h-[calc(100vh-4rem)] overflow-hidden px-2 sm:px-6 lg:px-8">
       <div
         id="filter-badges"
-        className="flex flex-row items-center justify-center space-x-2 my-4"
+        className="flex flex-row items-center justify-center space-x-2 py-2 flex-shrink-0"
       >
         <FilterRangeBadge dateRange={dateRange} setdateRange={setDateRange} />
       </div>
-      <div className="w-full">
+      <div className="w-full flex-1 overflow-hidden">
         {journal.access && journalId && (
           <ChatBox
             journalId={journalId}
@@ -184,7 +199,7 @@ export default function ListJournalPage() {
                   entry_list={filterList}
                   filename={`${journal.title}-Estimates-${format(
                     dateRange.from,
-                    "yyyyMMdd"
+                    "yyyyMMdd",
                   )}-${format(dateRange.to, "yyyyMMdd")}.csv`}
                   access={journal.access as any}
                 />
@@ -195,6 +210,7 @@ export default function ListJournalPage() {
             filterList={filterList}
             hasFilter={!!dateRange}
             removeFilterEntry={removeFilterEntry}
+            onDuplicated={handleDuplicated}
           />
         )}
       </div>

@@ -1,7 +1,8 @@
 import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
-import { WorkStatusDropdown } from "./estimateStatus";
-import { WorkStatus } from "@/lib/custom_types";
+import { WorkStatusDropdown, getStatusLabel } from "./estimateStatus";
+import { WorkStatus } from "@/../../backend/functions/src/common/common_types";
+import { useTranslations } from "next-intl";
 
 interface InvoiceDetailsProps {
   entryId: string | null | undefined;
@@ -16,31 +17,32 @@ export const InvoiceDetails = ({
   status,
   handleStatusChange,
 }: InvoiceDetailsProps) => {
+  const t = useTranslations("estimate");
   console.log("Rendering InvoiceDetails with createdDate:", createdDate);
   return (
     <div className="flex justify-between items-start mt-2 border-b pb-1 text-2xs">
       <div>
-        <Label className="print:text-2xs">Order ID</Label>
+        <Label className="print:text-2xs">{t("orderId")}</Label>
         <div
           id="orderId"
           className="text-xs font-medium text-muted-foreground print:text-2xs"
         >
-          {entryId || "Not yet assigned"}
+          {entryId || t("notYetAssigned")}
         </div>
       </div>
       <div>
-        <Label className="print:text-2xs">Created</Label>
+        <Label className="print:text-2xs">{t("created")}</Label>
         <div
           id="createdDate"
           className="text-xs font-medium text-muted-foreground print:text-2xs"
         >
-          {createdDate ? format(createdDate, "PP") : "Not set"}
+          {createdDate ? format(createdDate, "PP") : t("notSet")}
         </div>
       </div>
       <div className="hidden print:block">
-        <Label className="print:text-2xs">Status</Label>
+        <Label className="print:text-2xs">{t("status")}</Label>
         <div className="text-xs font-medium text-muted-foreground print:text-2xs">
-          {status}
+          {getStatusLabel(status, t)}
         </div>
       </div>
       <div className="print:hidden">

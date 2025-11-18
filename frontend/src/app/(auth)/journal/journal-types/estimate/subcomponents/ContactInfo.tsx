@@ -18,6 +18,7 @@ import {
   contactInfoSchema,
   contactInfoSchemaType,
 } from "@/../../backend/functions/src/common/schemas/common_schemas";
+import { useTranslations } from "next-intl";
 
 export interface ContactInfoRef {
   validate: () => Promise<boolean>;
@@ -30,60 +31,65 @@ interface ContactInfoProps {
 }
 
 // Improved ContactSummary layout
-const ContactSummary = ({ info }: { info: contactInfoSchemaType }) => (
-  <div className="flex flex-wrap justify-between items-start gap-2 flex-grow">
-    {/* Name and company info */}
-    <div className="flex flex-col">
-      <div className="flex items-center space-x-2">
-        <User className="h-4 w-4 text-primary print:h-3 print:w-3" />
-        <h2 className="text-base font-bold print:text-sm">
-          {info.name || "Not set"}
-        </h2>
-      </div>
+const ContactSummary = ({ info }: { info: contactInfoSchemaType }) => {
+  const t = useTranslations("contactInfo");
+  return (
+    <div className="flex flex-wrap justify-between items-start gap-2 flex-grow">
+      {/* Name and company info */}
+      <div className="flex flex-col">
+        <div className="flex items-center space-x-2">
+          <User className="h-4 w-4 text-primary print:h-4 print:w-4" />
+          <h2 className="text-base font-bold print:text-sm">
+            {info.name || t("notSet")}
+          </h2>
+        </div>
 
-      {/* Address below name */}
-      {info.address?.street && ( // Add optional chaining to safely access address properties
-        <div className="mt-1 text-2xs text-muted-foreground print:text-2xs">
-          <div className="flex items-center space-x-2">
-            <MapPin className="h-3 w-3 text-muted-foreground" />
-            <div className="flex flex-wrap gap-x-1">
-              <span>{info.address.street}</span>
-              <div>
-                {info.address.city}, {info.address.state}{" "}
-                {info.address.zipCode}
+        {/* Address below name */}
+        {info.address?.street && ( // Add optional chaining to safely access address properties
+          <div className="mt-1 text-2xs text-muted-foreground print:text-2xs">
+            <div className="flex items-center space-x-2">
+              <MapPin className="h-4 w-4 text-muted-foreground" />
+              <div className="flex flex-wrap gap-x-1">
+                <span>{info.address.street}</span>
+                <div>
+                  {info.address.city}, {info.address.state}{" "}
+                  {info.address.zipCode}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
 
-    {/* Contact details on right side */}
-    <div className="flex flex-col items-end space-y-1 text-2xs">
-      <div className="flex items-center space-x-1">
-        <Phone className="h-3 w-3 text-muted-foreground" />
-        <a
-          href={`tel:${info.phone}`}
-          className="text-muted-foreground hover:text-primary print:text-2xs"
-        >
-          {info.phone || "Not set"}
-        </a>
-      </div>
-      <div className="flex items-center space-x-1">
-        <Mail className="h-3 w-3 text-muted-foreground" />
-        <a
-          href={`mailto:${info.email}`}
-          className="text-muted-foreground hover:text-primary print:text-2xs"
-        >
-          {info.email || "Not set"}
-        </a>
+      {/* Contact details on right side */}
+      <div className="flex flex-col md:items-end space-y-1 text-2xs">
+        <div className="flex items-center space-x-1">
+          <Phone className="h-4 w-4 text-muted-foreground" />
+          <a
+            href={`tel:${info.phone}`}
+            className="text-muted-foreground hover:text-primary print:text-2xs"
+          >
+            {info.phone || t("notSet")}
+          </a>
+        </div>
+        <div className="flex items-center space-x-1">
+          <Mail className="h-4 w-4 text-muted-foreground" />
+          <a
+            href={`mailto:${info.email}`}
+            className="text-muted-foreground hover:text-primary print:text-2xs"
+          >
+            {info.email || t("notSet")}
+          </a>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
   ({ info, setInfo, onSave }, ref) => {
+    const t = useTranslations("contactInfo");
+    const tCommon = useTranslations("common");
     const [isEditing, setIsEditing] = useState(!info.name);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -152,7 +158,7 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
                         <FormControl>
                           <Input
                             className="peer ps-9"
-                            placeholder="John Doe"
+                            placeholder={t("namePlaceholder")}
                             {...field}
                           />
                         </FormControl>
@@ -200,7 +206,7 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
                         <FormControl>
                           <Input
                             className="peer ps-9"
-                            placeholder="(555) 555-5555"
+                            placeholder={t("phonePlaceholder")}
                             value={field.value ?? ""}
                             onChange={field.onChange}
                             onBlur={field.onBlur}
@@ -222,10 +228,12 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
                   name="address.street"
                   render={({ field }) => (
                     <FormItem>
-                      <div className="text-sm font-medium">Street Address</div>
+                      <div className="text-sm font-medium">
+                        {t("streetAddress")}
+                      </div>
                       <FormControl>
                         <Input
-                          placeholder="123 Main St"
+                          placeholder={t("streetPlaceholder")}
                           value={field.value ?? ""}
                           onChange={field.onChange}
                           onBlur={field.onBlur}
@@ -244,7 +252,7 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
                     name="address.city"
                     render={({ field }) => (
                       <FormItem>
-                        <div className="text-sm font-medium">City</div>
+                        <div className="text-sm font-medium">{t("city")}</div>
                         <FormControl>
                           <Input
                             value={field.value ?? ""}
@@ -264,7 +272,7 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
                     name="address.state"
                     render={({ field }) => (
                       <FormItem>
-                        <div className="text-sm font-medium">State</div>
+                        <div className="text-sm font-medium">{t("state")}</div>
                         <FormControl>
                           <Input
                             value={field.value ?? ""}
@@ -284,7 +292,9 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
                     name="address.zipCode"
                     render={({ field }) => (
                       <FormItem>
-                        <div className="text-sm font-medium">ZIP Code</div>
+                        <div className="text-sm font-medium">
+                          {t("zipCode")}
+                        </div>
                         <FormControl>
                           <Input
                             placeholder="12345"
@@ -312,7 +322,7 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
                       !contactInfoSchema.safeParse(info).success
                     }
                   >
-                    Cancel
+                    {tCommon("cancel")}
                   </Button>
                   <Button
                     type="submit"
@@ -324,13 +334,13 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
                     variant={"brutalist"}
                     aria-label="Save changes"
                   >
-                    {isSubmitting ? "Saving..." : "Save Changes"}
+                    {isSubmitting ? t("saving") : t("saveChanges")}
                   </Button>
                 </div>
               </form>
             </Form>
           ) : (
-            <div className="space-x-4 print:hidden flex flex-row justify-between items-center">
+            <div className="space-x-4 print:hidden flex flex-row justify-between items-top">
               <ContactSummary info={info} />
               <Button
                 variant="brutalist"

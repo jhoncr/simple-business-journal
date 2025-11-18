@@ -73,12 +73,12 @@ export const useEstimate = ({
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [dueDate, setDueDate] = useState<Date | null>(null);
   const [createdAt, setCreatedAt] = useState<Date | null>(null);
   const [entryId, setEntryId] = useState<string | null | undefined>(
     initialEntryId,
   );
   const [entryError, setEntryError] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<LineItem | null>(null);
 
   const customerRef = useRef<ContactInfoRef>(null);
   const router = useRouter();
@@ -140,10 +140,6 @@ export const useEstimate = ({
             console.log("Fetched estimate entry createdAt:", newCreatedAt);
             const processedDetails = {
               ...details,
-              dueDate:
-                details.dueDate && typeof details.dueDate.toDate === "function"
-                  ? details.dueDate.toDate()
-                  : details.dueDate,
               payments:
                 details.payments?.map(
                   (payment: { date: { toDate: () => Date } }) => ({
@@ -176,12 +172,6 @@ export const useEstimate = ({
               setTaxPercentage(validData.taxPercentage || 0);
               setNotes(validData.notes || "");
               setCanUpdate(true);
-
-              if (validData.dueDate) {
-                setDueDate(validData.dueDate);
-              } else {
-                setDueDate(new Date());
-              }
               setPayments((validData.payments as Payment[]) || []);
             }
           }
@@ -198,10 +188,9 @@ export const useEstimate = ({
         setAdjustments([]);
         setTaxPercentage(0);
         setNotes("");
-        setDueDate(null);
         setPayments([]);
         setLoading(false);
-        // setCanUpdate(true); // Allow creating a new estimate
+        setCanUpdate(true); // Allow creating a new estimate
         setCreatedAt(new Date()); // Set created date for new estimate
       }
     }
@@ -214,10 +203,12 @@ export const useEstimate = ({
       const isValid = await customerRef.current.validate();
       if (!isValid) {
         toast.error("Please correct customer details before saving.");
+        setIsSaving(false);
         return false;
       }
     } else {
       toast.error("Could not validate customer info.");
+      setIsSaving(false);
       return false;
     }
     return true;
@@ -234,7 +225,6 @@ export const useEstimate = ({
       taxPercentage: updates.taxPercentage ?? taxPercentage,
       currency: journalCurrency,
       notes: updates.notes ?? notes,
-      dueDate: updates.dueDate ?? dueDate,
       payments: updates.payments ?? payments,
     };
 
@@ -302,19 +292,17 @@ export const useEstimate = ({
       }
       setIsSaving(true);
 
-      if (!(await validateCustomer())) {
-        setIsSaving(false);
-        setCanUpdate(true);
-        return false;
-      }
-
-      const payload = buildPayload(updates);
-      if (!payload) {
-        setIsSaving(false);
-        return false;
-      }
-
       try {
+        if (!(await validateCustomer())) {
+          return false;
+        }
+
+        const payload = buildPayload(updates);
+        if (!payload) {
+          setIsSaving(false);
+          return false;
+        }
+
         const result = await addLogFn(payload);
         return handleSaveSuccess(result, payload.details);
       } catch (error: unknown) {
@@ -335,7 +323,6 @@ export const useEstimate = ({
       taxPercentage,
       notes,
       entryId,
-      dueDate,
       payments,
       router,
       buildPayload,
@@ -344,20 +331,63 @@ export const useEstimate = ({
   );
 
   const addConfirmedItem = async (items: LineItem[]) => {
-    const newItems = [...confirmedItems, ...items];
-    const success = await handleSave({ confirmedItems: newItems });
+    let currentItems = [...confirmedItems];
+
+    // Handle updates and additions from the input `items`
+    items.forEach((item) => {
+      const existingIndex = currentItems.findIndex((i) => i.id === item.id);
+      if (existingIndex !== -1) {
+        // If a lone item is updated, remove its old children
+        if (items.length === 1) {
+          currentItems = currentItems.filter((i) => i.parentId !== item.id);
+        }
+        currentItems[existingIndex] = item;
+      } else {
+        // if parentID is != root, add the child item right after its parent
+        if (item.parentId) {
+          const parentIndex = currentItems.findIndex(
+            (i) => i.id === item.parentId,
+          );
+          if (parentIndex !== -1) {
+            currentItems.splice(parentIndex + 1, 0, item);
+            return; // Skip pushing to the end
+          }
+        }
+        currentItems.push(item);
+      }
+    });
+
+    const success = await handleSave({ confirmedItems: currentItems });
     if (success) {
-      setConfirmedItems(newItems);
+      setConfirmedItems(currentItems);
+      setEditingItem(null); // Clear editing state on success
     }
     return success;
   };
 
   const removeConfirmedItem = (id: string) => {
+    // remove edited item if it's being deleted
+    if (editingItem && editingItem.id === id) {
+      setEditingItem(null);
+    }
+
     const newItems = confirmedItems.filter(
       (item) => item.id !== id && item.parentId !== id,
     );
     setConfirmedItems(newItems);
     handleSave({ confirmedItems: newItems });
+  };
+
+  const editItem = (item: LineItem) => {
+    // Prevent editing if already editing or saving
+    if (isSaving || editingItem) {
+      return;
+    }
+    setEditingItem(item);
+  };
+
+  const cancelEdit = () => {
+    setEditingItem(null);
   };
 
   const handleStatusChange = (newStatus: WorkStatus) => {
@@ -366,6 +396,7 @@ export const useEstimate = ({
   };
 
   const calculateSubtotal = useCallback(() => {
+    console.debug("Calculating subtotal for items:", confirmedItems);
     return confirmedItems.reduce(
       (sum, item) =>
         sum +
@@ -400,7 +431,6 @@ export const useEstimate = ({
     adjustments,
     taxPercentage,
     notes,
-    dueDate,
     payments,
     loading,
     isSaving,
@@ -408,14 +438,16 @@ export const useEstimate = ({
     entryError,
     userRole,
     customerRef,
+    editingItem,
     setCustomer,
     setAdjustments,
     setTaxPercentage,
     setNotes,
-    setDueDate,
     setPayments,
     addConfirmedItem,
     removeConfirmedItem,
+    editItem,
+    cancelEdit,
     handleStatusChange,
     handleSave,
     calculateSubtotal,

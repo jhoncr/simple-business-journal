@@ -28,6 +28,9 @@ yarn-error.log*
 .env*.local
 .env.production
 
+# ignore .firebase
+.firebase/
+
 # vercel
 .vercel
 

@@ -1,107 +1,254 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, forwardRef, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 interface NumericInputProps
-  extends React.InputHTMLAttributes<HTMLInputElement> {
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange"> {
   label?: string;
   helperText?: string;
   prefix?: string;
   suffix?: string;
+  /** Maximum number of decimal places allowed (default: 2) */
+  decimalPlaces?: number;
+  /** Allow negative numbers (default: false) */
+  allowNegative?: boolean;
+  /** Minimum allowed value */
+  min?: number;
+  /** Maximum allowed value */
+  max?: number;
+  /** Error message to display */
+  error?: string;
+  /** Custom onChange handler that receives the formatted value */
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  /** Callback when value is out of bounds */
+  onValidationError?: (error: string) => void;
 }
 
-export function NumericInput({
-  label,
-  helperText,
-  value: propValue,
-  onChange: propOnChange,
-  prefix,
-  suffix,
-  ...props
-}: NumericInputProps) {
-  const [displayValue, setDisplayValue] = useState("");
+export const NumericInput = forwardRef<HTMLInputElement, NumericInputProps>(
+  (
+    {
+      label,
+      helperText,
+      value: propValue,
+      onChange: propOnChange,
+      prefix,
+      suffix,
+      decimalPlaces = 2,
+      allowNegative = false,
+      min,
+      max,
+      error,
+      onValidationError,
+      className,
+      disabled,
+      ...props
+    },
+    ref,
+  ) => {
+    const [displayValue, setDisplayValue] = useState("");
+    const [localError, setLocalError] = useState<string>("");
 
-  // Handle external value changes
-  useEffect(() => {
-    if (propValue !== undefined) {
-      setDisplayValue(String(propValue));
-    }
-  }, [propValue]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value;
-
-    // Allow empty input
-    if (inputValue === "") {
-      setDisplayValue("");
-      if (propOnChange) {
-        e.target.value = "";
-        propOnChange(e);
+    // Sync with external value changes
+    useEffect(() => {
+      if (propValue !== undefined && propValue !== null) {
+        const stringValue = String(propValue);
+        // Only update if different to avoid cursor jump
+        if (stringValue !== displayValue) {
+          setDisplayValue(stringValue);
+        }
+      } else if (
+        propValue === "" ||
+        propValue === null ||
+        propValue === undefined
+      ) {
+        setDisplayValue("");
       }
-      return;
-    }
+    }, [propValue]); // Removed displayValue from deps to prevent loops
 
-    // Check for non-numeric input after handling empty case
-    if (isNaN(Number(inputValue))) {
-      return;
-    }
+    const validateValue = useCallback(
+      (value: string): string | null => {
+        if (value === "" || value === "-") return null;
 
-    // Allow valid numeric inputs with up to 2 decimal places
-    const regex = /^[0-9]*\.?[0-9]{0,2}$/;
-    if (!regex.test(inputValue)) {
-      return;
-    }
+        const numValue = parseFloat(value);
+        if (isNaN(numValue)) return null;
 
-    // Format the value properly
-    let formattedValue = inputValue;
-    if (inputValue.includes(".")) {
-      // For decimal numbers
-      const [intPart, decPart] = inputValue.split(".");
-      const cleanIntPart =
-        intPart === "" ? "0" : intPart.replace(/^0+/, "") || "0";
-      formattedValue = `${cleanIntPart}.${decPart}`;
-    } else {
-      // For whole numbers
-      formattedValue = inputValue.replace(/^0+/, "") || "0";
-    }
+        if (min !== undefined && numValue < min) {
+          return `Value must be at least ${min}`;
+        }
+        if (max !== undefined && numValue > max) {
+          return `Value must be at most ${max}`;
+        }
 
-    // Update the display value
-    setDisplayValue(formattedValue);
+        return null;
+      },
+      [min, max],
+    );
 
-    // Call the parent onChange handler with the updated value
-    if (propOnChange) {
-      e.target.value = formattedValue;
-      propOnChange(e);
-    }
-  };
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const inputValue = e.target.value;
 
-  return (
-    <div className="space-y-2">
-      {label && <Label htmlFor={props.id}>{label}</Label>}
-      <div className="relative">
-        {prefix && (
-          <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-            <span className="text-gray-500">{prefix}</span>
-          </div>
+      // Allow empty input
+      if (inputValue === "") {
+        setDisplayValue("");
+        setLocalError("");
+        if (propOnChange) {
+          const syntheticEvent = {
+            ...e,
+            target: { ...e.target, value: "" },
+          } as React.ChangeEvent<HTMLInputElement>;
+          propOnChange(syntheticEvent);
+        }
+        return;
+      }
+
+      // Handle negative sign
+      if (allowNegative && inputValue === "-") {
+        setDisplayValue("-");
+        return;
+      }
+
+      // Build regex pattern based on settings
+      const negativePattern = allowNegative ? "-?" : "";
+      const decimalPattern =
+        decimalPlaces > 0 ? `\\.?[0-9]{0,${decimalPlaces}}` : "";
+      const regex = new RegExp(`^${negativePattern}[0-9]*${decimalPattern}$`);
+
+      // Validate format
+      if (!regex.test(inputValue)) {
+        return; // Reject invalid input
+      }
+
+      // Check if it's a valid number
+      if (inputValue !== "-" && isNaN(Number(inputValue))) {
+        return;
+      }
+
+      // Format the value
+      let formattedValue = inputValue;
+
+      // Only format if not actively typing a decimal
+      if (!inputValue.endsWith(".") && inputValue !== "-") {
+        if (inputValue.includes(".")) {
+          // For decimal numbers
+          const [intPart, decPart] = inputValue.split(".");
+          const sign = allowNegative && intPart.startsWith("-") ? "-" : "";
+          const absIntPart = intPart.replace("-", "");
+          const cleanIntPart =
+            absIntPart === "" ? "0" : absIntPart.replace(/^0+/, "") || "0";
+          formattedValue = `${sign}${cleanIntPart}.${decPart}`;
+        } else if (inputValue !== "-") {
+          // For whole numbers
+          const sign = allowNegative && inputValue.startsWith("-") ? "-" : "";
+          const absValue = inputValue.replace("-", "");
+          formattedValue = sign + (absValue.replace(/^0+/, "") || "0");
+        }
+      }
+
+      // Validate range
+      const validationError = validateValue(formattedValue);
+      setLocalError(validationError || "");
+      if (validationError && onValidationError) {
+        onValidationError(validationError);
+      }
+
+      // Update the display value
+      setDisplayValue(formattedValue);
+
+      // Call the parent onChange handler
+      if (propOnChange) {
+        const syntheticEvent = {
+          ...e,
+          target: { ...e.target, value: formattedValue },
+        } as React.ChangeEvent<HTMLInputElement>;
+        propOnChange(syntheticEvent);
+      }
+    };
+
+    const hasError = !!(error || localError);
+    const errorMessage = error || localError;
+
+    return (
+      <div className="space-y-2">
+        {label && (
+          <Label
+            htmlFor={props.id}
+            className={hasError ? "text-destructive" : ""}
+          >
+            {label}
+          </Label>
         )}
-        {suffix && (
-          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-            <span className="text-gray-500">{suffix}</span>
-          </div>
+        <div className="relative">
+          {prefix && (
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <span
+                className={cn(
+                  "text-sm",
+                  hasError ? "text-destructive" : "text-muted-foreground",
+                  disabled && "opacity-50",
+                )}
+              >
+                {prefix}
+              </span>
+            </div>
+          )}
+          {suffix && (
+            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+              <span
+                className={cn(
+                  "text-sm",
+                  hasError ? "text-destructive" : "text-muted-foreground",
+                  disabled && "opacity-50",
+                )}
+              >
+                {suffix}
+              </span>
+            </div>
+          )}
+          <Input
+            ref={ref}
+            type="text"
+            inputMode="decimal"
+            value={displayValue}
+            onChange={handleChange}
+            className={cn(
+              prefix && "pl-8",
+              suffix && "pr-8",
+              hasError && "border-destructive focus-visible:ring-destructive",
+              className,
+            )}
+            disabled={disabled}
+            aria-invalid={hasError}
+            aria-describedby={
+              errorMessage
+                ? `${props.id}-error`
+                : helperText
+                ? `${props.id}-helper`
+                : undefined
+            }
+            {...props}
+          />
+        </div>
+        {errorMessage && (
+          <p
+            id={`${props.id}-error`}
+            className="text-sm font-medium text-destructive"
+          >
+            {errorMessage}
+          </p>
         )}
-        <Input
-          type="text"
-          inputMode="decimal"
-          value={displayValue}
-          onChange={handleChange}
-          className={`${prefix ? "pl-7" : ""} ${suffix ? "pr-7" : ""}`}
-          {...props}
-        />
+        {helperText && !errorMessage && (
+          <p
+            id={`${props.id}-helper`}
+            className="text-sm text-muted-foreground"
+          >
+            {helperText}
+          </p>
+        )}
       </div>
-      {helperText && (
-        <p className="text-sm text-muted-foreground">{helperText}</p>
-      )}
-    </div>
-  );
-}
+    );
+  },
+);
+
+NumericInput.displayName = "NumericInput";

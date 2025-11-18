@@ -5,15 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { useTranslations } from "next-intl";
 import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerClose,
-  DrawerFooter,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+  DialogFooter,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { NumericInput } from "@/components/InputUnit";
@@ -37,12 +38,12 @@ interface AdjustmentFormProps {
 }
 
 // Define adjustment types for better type safety
-const ADJUSTMENT_TYPES = [
-  { value: "addFixed", label: "Fee flat ($)" },
-  { value: "addPercent", label: "Fee %" },
-  { value: "discountFixed", label: "Discount flat $" },
-  { value: "discountPercent", label: "Discount %" },
-  { value: "taxPercent", label: "Tax %" },
+const ADJUSTMENT_TYPE_VALUES = [
+  "addFixed",
+  "addPercent",
+  "discountFixed",
+  "discountPercent",
+  "taxPercent",
 ] as const;
 
 // Type selector component
@@ -50,10 +51,12 @@ function AdjustmentTypeSelector({
   value,
   onChange,
   id,
+  getTypeLabel,
 }: {
   value: Adjustment["type"];
   onChange: (value: Adjustment["type"]) => void;
   id: string;
+  getTypeLabel: (type: string) => string;
 }) {
   return (
     <RadioGroup
@@ -61,18 +64,18 @@ function AdjustmentTypeSelector({
       value={value}
       onValueChange={(value) => onChange(value as Adjustment["type"])}
     >
-      {ADJUSTMENT_TYPES.map((type) => (
+      {ADJUSTMENT_TYPE_VALUES.map((type) => (
         <div
-          key={`${id}-${type.value}`}
+          key={`${id}-${type}`}
           className="border-input hover:bg-accent/50 has-data-[state=checked]:border-ring has-data-[state=checked]:bg-accent relative flex flex-col items-start rounded-md border p-3 shadow-xs outline-none transition-colors"
         >
           <div className="flex items-center gap-2">
             <RadioGroupItem
-              id={`${id}-${type.value}`}
-              value={type.value}
+              id={`${id}-${type}`}
+              value={type}
               className="after:absolute after:inset-0"
             />
-            <Label htmlFor={`${id}-${type.value}`}>{type.label}</Label>
+            <Label htmlFor={`${id}-${type}`}>{getTypeLabel(type)}</Label>
           </div>
         </div>
       ))}
@@ -87,6 +90,9 @@ export function AdjustmentForm({
   taxPercentage,
   userRole = "viewer", // Default to viewer if undefined
 }: AdjustmentFormProps) {
+  const t = useTranslations("adjustmentForm");
+  const tCommon = useTranslations("common");
+
   // Consolidated form state
   const [formState, setFormState] = useState<{
     type: Adjustment["type"];
@@ -99,12 +105,30 @@ export function AdjustmentForm({
   });
 
   const isMobile = useMediaQuery("(max-width: 768px)");
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const id = useId();
 
   // --- Add permission check ---
   const canModify = useMemo(() => ROLES_THAT_ADD.has(userRole), [userRole]);
   // --- End permission check ---
+
+  // Helper function to get translated adjustment type labels
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case "addFixed":
+        return t("feeFlat");
+      case "addPercent":
+        return t("feePercent");
+      case "discountFixed":
+        return t("discountFlat");
+      case "discountPercent":
+        return t("discountPercent");
+      case "taxPercent":
+        return t("taxPercent");
+      default:
+        return type;
+    }
+  };
 
   // Form update helpers
   const updateField = <K extends keyof typeof formState>(
@@ -138,7 +162,7 @@ export function AdjustmentForm({
     }
 
     resetForm();
-    if (isMobile) setDrawerOpen(false);
+    if (isMobile) setDialogOpen(false);
   };
 
   const isPercentType = formState.type.includes("Percent");
@@ -153,7 +177,7 @@ export function AdjustmentForm({
     >
       {!isMobile && (
         <legend className="text-foreground text-sm leading-none font-medium mb-3">
-          Add Adjustment
+          {t("addAdjustment")}
         </legend>
       )}
       <div
@@ -170,26 +194,29 @@ export function AdjustmentForm({
               id={id}
               value={formState.type}
               onChange={(value) => updateField("type", value)}
+              getTypeLabel={getTypeLabel}
             />
           </fieldset>
         </div>
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="adjustmentDescription" className="sr-only">
-            Description {!isTaxType && "(Optional)"}
+            {t("description")} {!isTaxType && t("optional")}
           </Label>
           <Input
             id="adjustmentDescription"
             value={formState.description}
             onChange={(e) => updateField("description", e.target.value)}
-            placeholder={isTaxType ? "Tax %" : "Description (Optional)"}
+            placeholder={
+              isTaxType ? t("taxPercent") : t("descriptionOptional")
+            }
             disabled={isTaxType || !canModify} // Disable input
             className="transition-all"
           />
 
           <div>
             <Label htmlFor="adjustmentValue-id" className="sr-only">
-              Value
+              {t("value")}
             </Label>
             <NumericInput
               id="adjustmentValue-id"
@@ -219,7 +246,7 @@ export function AdjustmentForm({
             disabled={!formState.value || !canModify} // Disable button
           >
             <Plus className="mr-1" />
-            Add
+            {t("add")}
           </Button>
         </div>
       )}
@@ -229,37 +256,37 @@ export function AdjustmentForm({
   if (isMobile) {
     return (
       <div className="mobile-form print:hidden">
-        <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-          <DrawerTrigger asChild>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
             <Button
               variant="brutalist"
               className="w-full"
               disabled={!canModify} // Disable trigger
             >
               <ListPlus className="mr-2" />
-              Add Adjustment
+              {t("addAdjustment")}
             </Button>
-          </DrawerTrigger>
-          <DrawerContent className="sm:max-w-[420px] px-6 pt-2">
-            <DrawerHeader>
-              <DrawerTitle>Add Adjustment</DrawerTitle>
-            </DrawerHeader>
-            {formContent}
-            <DrawerFooter className="pt-2">
+          </DialogTrigger>
+          <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+            <DialogHeader className="flex-shrink-0">
+              <DialogTitle>{t("addAdjustment")}</DialogTitle>
+            </DialogHeader>
+            <div className="flex-grow overflow-y-auto pr-2">{formContent}</div>
+            <DialogFooter className="pt-4 flex-shrink-0 gap-2">
+              <DialogClose asChild>
+                <Button variant="outline">{tCommon("cancel")}</Button>
+              </DialogClose>
               <Button
                 type="submit"
                 form="estimate-adjustments-form"
                 variant="brutalist"
                 disabled={!formState.value || !canModify} // Disable button
               >
-                <Plus className="mr-1" /> Add
+                <Plus className="mr-1" /> {t("add")}
               </Button>
-              <Button variant="outline" onClick={() => setDrawerOpen(false)}>
-                Cancel
-              </Button>
-            </DrawerFooter>
-          </DrawerContent>
-        </Drawer>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }

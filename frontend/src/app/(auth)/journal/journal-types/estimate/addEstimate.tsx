@@ -21,6 +21,7 @@ import { InlineEditTextarea } from "./subcomponents/EditNotes";
 import { NewItemForm } from "./subcomponents/NewItemForm";
 import { Label } from "@/components/ui/label";
 import { WorkStatus } from "@/../../backend/functions/src/common/common_types";
+import { useTranslations } from "next-intl";
 
 interface EstimateDetailsProps {
   journalId: string;
@@ -35,6 +36,7 @@ interface EstimateDetailsProps {
 export const EstimateDetails = React.memo(function EstimateDetails(
   props: EstimateDetailsProps,
 ) {
+  const t = useTranslations("estimate");
   const {
     confirmedItems,
     status,
@@ -51,12 +53,15 @@ export const EstimateDetails = React.memo(function EstimateDetails(
     entryError,
     userRole,
     customerRef,
+    editingItem,
     setCustomer,
     setAdjustments,
     setTaxPercentage,
     setNotes,
     addConfirmedItem,
     removeConfirmedItem,
+    editItem,
+    cancelEdit,
     handleStatusChange,
     handleSave,
     calculateSubtotal,
@@ -65,7 +70,7 @@ export const EstimateDetails = React.memo(function EstimateDetails(
   } = useEstimate(props);
 
   if (loading) {
-    return <div className="text-center p-10">Loading estimate details...</div>;
+    return <div className="text-center p-10">{t("loadingDetails")}</div>;
   }
   if (entryError) {
     return <div className="text-center p-10 text-red-600">{entryError}</div>;
@@ -73,7 +78,7 @@ export const EstimateDetails = React.memo(function EstimateDetails(
   if (!props.journalCurrency || !props.supplierInfo) {
     return (
       <div className="text-center p-10 text-muted-foreground">
-        Journal details (currency, supplier) not available.
+        {t("journalDetailsNotAvailable")}
       </div>
     );
   }
@@ -99,7 +104,7 @@ export const EstimateDetails = React.memo(function EstimateDetails(
         />
 
         <div>
-          <h3 className="font-semibold mt-4">Client</h3>
+          <h3 className="font-semibold mt-4">{t("client")}</h3>
           <ContactInfo
             ref={customerRef}
             info={customer}
@@ -113,11 +118,13 @@ export const EstimateDetails = React.memo(function EstimateDetails(
             disabled={!canUpdate}
             className={!canUpdate ? "opacity-50" : ""}
           >
-            <h3 className="font-semibold pt-4">Items</h3>
+            <h3 className="font-semibold pt-4">{t("items")}</h3>
             <div className="border rounded-md p-2">
               <ItemsList
                 confirmedItems={confirmedItems}
                 removeConfirmedItem={removeConfirmedItem}
+                editItem={editItem}
+                editingItem={editingItem}
                 currencyFormat={currencyFormat}
                 isSaving={isSaving}
                 canUpdate={canUpdate}
@@ -128,6 +135,9 @@ export const EstimateDetails = React.memo(function EstimateDetails(
                   currency={props.journalCurrency}
                   inventoryCache={props.journalInventoryCache}
                   userRole={userRole}
+                  editingItem={editingItem}
+                  onCancelEdit={cancelEdit}
+                  confirmedItems={confirmedItems}
                 />
               </div>
               <InvoiceBottomLines
@@ -148,14 +158,14 @@ export const EstimateDetails = React.memo(function EstimateDetails(
               />
             </div>
             <div>
-              <h3 className="font-semibold mt-4">Notes</h3>
+              <h3 className="font-semibold mt-4">{t("notes")}</h3>
               <InlineEditTextarea
                 initialValue={notes}
                 onSave={(value) => {
                   setNotes(value);
                   handleSave({ notes: value });
                 }}
-                placeholder="Add any additional notes..."
+                placeholder={t("addNotesPlaceholder")}
                 disabled={isSaving}
               />
             </div>
@@ -182,7 +192,7 @@ export const EstimateDetails = React.memo(function EstimateDetails(
       >
         <Button variant="brutalist" asChild size="sm" disabled={isSaving}>
           <Link href={`/journal?jid=${props.journalId}&type=estimate`}>
-            <ChevronLeft className="h-4 w-4 mr-2" /> Back
+            <ChevronLeft className="h-4 w-4 mr-2" /> {t("back")}
           </Link>
         </Button>
         <div className="flex items-center space-x-2">
@@ -192,7 +202,7 @@ export const EstimateDetails = React.memo(function EstimateDetails(
             onClick={() => window.print()}
             disabled={isSaving}
           >
-            <Printer className="h-4 w-4 mr-2" /> Print
+            <Printer className="h-4 w-4 mr-2" /> {t("print")}
           </Button>
         </div>
       </div>
@@ -201,11 +211,12 @@ export const EstimateDetails = React.memo(function EstimateDetails(
 });
 
 export const AddNewEstimateBtn = ({ journalId }: { journalId: string }) => {
+  const t = useTranslations("estimate");
   return (
     <div>
       <Button variant="brutalist" className="mb-4" asChild>
         <Link href={`/journal/entry?jid=${journalId}&jtype=estimate`}>
-          New Estimate
+          {t("newEstimate")}
         </Link>
       </Button>
     </div>

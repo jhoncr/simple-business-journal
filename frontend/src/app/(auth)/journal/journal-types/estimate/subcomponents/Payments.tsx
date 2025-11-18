@@ -1,15 +1,20 @@
-import { useState } from 'react';
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "@radix-ui/react-icons";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Payment } from "@/../../backend/functions/src/common/schemas/estimate_schema";
 import { formattedDate } from "@/lib/utils";
-import { toast } from 'sonner';
+import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 interface PaymentsProps {
   payments: Payment[];
@@ -19,8 +24,17 @@ interface PaymentsProps {
   isSaving: boolean;
 }
 
-export const Payments = ({ payments, currencyFormat, isInvoiceFlow, handleAddPayment, isSaving }: PaymentsProps) => {
-  const [newPaymentAmount, setNewPaymentAmount] = useState<number | string>("");
+export const Payments = ({
+  payments,
+  currencyFormat,
+  isInvoiceFlow,
+  handleAddPayment,
+  isSaving,
+}: PaymentsProps) => {
+  const t = useTranslations("payments");
+  const [newPaymentAmount, setNewPaymentAmount] = useState<number | string>(
+    "",
+  );
   const [newPaymentDate, setNewPaymentDate] = useState<Date | undefined>(
     new Date(),
   );
@@ -33,11 +47,11 @@ export const Payments = ({ payments, currencyFormat, isInvoiceFlow, handleAddPay
       isNaN(Number(newPaymentAmount)) ||
       Number(newPaymentAmount) <= 0
     ) {
-      toast.error("Payment amount must be a positive number.");
+      toast.error(t("errors.invalidAmount"));
       return;
     }
     if (!newPaymentDate) {
-      toast.error("Please select a date for the payment.");
+      toast.error(t("errors.dateRequired"));
       return;
     }
 
@@ -56,7 +70,7 @@ export const Payments = ({ payments, currencyFormat, isInvoiceFlow, handleAddPay
 
   return (
     <div className="break-before-page">
-      <h3 className="text-lg font-semibold pt-4 mb-2">Payments</h3>
+      <h3 className="text-lg font-semibold pt-4 mb-2">{t("title")}</h3>
       <div className="border rounded-md p-4 space-y-4">
         {payments.length > 0 ? (
           <ul className="space-y-2">
@@ -70,7 +84,7 @@ export const Payments = ({ payments, currencyFormat, isInvoiceFlow, handleAddPay
                     {currencyFormat(payment.amount)}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Method: {payment.method || "N/A"}
+                    {t("method")}: {payment.method || t("na")}
                   </p>
                 </div>
                 <p className="text-sm text-muted-foreground">
@@ -80,17 +94,15 @@ export const Payments = ({ payments, currencyFormat, isInvoiceFlow, handleAddPay
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">
-            No payments recorded yet.
-          </p>
+          <p className="text-sm text-muted-foreground">{t("noPaymentsYet")}</p>
         )}
 
         {isInvoiceFlow && (
           <div className="pt-4 border-t print:hidden">
-            <h4 className="text-md font-semibold mb-2">Add Payment</h4>
+            <h4 className="text-md font-semibold mb-2">{t("addPayment")}</h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
               <div>
-                <Label htmlFor="paymentAmount">Amount</Label>
+                <Label htmlFor="paymentAmount">{t("amount")}</Label>
                 <Input
                   id="paymentAmount"
                   type="number"
@@ -101,7 +113,7 @@ export const Payments = ({ payments, currencyFormat, isInvoiceFlow, handleAddPay
                 />
               </div>
               <div>
-                <Label htmlFor="paymentDate">Date</Label>
+                <Label htmlFor="paymentDate">{t("date")}</Label>
                 <Popover
                   modal
                   open={paymentDatePopoverOpen}
@@ -120,7 +132,7 @@ export const Payments = ({ payments, currencyFormat, isInvoiceFlow, handleAddPay
                       {newPaymentDate ? (
                         format(newPaymentDate, "PPP")
                       ) : (
-                        <span>Pick a date</span>
+                        <span>{t("pickDate")}</span>
                       )}
                     </Button>
                   </PopoverTrigger>
@@ -139,13 +151,13 @@ export const Payments = ({ payments, currencyFormat, isInvoiceFlow, handleAddPay
                 </Popover>
               </div>
               <div>
-                <Label htmlFor="paymentMethod">Method (Optional)</Label>
+                <Label htmlFor="paymentMethod">{t("methodOptional")}</Label>
                 <Input
                   id="paymentMethod"
                   type="text"
                   value={newPaymentMethod}
                   onChange={(e) => setNewPaymentMethod(e.target.value)}
-                  placeholder="e.g., Card, Bank Transfer"
+                  placeholder={t("placeholder")}
                   disabled={isSaving}
                 />
               </div>
@@ -156,7 +168,7 @@ export const Payments = ({ payments, currencyFormat, isInvoiceFlow, handleAddPay
               className="mt-3"
               size="sm"
             >
-              Add Payment
+              {t("addPayment")}
             </Button>
           </div>
         )}

@@ -73,8 +73,8 @@ export async function fetchDateRangeEntries(
   const config = getEntryConfig(entryType);
   if (
     !config ||
-    !config.sortField ||
-    !config.sortField.startsWith("details.")
+    !config.sortField
+    // || !config.sortField.startsWith("details.")
   ) {
     // Added null check for sortField
     console.error(
@@ -87,6 +87,14 @@ export async function fetchDateRangeEntries(
 
   try {
     const colPath = `${JOURNAL_COLLECTION}/${journalId}/${subcollectionName}`;
+
+    // add a day to 'to' to make the range inclusive of the end date
+    to = new Date(to);
+    to.setHours(23, 59, 59, 999);
+
+    from = new Date(from);
+    from.setHours(0, 0, 0, 0);
+
     const q = query(
       collection(db, colPath),
       where("isActive", "==", true),
@@ -158,20 +166,12 @@ export async function fetchOlderEntrys(
     const queryConstraints: any[] = [
       where("isActive", "==", true),
       orderBy(primarySortField, "desc"),
-      // orderBy("createdAt", "desc"), // Consider if this secondary sort is always needed/reliable
       limit(past_k),
     ];
 
-    // startAfter requires all orderBy fields. If secondarySortValue is potentially undefined,
-    // this might cause issues. For simplicity, if using only primarySortField in orderBy,
-    // then startAfter should only use primarySortValue.
-    // If 'createdAt' is a guaranteed secondary sort, it should be in orderBy.
-    // For now, assuming primarySortValue is sufficient if secondary is problematic.
-    if (secondarySortValue !== undefined) {
-      queryConstraints.push(startAfter(primarySortValue, secondarySortValue));
-    } else {
-      queryConstraints.push(startAfter(primarySortValue));
-    }
+    // startAfter requires all orderBy fields. Since we only have one orderBy,
+    // we only need one argument in startAfter.
+    queryConstraints.push(startAfter(primarySortValue));
 
     const q = query(collection(db, colPath), ...queryConstraints);
 
@@ -219,7 +219,9 @@ export function useEntriesSubCol(
     const subcollectionName = config.subcollection;
     const primarySortField = config.sortField;
 
-    let unsubscribe = () => {};
+    // Initialize unsubscribe function that will be assigned by onSnapshot
+    // This ensures cleanup always works, even if the listener setup fails
+    let unsubscribe: (() => void) | null = null;
 
     try {
       const colPath = `${JOURNAL_COLLECTION}/${journalId}/${subcollectionName}`;
@@ -273,21 +275,39 @@ export function useEntriesSubCol(
           });
         },
         (error) => {
-          // Add error handler for onSnapshot
+          // Error handler for onSnapshot
+          // Critical: Log the error but don't throw to prevent memory leaks
           console.error(`Error watching collection ${colPath}: `, error);
-          // Optionally set an error state here
+          // Clear the docs state on error to show data is no longer reliable
+          setDocs({});
+          // Note: The listener is automatically unsubscribed by Firestore on error,
+          // but we still need to clean up our reference in the cleanup function
         },
       );
     } catch (error) {
+      // Catch synchronous errors during setup
       console.error(`useEntriesSubCol (${entryType}): setup error`, error);
+      // Clear docs on setup error
+      setDocs({});
     }
 
-    // Cleanup function
+    // Cleanup function - guaranteed to run on unmount or when dependencies change
+    // This prevents memory leaks by ensuring listeners are always cleaned up
     return () => {
-      console.log(
-        `Unsubscribing from ${entryType} entries for journal ${journalId}`,
-      );
-      unsubscribe();
+      if (unsubscribe) {
+        console.log(
+          `Unsubscribing from ${entryType} entries for journal ${journalId}`,
+        );
+        try {
+          unsubscribe();
+        } catch (cleanupError) {
+          // Catch any errors during unsubscribe to prevent React errors
+          console.error(
+            `Error during unsubscribe for ${entryType}:`,
+            cleanupError,
+          );
+        }
+      }
     };
   }, [journalId, entryType]); // Re-run effect if journalId or entryType changes
 

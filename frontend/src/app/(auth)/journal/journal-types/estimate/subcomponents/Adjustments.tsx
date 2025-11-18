@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { AdjustmentForm, Adjustment } from "./AdjustmentForm";
 import { Button } from "@/components/ui/button";
 import { MinusCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { allowedCurrencySchemaType } from "@/../../backend/functions/src/common/schemas/common_schemas";
 import { ROLES_THAT_ADD } from "@/../../backend/functions/src/common/const"; // Import ROLES_THAT_ADD
 import { ROLES } from "@/../../backend/functions/src/common/schemas/common_schemas"; // Import ROLES type
@@ -45,6 +46,8 @@ export function InvoiceBottomLines({
   userRole, // Use prop
   payments,
 }: InvoiceBottomLinesProps) {
+  const t = useTranslations("adjustments");
+
   // Check if user has permission to modify
   const canModify = React.useMemo(
     () => ROLES_THAT_ADD.has(userRole),
@@ -125,7 +128,7 @@ export function InvoiceBottomLines({
     if (!adjustments.length) return "";
     return (
       (adjustment.description ||
-        `${adjustment.type.includes("add") ? "Addition" : "Discount"}`) +
+        `${adjustment.type.includes("add") ? t("addition") : t("discount")}`) +
       " " +
       (adjustment.type.includes("Percent")
         ? `( ${adjustment.value}% )`
@@ -137,7 +140,7 @@ export function InvoiceBottomLines({
     <div className="space-y-1 pt-2 border-t text-xs">
       <div className="md:max-w-[50%] print:max-w-[50%] md:ml-auto print:ml-auto space-y-1">
         <div className="flex justify-between items-center">
-          <span>Subtotal</span>
+          <span>{t("subtotal")}</span>
           <span className="pr-8 print:pr-0">
             {currencyFormat(itemSubtotal, currency)}
           </span>
@@ -161,7 +164,7 @@ export function InvoiceBottomLines({
               <Button
                 variant="ghost"
                 key={`${index}-delete`}
-                aria-label="Delete adjustment"
+                aria-label={t("deleteAdjustment")}
                 data-testid={`delete-adjustment-${index}`}
                 className="print:hidden h-6 w-6"
                 size="icon"
@@ -169,11 +172,7 @@ export function InvoiceBottomLines({
                   handleDeleteAdjustment(index);
                 }}
                 disabled={!canModify} // Disable delete button
-                title={
-                  !canModify
-                    ? "You don't have permission to remove adjustments"
-                    : ""
-                } // Add tooltip
+                title={!canModify ? t("noPermissionRemoveAdjustments") : ""} // Add tooltip
               >
                 <MinusCircle className="h-3 w-3 text-muted-foreground" />
               </Button>
@@ -183,7 +182,7 @@ export function InvoiceBottomLines({
         {taxPercentage > 0 && (
           <>
             <div className="flex justify-between items-center pt-1 border-t">
-              <span>Total before Tax</span>
+              <span>{t("totalBeforeTax")}</span>
               <div>
                 <span className="pr-8 print:pr-0">
                   {currencyFormat(totalBeforeTax, currency)}
@@ -191,22 +190,20 @@ export function InvoiceBottomLines({
               </div>
             </div>
             <div className="flex justify-between items-center">
-              <span>Tax ({taxPercentage}%)</span>
+              <span>{t("tax", { percentage: taxPercentage })}</span>
               <div className="flex items-center">
                 <span>{currencyFormat(taxAmount, currency)}</span>
                 <Button
                   variant="ghost"
                   key="delete-tax"
-                  aria-label="Delete tax"
+                  aria-label={t("deleteTax")}
                   size="icon"
                   className="print:hidden ml-1 h-6 w-6"
                   onClick={() => {
                     handleTaxChange(0);
                   }}
                   disabled={!canModify} // Disable delete tax button
-                  title={
-                    !canModify ? "You don't have permission to remove tax" : ""
-                  } // Add tooltip
+                  title={!canModify ? t("noPermissionRemoveTax") : ""} // Add tooltip
                 >
                   <MinusCircle className="h-3 w-3 text-muted-foreground" />
                 </Button>
@@ -215,7 +212,7 @@ export function InvoiceBottomLines({
           </>
         )}
         <div className="flex justify-between pt-2 mt-1 items-center border-t-2 border-double">
-          <span className="text-sm font-medium">Total</span>
+          <span className="text-sm font-medium">{t("total")}</span>
           <h2 className="pr-8 print:pr-0 text-lg font-bold text-primary">
             {currencyFormat(grandTotal, currency)}
           </h2>
@@ -224,14 +221,14 @@ export function InvoiceBottomLines({
           <>
             <div className="flex justify-between items-center pt-1 border-t">
               <span className="font-medium text-muted-foreground">
-                Payments Total
+                {t("paymentsTotal")}
               </span>
               <div className="pr-8 print:pr-0 text-muted-foreground">
                 - {currencyFormat(totalPayments, currency)}
               </div>
             </div>
             <div className="flex justify-between pt-1 mt-1 items-center border-t">
-              <span className="text-sm font-medium">Balance Due</span>
+              <span className="text-sm font-medium">{t("balanceDue")}</span>
               <h2 className="pr-8 print:pr-0 text-lg font-bold text-primary">
                 {currencyFormat(balanceDue, currency)}
               </h2>

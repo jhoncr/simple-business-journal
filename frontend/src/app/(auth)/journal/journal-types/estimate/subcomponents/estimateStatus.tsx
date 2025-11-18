@@ -1,11 +1,13 @@
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenu,
 } from "@/components/ui/dropdown-menu";
-import { WorkStatus } from "@/lib/custom_types";
+import { WorkStatus } from "@/../../backend/functions/src/common/common_types";
+import { useTranslations } from "next-intl";
 
 const statusStyles: Record<WorkStatus, string> = {
   [WorkStatus.DRAFT]:
@@ -16,12 +18,66 @@ const statusStyles: Record<WorkStatus, string> = {
     "bg-green-100 border-green-500 hover:bg-green-100 dark:bg-green-900/50 dark:border-green-500 dark:hover:bg-green-900/50",
 };
 
+const getStatusBadgeVariant = (
+  status: WorkStatus,
+): "default" | "secondary" | "destructive" | "outline" => {
+  switch (status) {
+    case WorkStatus.DRAFT:
+      return "default";
+    case WorkStatus.IN_PROCESS:
+      return "secondary";
+    case WorkStatus.DELIVERED:
+      return "secondary";
+    default:
+      return "default";
+  }
+};
+
 interface WorkStatusProps {
   qstatus: WorkStatus;
   setStatus: (status: WorkStatus) => void;
 }
 
+interface WorkStatusBadgeProps {
+  status: WorkStatus;
+  className?: string;
+}
+
+// Utility function to get status label
+export const getStatusLabel = (
+  status: WorkStatus,
+  t: (key: string) => string,
+) => {
+  switch (status) {
+    case WorkStatus.DRAFT:
+      return t("statusDraft");
+    case WorkStatus.IN_PROCESS:
+      return t("statusInProcess");
+    case WorkStatus.DELIVERED:
+      return t("statusDelivered");
+  }
+};
+
+// Badge component for display-only status
+export function WorkStatusBadge({
+  status,
+  className = "",
+}: WorkStatusBadgeProps) {
+  const t = useTranslations("estimate");
+
+  return (
+    <Badge
+      variant={getStatusBadgeVariant(status)}
+      className={`text-xs ${className}`}
+    >
+      {getStatusLabel(status, t)}
+    </Badge>
+  );
+}
+
 export function WorkStatusDropdown({ qstatus, setStatus }: WorkStatusProps) {
+  const t = useTranslations("estimate");
+
   const availableStatuses = () => {
     return Object.values(WorkStatus).filter((status) => status !== qstatus);
   };
@@ -35,15 +91,13 @@ export function WorkStatusDropdown({ qstatus, setStatus }: WorkStatusProps) {
             size="sm"
             className={`${statusStyles[qstatus]}`}
           >
-            {qstatus.charAt(0).toUpperCase() +
-              qstatus.slice(1).toLowerCase().replace("_", " ")}
+            {getStatusLabel(qstatus, t)}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {availableStatuses().map((status) => (
             <DropdownMenuItem key={status} onClick={() => setStatus(status)}>
-              {status.charAt(0).toUpperCase() +
-                status.slice(1).toLowerCase().replace("_", " ")}
+              {getStatusLabel(status, t)}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
