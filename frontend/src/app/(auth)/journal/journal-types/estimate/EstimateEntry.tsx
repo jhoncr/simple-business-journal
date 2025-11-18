@@ -107,32 +107,51 @@ export const EstimateEntry = React.memo(function EstimateEntry({
         href={`/journal/entry?jid=${journalId}&eid=${entry.id}&jtype=estimate`}
         className="block hover:bg-accent/50 transition-colors rounded-md -m-2 p-2"
       >
-        <div className="flex flex-col md:grid md:grid-cols-[minmax(0,1fr)_auto_auto_auto] md:items-center md:gap-4">
+        <div className="flex flex-col md:grid md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-4">
           {/* Col 1: Customer and Notes */}
-          <div className="flex items-start gap-2 min-w-0">
+          <div className="flex items-start gap-2 min-w-0 flex-1">
             <ClipboardList className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-1 hidden md:block" />
-            <div className="flex-grow min-w-0">
-              <div className="flex items-center justify-between">
+            <div className="flex-grow min-w-0 w-full">
+              {/* Customer Name and Mobile Price Row */}
+              <div className="flex items-start justify-between gap-3 mb-1">
                 <span
-                  className="truncate font-medium"
+                  className="font-medium break-words flex-1 min-w-0 overflow-hidden"
+                  style={{
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    wordBreak: "break-word",
+                    overflowWrap: "break-word",
+                  }}
                   title={customer?.name || t("noCustomer")}
                 >
                   {customer?.name || t("noCustomer")}
                 </span>
-                <span className="font-semibold text-base whitespace-nowrap md:hidden">
+                <span className="font-semibold text-base whitespace-nowrap md:hidden flex-shrink-0">
                   {formatCurrency(grandTotal, currency || "USD")}
                 </span>
               </div>
+              {/* Notes Section - Full width on mobile */}
               {notes && (
-                <p className="italic whitespace-normal text-xs text-muted-foreground">
+                <p
+                  className="text-xs text-muted-foreground italic overflow-hidden"
+                  style={{
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    wordBreak: "break-word",
+                    overflowWrap: "break-word",
+                  }}
+                  title={notes}
+                >
                   {notes}
                 </p>
               )}
             </div>
           </div>
 
-          {/* Col 3: Grand Total (Desktop) */}
-          <div className="hidden md:block font-semibold text-base whitespace-nowrap text-right">
+          {/* Col 2: Grand Total (Desktop) */}
+          <div className="hidden md:block font-semibold text-base whitespace-nowrap text-right flex-shrink-0 mt-0.5">
             {formatCurrency(grandTotal, currency || "USD")}
           </div>
         </div>

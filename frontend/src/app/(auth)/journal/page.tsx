@@ -1,10 +1,9 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { fetchDateRangeEntries, useWatchJournal } from "@/lib/db_handler";
+import { fetchDateRangeEntries } from "@/lib/db_handler";
 import { AddContributers } from "@/components/ui/add-contributors";
 import { useToolbar } from "../nav_tool_handler";
 import { ChatBox } from "./comp/chat";
-import Link from "next/link";
 import { DatePickerWithRange } from "./actions/date-pick-with-range";
 import { format } from "date-fns";
 import { X } from "lucide-react";
@@ -16,13 +15,8 @@ import { ROLES_THAT_ADD } from "@/../../backend/functions/src/common/const";
 import { useAuth } from "@/lib/auth_handler";
 import { useJournalContext } from "@/context/JournalContext";
 import { useToast } from "@/hooks/use-toast";
-import { DBentry, Journal } from "@/lib/custom_types";
-import {
-  EntryType,
-  ENTRY_CONFIG,
-} from "@/../../backend/functions/src/common/schemas/configmap";
-import { JOURNAL_TYPES } from "@/../../backend/functions/src/common/const";
-import { BusinessDetailsType } from "@/../../backend/functions/src/common/schemas/JournalSchema";
+import { DBentry } from "@/lib/custom_types";
+import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap";
 import { pendingAccessSchemaType } from "@/../../backend/functions/src/common/schemas/common_schemas";
 import { Badge } from "@/components/ui/badge";
 
@@ -186,14 +180,14 @@ export default function ListJournalPage() {
   if (journal === null) return <NotFound />;
 
   return (
-    <div className="flex flex-col items-center justify-start w-full px-2 sm:px-6 lg:px-8">
+    <div className="flex flex-col items-center justify-start w-full h-[calc(100vh-4rem)] overflow-hidden px-2 sm:px-6 lg:px-8">
       <div
         id="filter-badges"
-        className="flex flex-row items-center justify-center space-x-2"
+        className="flex flex-row items-center justify-center space-x-2 py-2 flex-shrink-0"
       >
         <FilterRangeBadge dateRange={dateRange} setdateRange={setDateRange} />
       </div>
-      <div className="w-full">
+      <div className="w-full flex-1 overflow-hidden">
         {journal.access && journalId && (
           <ChatBox
             journalId={journalId}

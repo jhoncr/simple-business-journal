@@ -11,3 +11,8 @@ simple-biz_flat.txt
 **/*features.md
 **/*feature.md
 
+# ignore tests/
+/tests
+
+# ignore .env
+**/.env*

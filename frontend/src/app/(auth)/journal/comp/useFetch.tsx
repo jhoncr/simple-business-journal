@@ -1,156 +1,168 @@
-import { useState, useEffect, useCallback } from "react";
-import { fetchOlderEntrys, useEntriesSubCol } from "@/lib/db_handler"; // These should now accept entryType
-import { DBentry, DBentryMap } from "../../../../lib/custom_types"; // Types remain the same
-import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap"; // Import EntryType
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { fetchOlderEntrys, useEntriesSubCol } from "@/lib/db_handler";
+import { DBentry, DBentryMap } from "../../../../lib/custom_types";
+import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap";
+import { ENTRY_CONFIG } from "@/lib/config_shared";
 
-const FETCH_LIMIT = 20; // Items per page
+const FETCH_LIMIT = 20;
 
-// --- Sorting Function ---
-// This function seems okay, it prioritizes details.date if available,
-// otherwise falls back to createdAt. Ensure the relevant 'date' field
-// (e.g., details.date, details.time, details.start) exists for sorting.
-// The sortField is defined in FE_ENTRY_CONFIG in db_handler.tsx now.
-// Let's make this sort more robust based on potential date fields.
-const sortEntries = (entries: DBentryMap): DBentry[] => {
-  const getSortableDate = (entry: DBentry): number => {
-    // Prioritize common date fields in details
-    const detailsDate =
-      entry.details?.date || entry.details?.time || entry.details?.start;
-    if (detailsDate && typeof detailsDate.toMillis === "function") {
-      return detailsDate.toMillis();
+// Define pagination states
+type PaginationState = "idle" | "fetching" | "complete" | "error";
+
+// Helper to get sortable date from entry based on ENTRY_CONFIG
+const getSortableDate = (entry: DBentry, entryType: EntryType): number => {
+  const config = ENTRY_CONFIG[entryType];
+  const sortField = config?.sortField || "createdAt";
+
+  if (sortField.startsWith("details.")) {
+    const field = sortField.split(".")[1];
+    const value = (entry.details as any)?.[field];
+    if (value && typeof value.toMillis === "function") {
+      return value.toMillis();
     }
-    // Fallback to createdAt
-    return entry.createdAt?.toMillis() ?? 0;
-  };
+  }
 
-  const sortedEntries = Object.values(entries)
-    // Filter out entries without necessary data for sorting (optional but safer)
-    .filter((entry) => entry && entry.createdAt)
-    .sort((a, b) => {
-      const dateA = getSortableDate(a);
-      const dateB = getSortableDate(b);
-
-      // Primary sort: Date (descending)
-      if (dateA !== dateB) {
-        return dateB - dateA; // Newer dates first
-      }
-
-      // Secondary sort: Creation time (descending) for same date
-      const createdAtA = a.createdAt?.toMillis() ?? 0;
-      const createdAtB = b.createdAt?.toMillis() ?? 0;
-      return createdAtB - createdAtA; // Newer creation times first
-    });
-  return sortedEntries;
+  // Fallback to createdAt
+  return entry.createdAt?.toMillis() ?? 0;
 };
 
-// --- Update Hook Signature ---
-export function useFetchEntries(
-  journalId: string,
-  entryType: EntryType, // --- ADD entryType ---
-  page: number = 0,
-) {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null); // Add error state
-  const [list, setList] = useState<DBentry[]>([]); // Store sorted array
-  const [hasMore, setHasMore] = useState(true); // Track if more pages exist
-  const [combinedDocs, setCombinedDocs] = useState<DBentryMap>({}); // Store all fetched docs
+// Sorting function aligned with backend query order
+const sortEntries = (entries: DBentryMap, entryType: EntryType): DBentry[] => {
+  return Object.values(entries)
+    .filter((entry) => entry && entry.createdAt)
+    .sort((a, b) => {
+      const dateA = getSortableDate(a, entryType);
+      const dateB = getSortableDate(b, entryType);
 
-  // --- Watch latest entries using the updated hook ---
-  // useEntriesSubCol now takes entryType
-  const headDocs = useEntriesSubCol(journalId, entryType);
+      if (dateA !== dateB) {
+        return dateB - dateA; // Descending order (newest first)
+      }
 
-  // --- Update combinedDocs whenever headDocs changes ---
+      // Secondary sort by createdAt
+      const createdAtA = a.createdAt?.toMillis() ?? 0;
+      const createdAtB = b.createdAt?.toMillis() ?? 0;
+      return createdAtB - createdAtA;
+    });
+};
+
+export function useFetchEntries(journalId: string, entryType: EntryType) {
+  const [paginationState, setPaginationState] =
+    useState<PaginationState>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [allEntries, setAllEntries] = useState<DBentryMap>({});
+
+  // Track the last entry ID we fetched from to prevent duplicate fetches
+  const lastCursorRef = useRef<string | null>(null);
+  const isFetchingRef = useRef(false);
+
+  // Watch latest entries
+  const realtimeEntries = useEntriesSubCol(journalId, entryType);
+
+  // Merge realtime entries into allEntries
   useEffect(() => {
-    setCombinedDocs((prevDocs) => ({ ...prevDocs, ...headDocs }));
-  }, [headDocs]);
+    setAllEntries((prev) => ({ ...prev, ...realtimeEntries }));
+  }, [realtimeEntries]);
 
-  // --- Fetch Older Entries Function ---
-  const fetchOlder = useCallback(async () => {
-    // Prevent fetching if already loading or no more entries exist
-    if (loading || !hasMore || list.length === 0) {
-      if (!hasMore)
-        console.log(`fetchOlder (${entryType}): No more entries to fetch.`);
+  // Memoized sorted list
+  const sortedEntries = useMemo(() => {
+    return sortEntries(allEntries, entryType);
+  }, [allEntries, entryType]);
+
+  // Expose loading state
+  const loading = paginationState === "fetching";
+  const hasMore = paginationState !== "complete";
+
+  // Fetch function that can be called externally
+  const fetchMore = useCallback(async () => {
+    // Guard clauses
+    if (isFetchingRef.current) {
+      console.log(`[${entryType}] Already fetching, skipping`);
       return;
     }
 
-    console.log(`<<< Fetching older ${entryType} messages (Page ${page}) >>>`);
-    setLoading(true);
+    if (paginationState === "complete") {
+      console.log(`[${entryType}] No more entries to fetch`);
+      return;
+    }
+
+    const currentEntries = sortEntries(allEntries, entryType);
+    if (currentEntries.length === 0) {
+      console.log(`[${entryType}] No entries yet to paginate from`);
+      return;
+    }
+
+    const oldestEntry = currentEntries[currentEntries.length - 1];
+
+    // Prevent fetching same batch twice
+    if (lastCursorRef.current === oldestEntry.id) {
+      console.log(
+        `[${entryType}] Already fetched from cursor ${oldestEntry.id}`,
+      );
+      return;
+    }
+
+    console.log(
+      `[${entryType}] Fetching older entries from ${oldestEntry.id}`,
+    );
+
+    isFetchingRef.current = true;
+    setPaginationState("fetching");
     setError(null);
 
-    const oldestEntryInList = list[list.length - 1]; // Get the actual oldest entry currently displayed
-
     try {
-      // --- Call fetchOlderEntrys with entryType ---
-      const fetchedMessages = await fetchOlderEntrys(
+      const olderEntries = await fetchOlderEntrys(
         journalId,
-        entryType, // Pass entryType
-        oldestEntryInList,
+        entryType,
+        oldestEntry,
         FETCH_LIMIT,
       );
 
-      const numFetched = Object.keys(fetchedMessages).length;
-      console.log(`Fetched ${numFetched} older ${entryType} entries.`);
+      const fetchedCount = Object.keys(olderEntries).length;
+      console.log(`[${entryType}] Fetched ${fetchedCount} older entries`);
 
-      if (numFetched === 0) {
-        setHasMore(false); // No more entries found
+      if (fetchedCount === 0) {
+        setPaginationState("complete");
       } else {
-        // Merge fetched messages into combinedDocs
-        setCombinedDocs((prevDocs) => ({ ...prevDocs, ...fetchedMessages }));
+        setAllEntries((prev) => ({ ...prev, ...olderEntries }));
+        setPaginationState("idle");
+        lastCursorRef.current = oldestEntry.id;
       }
     } catch (err: any) {
-      console.error(`Error fetching older ${entryType} entries:`, err);
-      setError(err.message || `Failed to load older ${entryType} entries.`);
-      // Optionally stop trying to fetch more on error?
-      // setHasMore(false);
+      console.error(`[${entryType}] Error fetching older entries:`, err);
+      setError(err.message || "Failed to load older entries");
+      setPaginationState("error");
+      // Don't update cursor on error to allow retry
     } finally {
-      setLoading(false);
+      isFetchingRef.current = false;
     }
-  }, [journalId, entryType, page, list, loading, hasMore]); // Add dependencies
+  }, [journalId, entryType, allEntries, paginationState]);
 
-  // --- Effect to trigger fetchOlder when page changes ---
+  // Remove entry from local state
+  const removeEntry = useCallback((entryToRemove: DBentry) => {
+    console.log(`Removing entry ${entryToRemove.id} from local state`);
+    setAllEntries((prev) => {
+      const newEntries = { ...prev };
+      delete newEntries[entryToRemove.id];
+      return newEntries;
+    });
+  }, []);
+
+  // Reset state when journal or entry type changes
   useEffect(() => {
-    // Only fetch older if page > 0 (initial load is handled by headDocs)
-    if (page > 0) {
-      console.log(
-        `Paging changed for ${entryType} to ${page}, fetching older.`,
-      );
-      fetchOlder();
-    }
-    // Reset hasMore when switching journal/type (page goes back to 0)
-    if (page === 0) {
-      setHasMore(true);
-    }
-  }, [page, fetchOlder, entryType]); // Depend on page and fetchOlder
+    console.log(`[${entryType}] Resetting state for journal ${journalId}`);
+    setAllEntries({});
+    setPaginationState("idle");
+    setError(null);
+    lastCursorRef.current = null;
+    isFetchingRef.current = false;
+  }, [journalId, entryType]);
 
-  // --- Effect to sort and update the final list ---
-  useEffect(() => {
-    console.log(
-      `Sorting ${Object.keys(combinedDocs).length} combined ${entryType} docs`,
-    );
-    const sortedList = sortEntries(combinedDocs);
-    setList(sortedList);
-    // console.log(`Updated list for ${entryType}:`, sortedList.length, "items");
-  }, [combinedDocs, entryType]); // Depend on combinedDocs
-
-  // --- Remove Entry Function ---
-  // This function removes an entry from the local state
-  const removeEntry = useCallback(
-    (entryToRemove: DBentry) => {
-      console.log(
-        `Removing entry ${entryToRemove.id} (${entryType}) from local state.`,
-      );
-      setCombinedDocs((prevDocs) => {
-        const newDocs = { ...prevDocs };
-        if (newDocs[entryToRemove.id]) {
-          delete newDocs[entryToRemove.id];
-          return newDocs;
-        }
-        return prevDocs; // No change if not found
-      });
-      // The list state will update automatically via the useEffect watching combinedDocs
-    },
-    [entryType],
-  ); // Depend on entryType for logging consistency
-
-  return { loading, error, list, hasMore, removeEntry }; // Return error and hasMore
+  return {
+    list: sortedEntries,
+    loading,
+    error,
+    hasMore,
+    fetchMore,
+    removeEntry,
+  };
 }
