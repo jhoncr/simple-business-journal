@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import React from "react";
 import { RectangleViewer, RectangleData } from "@/components/RectangleViewer";
+import { RectangleInputForm } from "@/components/RectangleInputForm";
 
 export default function WipPage() {
   if (process.env.NODE_ENV !== "development") {
@@ -15,16 +16,10 @@ export default function WipPage() {
           Render your components here for testing. This page is only accessible in development mode.
         </p>
 
-        {/* ========================================= */}
-        {/* ADD COMPONENTS BELOW FOR TESTING          */}
-        {/* ========================================= */}
-        <RectangleViewer 
-          rectangles={[
-            { id: 1, length: 200, width: 22, label: "Long Board" },
-            { id: 2, length: 50, width: 50, label: "Square Base", hasCrossTop: true, hasCrossBottom: true },
-            { id: 3, length: 120, width: 80, label: "Panel", hasCrossRight: true, hasCrossLeft: true, hasLeftCornerCrosses: true },
-          ]} 
-        />
+        <div className="mb-12">
+          <h2 className="text-xl font-semibold mb-4">Rectangle Input Form</h2>
+          <RectangleInputForm />
+        </div>
       </div>
     </div>
   );

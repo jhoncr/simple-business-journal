@@ -1,4 +1,31 @@
 {
+  "draw": {
+    "title": "Window Still and Tile edges",
+    "form": {
+      "orderDetails": "Order Details",
+      "print": "Print",
+      "namesOptional": "Names (optional)",
+      "namesPlaceholder": "e.g. John Doe",
+      "addressOptional": "Delivery Address (optional)",
+      "addressPlaceholder": "e.g. 123 Main St",
+      "annotationsOptional": "Annotations (optional)",
+      "annotationsPlaceholder": "Any specific notes or instructions...",
+      "width": "Width (cm)",
+      "length": "Length (cm)",
+      "color": "Color",
+      "type": "Type",
+      "actions": "Actions",
+      "placeholderW": "W",
+      "placeholderL": "L",
+      "colorPlaceholder": "e.g. White",
+      "selectType": "Select type...",
+      "windowStill": "Window still",
+      "tileEdge": "Tile edge",
+      "orderFor": "Order for:",
+      "deliveryAddressLabel": "Delivery Address:",
+      "annotationsLabel": "Annotations:"
+    }
+  },
   "common": {
     "loading": "Loading...",
     "error": "Error",

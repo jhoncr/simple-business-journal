@@ -1,4 +1,31 @@
 {
+  "draw": {
+    "title": "Soleiras & Pingadeiras",
+    "form": {
+      "orderDetails": "Detalhes do Pedido",
+      "print": "Imprimir",
+      "namesOptional": "Nomes (opcional)",
+      "namesPlaceholder": "ex: João da Silva",
+      "addressOptional": "Endereço de Entrega (opcional)",
+      "addressPlaceholder": "ex: Rua Principal, 123",
+      "annotationsOptional": "Anotações (opcional)",
+      "annotationsPlaceholder": "Qualquer observação ou instrução específica...",
+      "width": "Largura (cm)",
+      "length": "Comprimento (cm)",
+      "color": "Cor",
+      "type": "Tipo",
+      "actions": "",
+      "placeholderW": "L",
+      "placeholderL": "C",
+      "colorPlaceholder": "ex: Branco",
+      "selectType": "Selecione o tipo...",
+      "windowStill": "Pingadeira",
+      "tileEdge": "Soleira",
+      "orderFor": "Pedido para:",
+      "deliveryAddressLabel": "Endereço de Entrega:",
+      "annotationsLabel": "Anotações:"
+    }
+  },
   "common": {
     "loading": "Carregando...",
     "error": "Erro",
