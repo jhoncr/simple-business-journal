@@ -3,7 +3,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp, getApps } from 'firebase-admin/app';
-import { JOURNAL_COLLECTION, ROLES_THAT_ADD } from './common/const';
+import { JOURNAL_COLLECTION } from './common/const';
 import {
   ENTRY_CONFIG,
   entrySchema,
@@ -64,16 +64,6 @@ export const addLogFn = onCall(
       const journalData = journalDoc.data() || {};
       const journalType = journalData.journalType;
 
-      if (
-        !Object.getOwnPropertyDescriptor(journalData?.access ?? {}, uid) ||
-        !ROLES_THAT_ADD.has(journalData?.access?.[uid]?.role)
-      ) {
-        throw new HttpsError(
-          'permission-denied',
-          'No access to add entries to this journal.',
-        );
-      }
-
       const config = ENTRY_CONFIG[entryType as EntryType];
       if (!config) {
         throw new HttpsError(
@@ -81,8 +71,18 @@ export const addLogFn = onCall(
           `Unsupported entryType: ${entryType}`,
         );
       }
-      const { subcollection: targetSubcollectionName, schema: detailsSchema } =
+      const { subcollection: targetSubcollectionName, schema: detailsSchema, allowedRoles } =
         config;
+
+      if (
+        !Object.getOwnPropertyDescriptor(journalData?.access ?? {}, uid) ||
+        !allowedRoles.includes(journalData?.access?.[uid]?.role)
+      ) {
+        throw new HttpsError(
+          'permission-denied',
+          'No access to add entries to this journal.',
+        );
+      }
 
       logger.info(
         `Processing entryType '${entryType}' for journal ${journalId} (type: ${journalType}).` +
