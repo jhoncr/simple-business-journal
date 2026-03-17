@@ -6,7 +6,8 @@ import { useToolbar } from "../nav_tool_handler";
 import { ChatBox } from "./comp/chat";
 import { DatePickerWithRange } from "./actions/date-pick-with-range";
 import { format } from "date-fns";
-import { X } from "lucide-react";
+import { X, Box } from "lucide-react";
+import Link from "next/link";
 import ExportToCSV from "./actions/export-to-csv";
 import { useTranslations } from "next-intl";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -19,6 +20,7 @@ import { DBentry } from "@/lib/custom_types";
 import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap";
 import { pendingAccessSchemaType } from "@/../../backend/functions/src/common/schemas/common_schemas";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface DateRange {
   from: Date;
@@ -71,7 +73,8 @@ export default function ListJournalPage() {
   const params = useSearchParams();
   const router = useRouter();
   const journalId = params.get("jid");
-  const displayEntryType: EntryType = "estimate"; // Hardcoded to estimate
+  const jtypeParam = params.get("jtype");
+  const displayEntryType: EntryType = (jtypeParam === "template" || jtypeParam === "estimate") ? jtypeParam as EntryType : "estimate";
   const t = useTranslations("journal");
   const t_c = useTranslations("contributors");
 
@@ -97,6 +100,12 @@ export default function ListJournalPage() {
               daterange={dateRange}
               setDate={setDateRange}
             />
+            { displayEntryType !== "template" && <Link href={`/journal?jid=${journal.id}&jtype=template`}>
+              <Button variant="outline" size="sm" className="flex items-center gap-2 h-9" title="Open 3D Studio">
+                <Box size={16} />
+                <span className="hidden sm:inline-block">Studio</span>
+              </Button>
+            </Link> }
             {journal.access &&
               authUser?.uid &&
               journal.access[authUser?.uid]?.role === "admin" && (

@@ -191,7 +191,7 @@ export const EstimateDetails = React.memo(function EstimateDetails(
         className="print:hidden flex justify-between items-center mt-6 px-2 md:px-4 sticky bottom-0 py-2 bg-background/90 backdrop-blur-sm border-t"
       >
         <Button variant="brutalist" asChild size="sm" disabled={isSaving}>
-          <Link href={`/journal?jid=${props.journalId}&type=estimate`}>
+          <Link href={`/journal?jid=${props.journalId}&jtype=estimate`}>
             <ChevronLeft className="h-4 w-4 mr-2" /> {t("back")}
           </Link>
         </Button>

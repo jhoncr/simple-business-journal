@@ -2,6 +2,7 @@
 "use client";
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { StoneForgeEditor } from "@/components/studio/StoneForgeEditor";
 
 import { EstimateDetails } from "@/app/(auth)/journal/journal-types/estimate/addEstimate";
 
@@ -53,20 +54,22 @@ function EntryDetailsPageContent() {
       return;
     }
 
-    // Validate jtype: must be 'estimate' or 'invoice'
+    // Validate jtype: must be 'estimate', 'invoice', or 'template'
     // This also handles if jtype is null/undefined from the URL.
-    // Links creating new entries should ensure jtype is set.
-    // If opening an existing entry, jtype might not be in URL, but logic might fetch entry first then determine type.
-    // For simplicity here, we rely on jtype for new/edit.
-    if (!jtype || !["estimate", "invoice"].includes(jtype)) {
+    if (!jtype || !["estimate", "invoice", "template"].includes(jtype)) {
       setValidationError(
-        "A valid entry type ('jtype') of 'estimate' or 'invoice' must be specified in the URL.",
+        "A valid entry type ('jtype') of 'estimate', 'invoice', or 'template' must be specified in the URL.",
       );
       return;
     }
 
     setValidationError(null);
-  }, [journalId, entryId, jtype, router]);
+
+    // Remove the redirect directly to studio for templates
+    // if (jtype === "template") {
+    //   router.replace(`/studio?jid=${journalId}${entryId ? `&eid=${entryId}` : ''}`);
+    // }
+  }, [journalId, entryId, jtype]);
 
   let supplierInfo: contactInfoSchemaType = initInfo;
   let supplierLogo: string | null = null;
@@ -145,6 +148,16 @@ function EntryDetailsPageContent() {
   }
 
   // Conditional rendering based on jtype
+  if (jtype === "template") {
+    return (
+      <div className="w-full flex-1 min-h-0 flex flex-col">
+        <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading editor...</div>}>
+          <StoneForgeEditor />
+        </Suspense>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full">
       <EstimateDetails

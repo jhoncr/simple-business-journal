@@ -66,8 +66,10 @@ export default function NeedLoginLayout({
       {authUser ? (
         <>
           <toolbarContext.Provider value={{ setToolBar }}>
-            <Header user={authUser} signOut={signOut} tools={toolbar} />
-            {children}
+            <div className="flex flex-col h-screen">
+              <Header user={authUser} signOut={signOut} tools={toolbar} />
+              {children}
+            </div>
           </toolbarContext.Provider>
         </>
       ) : (
