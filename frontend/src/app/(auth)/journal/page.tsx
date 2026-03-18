@@ -89,11 +89,29 @@ export default function ListJournalPage() {
     if (journal) {
       setToolBar(
         <div className="flex flex-row justify-between items-center w-full">
-          <div className="flex justify-start items-center gap-2 min-w-0 pr-2">
-            {getJournalIcon(journal.journalType)}
-            <p className="font-bold truncate" title={journal.title}>
+          <div className="flex justify-start items-center gap-2 min-w-0 px-3 py-1.5 bg-muted/40 rounded-lg hover:bg-muted/60 transition-colors cursor-default group" title={journal.title}>
+            <div className="text-muted-foreground/80 group-hover:text-muted-foreground transition-colors">
+              {getJournalIcon(journal.journalType)}
+            </div>
+            <p className="font-semibold text-sm truncate max-w-[150px] sm:max-w-[250px]">
               {journal.title}
             </p>
+            {jtypeParam === "template" && (
+              <Badge 
+                variant="outline" 
+                className="bg-primary/10 text-primary border-primary/20 text-[10px] uppercase tracking-wider font-bold h-5 px-1.5"
+              >
+                Studio
+              </Badge>
+            )}
+            {jtypeParam === "estimate" && (
+              <Badge 
+                variant="outline" 
+                className="bg-blue-500/10 text-blue-600 border-blue-200 text-[10px] uppercase tracking-wider font-bold h-5 px-1.5"
+              >
+                Estimate
+              </Badge>
+            )}
           </div>
           <div className="flex flex-row items-center space-x-2 flex-shrink-0">
             <DatePickerWithRange

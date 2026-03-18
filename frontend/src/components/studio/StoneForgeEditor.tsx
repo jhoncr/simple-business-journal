@@ -735,7 +735,7 @@ export const StoneForgeEditor = () => {
               </group>
             </React.Suspense>
             
-            <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2 - 0.05} minDistance={50} maxDistance={500} />
+              <OrbitControls makeDefault minDistance={50} maxDistance={500} />
           </Canvas>
         </div>
 

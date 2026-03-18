@@ -31,8 +31,10 @@ export default function JournalLayout({
   );
 }
 function JournalBreadcrumb() {
-  const { journal } = useJournalContext(); // Use context hook
+  const { journal, jtype } = useJournalContext(); // Use context hook
   if (!journal) return null; // Don't render breadcrumbs if no journal
+
+  const journalLink = `/journal?jid=${journal.id}${jtype ? `&jtype=${jtype}` : ""}`;
 
   return (
     <div className="print:hidden">
@@ -46,13 +48,9 @@ function JournalBreadcrumb() {
           <BreadcrumbSeparator />
           <BreadcrumbItem className="truncate">
             <BreadcrumbLink asChild>
-              <Link href={`/journal?jid=${journal.id}`}>{journal.title}</Link>
+              <Link href={journalLink}>{journal.title}</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
-          {/* <BreadcrumbSeparator />
-          <BreadcrumbItem className="truncate flex items-center space-x-1">
-            <span className="truncate">{journal.title}</span>
-          </BreadcrumbItem> */}
         </BreadcrumbList>
       </Breadcrumb>
     </div>
