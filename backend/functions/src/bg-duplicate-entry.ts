@@ -107,7 +107,8 @@ export const duplicateEntry = onCall(
       }
 
       // Generate name for the duplicate
-      const duplicateName = originalEntry.name;
+      const duplicateName = originalEntry.name + ' (Copy)';
+      duplicateDetails.name = duplicateName;
 
       // Create the duplicate entry
       const duplicateEntryData: Omit<EntryItf, 'createdAt' | 'updatedAt'> = {
