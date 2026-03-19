@@ -98,12 +98,13 @@ const getEdgeGeometry = (
     }
 
     // When start and end points are the same, return an empty geometry to avoid fall-through.
+    // Drei's Line component requires at least 2 points to avoid negative typed array lengths.
     return {
       midpoint: [0, 0, 0],
       lineStart: [0, 0, 0],
       lineEnd: [0, 0, 0],
-      extensionA: [],
-      extensionB: [],
+      extensionA: [[0, 0, 0], [0, 0, 0]],
+      extensionB: [[0, 0, 0], [0, 0, 0]],
     };
   }
 
