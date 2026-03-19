@@ -559,28 +559,43 @@ export const StoneForgeEditor = () => {
     return null;
   };
 
-  const handleAddDimensionLabel = () => {
+  const handleAddDimensionLabel = (isCustom: boolean = false) => {
     if (!selectedEdge) return;
     const { slabId, edge } = selectedEdge;
     const parent = findComponentDeep(template.components, slabId);
     if (!parent) return;
 
-    // Default text expression: use the dimension that the edge measures
-    const isXEdge = edge.includes('front') || edge.includes('back');
-    const isZEdge = edge.includes('left') || edge.includes('right');
-    const isVertical = !edge.includes('top') && !edge.includes('bottom');
-    let defaultText: Expression = parent.length;
-    if (isZEdge) defaultText = parent.depth;
-    if (isVertical) defaultText = parent.thickness;
+    let newLabel: DimensionLabel;
 
-    const newLabel: DimensionLabel = {
-      id: `dim_${Date.now()}`,
-      type: 'dimension_label',
-      name: `${edge} Dimension`,
-      edge: edge,
-      text: defaultText,
-      offset: 15,
-    };
+    if (isCustom) {
+      newLabel = {
+        id: `dim_${Date.now()}`,
+        type: 'dimension_label',
+        name: `Custom Dimension`,
+        edge: 'custom',
+        text: '0',
+        offset: 15,
+        startPos: [0, 0, 0],
+        endPos: [parent.length, 0, 0],
+      };
+    } else {
+      // Default text expression: use the dimension that the edge measures
+      const isXEdge = edge.includes('front') || edge.includes('back');
+      const isZEdge = edge.includes('left') || edge.includes('right');
+      const isVertical = !edge.includes('top') && !edge.includes('bottom');
+      let defaultText: Expression = parent.length;
+      if (isZEdge) defaultText = parent.depth;
+      if (isVertical) defaultText = parent.thickness;
+
+      newLabel = {
+        id: `dim_${Date.now()}`,
+        type: 'dimension_label',
+        name: `${edge} Dimension`,
+        edge: edge,
+        text: defaultText,
+        offset: 15,
+      };
+    }
 
     setTemplate(prev => ({
       ...prev,
@@ -977,8 +992,12 @@ export const StoneForgeEditor = () => {
                           <span>Add Custom Component</span>
                           <Plus className="w-3.5 h-3.5 text-indigo-500" />
                         </button>
-                        <button onClick={handleAddDimensionLabel} className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 py-2 px-3 rounded border border-amber-200 text-left flex items-center justify-between mt-2">
+                        <button onClick={() => handleAddDimensionLabel()} className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 py-2 px-3 rounded border border-amber-200 text-left flex items-center justify-between mt-2">
                           <span>Add Dimension Label</span>
+                          <Ruler className="w-3.5 h-3.5 text-amber-500" />
+                        </button>
+                        <button onClick={() => handleAddDimensionLabel(true)} className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 py-2 px-3 rounded border border-amber-200 text-left flex items-center justify-between">
+                          <span>Add Custom Dimension</span>
                           <Ruler className="w-3.5 h-3.5 text-amber-500" />
                         </button>
                       </div>
