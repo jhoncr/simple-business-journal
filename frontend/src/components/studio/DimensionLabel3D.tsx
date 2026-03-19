@@ -17,6 +17,18 @@ interface DimensionLabel3DProps {
 }
 
 /**
+ * Evaluates a 3-component expression tuple into a THREE.Vector3.
+ */
+const evaluateVector = (
+  pos: [Expression, Expression, Expression],
+  vars: Record<string, number>
+): THREE.Vector3 => new THREE.Vector3(
+  evaluateExpression(pos[0], vars),
+  evaluateExpression(pos[1], vars),
+  evaluateExpression(pos[2], vars)
+);
+
+/**
  * Computes the midpoint position and extension line endpoints for a dimension label
  * based on which edge of the parent slab it is attached to.
  */
@@ -31,16 +43,8 @@ const getEdgeGeometry = (
 
   if (edge === 'custom' && startPos && endPos) {
     // Evaluate expressions to get absolute positions relative to the component
-    const startVector = new THREE.Vector3(
-      evaluateExpression(startPos[0] as Expression, variables),
-      evaluateExpression(startPos[1] as Expression, variables),
-      evaluateExpression(startPos[2] as Expression, variables)
-    );
-    const endVector = new THREE.Vector3(
-      evaluateExpression(endPos[0] as Expression, variables),
-      evaluateExpression(endPos[1] as Expression, variables),
-      evaluateExpression(endPos[2] as Expression, variables)
-    );
+    const startVector = evaluateVector(startPos as [Expression, Expression, Expression], variables);
+    const endVector = evaluateVector(endPos as [Expression, Expression, Expression], variables);
 
     const lineDir = new THREE.Vector3().subVectors(endVector, startVector);
     const length = lineDir.length();
@@ -51,11 +55,9 @@ const getEdgeGeometry = (
       let offsetVec = new THREE.Vector3();
 
       if (offsetDirection) {
-        offsetVec.set(
-          evaluateExpression(offsetDirection[0] as Expression, variables),
-          evaluateExpression(offsetDirection[1] as Expression, variables),
-          evaluateExpression(offsetDirection[2] as Expression, variables)
-        ).normalize().multiplyScalar(offset);
+        offsetVec = evaluateVector(offsetDirection as [Expression, Expression, Expression], variables)
+          .normalize()
+          .multiplyScalar(offset);
       } else {
         // Default offset calculation
         // Try to cross with Y axis. If line is vertical, cross with X axis.
