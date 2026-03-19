@@ -46,6 +46,9 @@ export type SlabComponent = z.infer<typeof baseComponentSchema> & {
   children?: SlabComponent[] | undefined;
 };
 
+// `as any` is used below as a standard workaround in Zod when dealing with deeply nested
+// or mutually recursive schemas to prevent TypeScript compiler instantiation depth errors,
+// while keeping the external type signature (`z.ZodType<SlabComponent>`) intact.
 export const SlabComponentSchema: z.ZodType<SlabComponent> = baseComponentSchema.extend({
   children: z.lazy(() => z.array(SlabComponentSchema)).optional(),
 }) as any;
