@@ -96,6 +96,15 @@ const getEdgeGeometry = (
         ]
       };
     }
+
+    // When start and end points are the same, return an empty geometry to avoid fall-through.
+    return {
+      midpoint: [0, 0, 0],
+      lineStart: [0, 0, 0],
+      lineEnd: [0, 0, 0],
+      extensionA: [],
+      extensionB: [],
+    };
   }
 
   // Default to top-front
