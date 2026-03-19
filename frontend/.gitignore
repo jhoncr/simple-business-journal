@@ -44,4 +44,4 @@ certificates
 .vscode/
 
 # remove .config.json
-**config.json
+src/lib/config.json
