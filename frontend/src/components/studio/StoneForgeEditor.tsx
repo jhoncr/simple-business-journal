@@ -5,10 +5,11 @@ import { useToolbar } from '@/app/(auth)/nav_tool_handler';
 import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, Grid } from '@react-three/drei';
-import { SlabComponent, AssemblyTemplate, Cutout, Expression } from "@backend/common/schemas/studio";
+import { SlabComponent, AssemblyTemplate, Cutout, Expression, DimensionLabel } from "@backend/common/schemas/studio";
 import { evaluateExpression } from '../../lib/evaluator';
 import { Slab3D } from './Slab3D';
-import { Box, Layers, Settings, Save, Download, Plus, Trash2, CheckCircle2, Copy } from 'lucide-react';
+import { Box, Layers, Settings, Save, Download, Plus, Trash2, CheckCircle2, Copy, LayoutTemplate, Eye, Ruler } from 'lucide-react';
+import { StoneForgeVariableEditor } from './StoneForgeVariableEditor';
 import { functions, app } from '../../lib/auth_handler';
 import { httpsCallable } from 'firebase/functions';
 import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
@@ -77,7 +78,11 @@ export const StoneForgeEditor = () => {
 
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>('slab_1');
   const [selectedEdge, setSelectedEdge] = useState<{ slabId: string, edge: 'front' | 'back' | 'left' | 'right' } | null>(null);
+  const [selectedDimensionLabelId, setSelectedDimensionLabelId] = useState<string | null>(null);
   const [activeLeftTab, setActiveLeftTab] = useState<'assembly' | 'variables'>('assembly');
+  const [viewMode, setViewMode] = useState<'user' | 'designer'>(
+    () => (searchParams.get('mode') === 'designer' ? 'designer' : 'user')
+  );
 
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -127,10 +132,10 @@ export const StoneForgeEditor = () => {
         const provider = new GoogleAuthProvider();
         await signInWithPopup(auth, provider);
       }
-      
+
       if (auth.currentUser) {
         const addLogFunction = httpsCallable(functions, 'addLogFn');
-        
+
         // If template.id is 'temp_1' or similar initial placeholder, it's a NEW template
         // Otherwise, it's an existing one. 
         // Note: New templates from 'duplicateEntry' will have a real Firestore ID.
@@ -146,10 +151,10 @@ export const StoneForgeEditor = () => {
           };
           const response = await addLogFunction(payload);
           const newTemplateId = (response.data as any).id;
-          
+
           // Update local state with the new ID
           setTemplate(prev => ({ ...prev, id: newTemplateId }));
-          
+
           showToast('Template saved successfully!');
         } else {
           // It's an existing template, update it
@@ -204,13 +209,23 @@ export const StoneForgeEditor = () => {
   const selectedComponent = selectedComponentId ? findComponentDeep(template.components, selectedComponentId) : null;
 
   const handleSelectComponent = (id: string) => {
+    // Check if this is a dimension label
+    const isDimLabel = findDimensionLabelDeep(template.components, id);
+    if (isDimLabel) {
+      setSelectedDimensionLabelId(id);
+      setSelectedComponentId(null);
+      setSelectedEdge(null);
+      return;
+    }
     setSelectedComponentId(id);
     setSelectedEdge(null);
+    setSelectedDimensionLabelId(null);
   };
 
   const handleSelectEdge = (id: string, edge: 'front' | 'back' | 'left' | 'right') => {
     setSelectedEdge({ slabId: id, edge });
     setSelectedComponentId(null);
+    setSelectedDimensionLabelId(null);
   };
 
   const variablesMap = useMemo(() => {
@@ -225,7 +240,7 @@ export const StoneForgeEditor = () => {
 
   const handleAddComponent = () => {
     const newId = `slab_${Date.now()}`;
-    
+
     // Find the largest Z coordinate in the existing design
     let maxZ = 0;
     const findMaxZ = (comps: SlabComponent[], currentZ: number) => {
@@ -236,7 +251,7 @@ export const StoneForgeEditor = () => {
       });
     };
     findMaxZ(template.components, 0);
-    
+
     // Place the new component 4 units away from the front-most edge
     // Since depth goes into -Z, placing it at maxZ + 60 + 4 ensures its back edge is at maxZ + 4
     const newZ = maxZ === 0 && template.components.length === 0 ? 0 : maxZ + 64;
@@ -273,7 +288,7 @@ export const StoneForgeEditor = () => {
     if (selectedEdge?.slabId === id) setSelectedEdge(null);
   };
 
-  const handleAddEdgeComponent = (type: 'splash' | 'waterfall' | 'drop' | 'raised' | 'custom') => {
+  const handleAddEdgeComponent = (type: 'splash' | 'waterfall' | 'raised' | 'custom') => {
     if (!selectedEdge) return;
     const { slabId, edge } = selectedEdge;
     const parent = findComponentDeep(template.components, slabId);
@@ -304,79 +319,50 @@ export const StoneForgeEditor = () => {
 
     let addToRoot = false;
 
-    if (type === 'splash') {
-      newComp.name = `${edge} Splash`;
-      newComp.thickness = 10;
-      if (edge === 'front' || edge === 'back') {
-        newComp.length = L;
-        newComp.depth = 2;
-        newComp.position = [0, T, edge === 'front' ? 0 : subExpr(2, D)];
-      } else {
-        newComp.length = 2;
-        newComp.depth = D;
-        newComp.position = [edge === 'left' ? 0 : subExpr(L, 2), T, 0];
-      }
-    } else if (type === 'waterfall') {
-      newComp.name = `${edge} Waterfall`;
-      newComp.thickness = 90;
-      if (edge === 'front' || edge === 'back') {
-        newComp.length = L;
-        newComp.depth = 2;
-        newComp.position = [0, -90, edge === 'front' ? 0 : subExpr(2, D)];
-      } else {
-        newComp.length = 2;
-        newComp.depth = D;
-        newComp.position = [edge === 'left' ? 0 : subExpr(L, 2), -90, 0];
-      }
-    } else if (type === 'drop') {
-      newComp.name = `${edge} Drop Edge`;
-      newComp.thickness = 2;
-      if (edge === 'front' || edge === 'back') {
-        newComp.length = L;
-        newComp.depth = 4;
-        newComp.position = [0, -2, edge === 'front' ? 0 : subExpr(4, D)];
-      } else {
-        newComp.length = 4;
-        newComp.depth = D;
-        newComp.position = [edge === 'left' ? 0 : subExpr(L, 4), -2, 0];
-      }
-    } else if (type === 'raised') {
-      newComp.name = `${edge} Raised Edge`;
-      newComp.thickness = 2;
-      if (edge === 'front' || edge === 'back') {
-        newComp.length = L;
-        newComp.depth = 4;
-        newComp.position = [0, T, edge === 'front' ? 0 : subExpr(4, D)];
-      } else {
-        newComp.length = 4;
-        newComp.depth = D;
-        newComp.position = [edge === 'left' ? 0 : subExpr(L, 4), T, 0];
-      }
-    } else if (type === 'custom') {
+    const isTop = edge.includes('top') || edge === 'front' || edge === 'back' || edge === 'left' || edge === 'right';
+    const isBottom = edge.includes('bottom');
+    const isFront = edge.includes('front');
+    const isBack = edge.includes('back');
+    const isLeft = edge.includes('left');
+    const isRight = edge.includes('right');
+
+    const isXAxis = (isTop || isBottom) && (isFront || isBack);
+    const isZAxis = (isTop || isBottom) && (isLeft || isRight);
+    const isYAxis = !isTop && !isBottom;
+
+    if (type === 'custom') {
       addToRoot = true;
       newComp.name = `${edge} Custom`;
       newComp.thickness = T;
-      
+
       const localOffset = new THREE.Vector3();
       const evalL = evaluateExpression(L, variablesMap);
       const evalD = evaluateExpression(D, variablesMap);
-      
-      if (edge === 'front') {
+
+      if (isXAxis) {
         newComp.length = L;
         newComp.depth = 60;
-        localOffset.set(0, 0, 60);
-      } else if (edge === 'back') {
-        newComp.length = L;
+        if (isFront) {
+          localOffset.set(0, 0, 60);
+        } else {
+          localOffset.set(0, 0, -evalD);
+        }
+      } else if (isZAxis) {
+        newComp.length = 60;
+        newComp.depth = D;
+        if (isLeft) {
+          localOffset.set(-60, 0, 0);
+        } else {
+          localOffset.set(evalL, 0, 0);
+        }
+      } else if (isYAxis) {
+        newComp.length = 60;
         newComp.depth = 60;
-        localOffset.set(0, 0, -evalD);
-      } else if (edge === 'left') {
-        newComp.length = 60;
-        newComp.depth = D;
-        localOffset.set(-60, 0, 0);
-      } else if (edge === 'right') {
-        newComp.length = 60;
-        newComp.depth = D;
-        localOffset.set(evalL, 0, 0);
+        if (isLeft) {
+          localOffset.set(-60, 0, 0);
+        } else {
+          localOffset.set(evalL, 0, 0);
+        }
       }
 
       const getComponentWorldTransform = (comps: SlabComponent[], targetId: string, parentObj = new THREE.Object3D()): { pos: THREE.Vector3, rot: THREE.Euler } | null => {
@@ -394,7 +380,7 @@ export const StoneForgeEditor = () => {
           );
           parentObj.add(childObj);
           parentObj.updateMatrixWorld(true);
-          
+
           if (c.id === targetId) {
             const worldPos = new THREE.Vector3();
             const worldQuat = new THREE.Quaternion();
@@ -404,7 +390,7 @@ export const StoneForgeEditor = () => {
             parentObj.remove(childObj);
             return { pos: worldPos, rot: worldRot };
           }
-          
+
           if (c.children) {
             const res = getComponentWorldTransform(c.children, targetId, childObj);
             if (res) {
@@ -421,11 +407,56 @@ export const StoneForgeEditor = () => {
       if (worldTransform) {
         localOffset.applyEuler(worldTransform.rot);
         const newWorldPos = worldTransform.pos.add(localOffset);
-        
+
         const round = (n: number) => Math.round(n * 100) / 100;
-        
+
         newComp.position = [round(newWorldPos.x), round(newWorldPos.y), round(newWorldPos.z)];
         newComp.rotation = [round(worldTransform.rot.x), round(worldTransform.rot.y), round(worldTransform.rot.z)];
+      }
+    } else {
+      if (isXAxis) {
+        newComp.length = L;
+        newComp.depth = type === 'raised' ? 4 : 2;
+        newComp.thickness = type === 'splash' ? 10 : type === 'waterfall' ? 90 : 2;
+
+        let yPos: Expression = 0;
+        if (isTop) {
+          if (type === 'splash' || type === 'raised') yPos = T;
+          else yPos = subExpr(T, newComp.thickness);
+        } else {
+          if (type === 'splash' || type === 'raised') yPos = subExpr(0, newComp.thickness);
+          else yPos = 0;
+        }
+
+        const zPos = isFront ? 0 : subExpr(newComp.depth, D);
+
+        newComp.position = [0, yPos, zPos];
+      } else if (isZAxis) {
+        newComp.length = type === 'raised' ? 4 : 2;
+        newComp.depth = D;
+        newComp.thickness = type === 'splash' ? 10 : type === 'waterfall' ? 90 : 2;
+
+        let yPos: Expression = 0;
+        if (isTop) {
+          if (type === 'splash' || type === 'raised') yPos = T;
+          else yPos = subExpr(T, newComp.thickness);
+        } else {
+          if (type === 'splash' || type === 'raised') yPos = subExpr(0, newComp.thickness);
+          else yPos = 0;
+        }
+
+        const xPos = isLeft ? 0 : subExpr(L, newComp.length);
+
+        newComp.position = [xPos, yPos, 0];
+      } else if (isYAxis) {
+        newComp.thickness = T;
+        newComp.length = type === 'splash' ? 10 : type === 'waterfall' ? 90 : type === 'raised' ? 4 : 2;
+        newComp.depth = 2;
+
+        const xPos = isLeft ? subExpr(0, newComp.length) : L;
+        const zPos = isFront ? 0 : subExpr(newComp.depth, D);
+
+        newComp.position = [xPos, 0, zPos];
       }
     }
 
@@ -481,13 +512,13 @@ export const StoneForgeEditor = () => {
         ...c,
         cutouts: [
           ...c.cutouts,
-          { 
-            id: `cut_${Date.now()}`, 
-            shape: 'rectangular', 
-            width: 40, 
-            depth: 30, 
-            centerX: evaluateExpression(c.length, variablesMap) / 2, 
-            centerY: evaluateExpression(c.depth, variablesMap) / 2 
+          {
+            id: `cut_${Date.now()}`,
+            shape: 'rectangular',
+            width: 40,
+            depth: 30,
+            centerX: evaluateExpression(c.length, variablesMap) / 2,
+            centerY: evaluateExpression(c.depth, variablesMap) / 2
           }
         ]
       }))
@@ -513,6 +544,78 @@ export const StoneForgeEditor = () => {
       }))
     }));
   };
+
+  // ── Dimension Label Handlers ──────────────────────────
+
+  const findDimensionLabelDeep = (components: SlabComponent[], labelId: string): { slabId: string; label: DimensionLabel } | null => {
+    for (const c of components) {
+      const found = c.dimensionLabels?.find(l => l.id === labelId);
+      if (found) return { slabId: c.id, label: found };
+      if (c.children) {
+        const res = findDimensionLabelDeep(c.children, labelId);
+        if (res) return res;
+      }
+    }
+    return null;
+  };
+
+  const handleAddDimensionLabel = () => {
+    if (!selectedEdge) return;
+    const { slabId, edge } = selectedEdge;
+    const parent = findComponentDeep(template.components, slabId);
+    if (!parent) return;
+
+    // Default text expression: use the dimension that the edge measures
+    const isXEdge = edge.includes('front') || edge.includes('back');
+    const isZEdge = edge.includes('left') || edge.includes('right');
+    const isVertical = !edge.includes('top') && !edge.includes('bottom');
+    let defaultText: Expression = parent.length;
+    if (isZEdge) defaultText = parent.depth;
+    if (isVertical) defaultText = parent.thickness;
+
+    const newLabel: DimensionLabel = {
+      id: `dim_${Date.now()}`,
+      type: 'dimension_label',
+      name: `${edge} Dimension`,
+      edge: edge,
+      text: defaultText,
+      offset: 15,
+    };
+
+    setTemplate(prev => ({
+      ...prev,
+      components: updateComponentDeep(prev.components, slabId, (c) => ({
+        ...c,
+        dimensionLabels: [...(c.dimensionLabels || []), newLabel]
+      }))
+    }));
+    setSelectedDimensionLabelId(newLabel.id);
+    setSelectedEdge(null);
+  };
+
+  const handleUpdateDimensionLabel = (slabId: string, labelId: string, field: keyof DimensionLabel, value: any) => {
+    setTemplate(prev => ({
+      ...prev,
+      components: updateComponentDeep(prev.components, slabId, (c) => ({
+        ...c,
+        dimensionLabels: (c.dimensionLabels || []).map(l => l.id === labelId ? { ...l, [field]: value } : l)
+      }))
+    }));
+  };
+
+  const handleRemoveDimensionLabel = (slabId: string, labelId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setTemplate(prev => ({
+      ...prev,
+      components: updateComponentDeep(prev.components, slabId, (c) => ({
+        ...c,
+        dimensionLabels: (c.dimensionLabels || []).filter(l => l.id !== labelId)
+      }))
+    }));
+    if (selectedDimensionLabelId === labelId) setSelectedDimensionLabelId(null);
+  };
+
+  const selectedDimLabel = selectedDimensionLabelId ? findDimensionLabelDeep(template.components, selectedDimensionLabelId) : null;
 
   const handleExport = () => {
     const canvas = document.querySelector('canvas');
@@ -544,7 +647,7 @@ export const StoneForgeEditor = () => {
   const renderComponentTree = (components: SlabComponent[], depth = 0) => {
     return components.map(comp => (
       <React.Fragment key={comp.id}>
-        <div 
+        <div
           onClick={() => handleSelectComponent(comp.id)}
           className={`px-3 py-2 rounded-md text-sm cursor-pointer flex justify-between items-center ${selectedComponentId === comp.id ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-600 hover:bg-gray-50'}`}
           style={{ paddingLeft: `${depth * 1.5 + 0.75}rem` }}
@@ -554,6 +657,23 @@ export const StoneForgeEditor = () => {
             <Trash2 className="w-3.5 h-3.5 text-gray-400 hover:text-red-500 flex-shrink-0" />
           </button>
         </div>
+        {/* Dimension Labels */}
+        {comp.dimensionLabels?.map(label => (
+          <div
+            key={label.id}
+            onClick={() => handleSelectComponent(label.id)}
+            className={`px-3 py-1.5 rounded-md text-xs cursor-pointer flex justify-between items-center ${selectedDimensionLabelId === label.id ? 'bg-amber-50 text-amber-700 font-medium' : 'text-gray-500 hover:bg-gray-50'}`}
+            style={{ paddingLeft: `${(depth + 1) * 1.5 + 0.75}rem` }}
+          >
+            <span className="truncate pr-2 flex items-center gap-1">
+              <Ruler className="w-3 h-3 flex-shrink-0" />
+              {label.name}
+            </span>
+            <button onClick={(e) => handleRemoveDimensionLabel(comp.id, label.id, e)}>
+              <Trash2 className="w-3 h-3 text-gray-400 hover:text-red-500 flex-shrink-0" />
+            </button>
+          </div>
+        ))}
         {comp.children && renderComponentTree(comp.children, depth + 1)}
       </React.Fragment>
     ));
@@ -568,19 +688,49 @@ export const StoneForgeEditor = () => {
           <Box className="w-5 h-5 text-indigo-600" />
           <h1 className="font-semibold text-gray-900">StoneForge 3D</h1>
           <span className="text-gray-400 mx-2">|</span>
-          <input 
-            type="text" 
-            value={template.name}
-            onChange={(e) => setTemplate(prev => ({ ...prev, name: e.target.value }))}
-            className="text-sm font-medium text-gray-700 bg-transparent border-none focus:ring-0 p-0 w-48"
-          />
+          {viewMode === 'designer' ? (
+            <input
+              type="text"
+              value={template.name}
+              onChange={(e) => setTemplate(prev => ({ ...prev, name: e.target.value }))}
+              className="text-sm font-medium text-gray-700 bg-transparent border-none focus:ring-0 p-0 w-48"
+            />
+          ) : (
+            <span className="text-sm font-medium text-gray-700 truncate max-w-48">{template.name}</span>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={handleExport} className="bg-white border border-gray-300 text-gray-700 py-1.5 px-3 rounded-md text-xs font-medium hover:bg-gray-50 flex items-center gap-1.5">
-            <Download className="w-3.5 h-3.5" /> Export Image
-          </button>
-          {template.id !== 'temp_1' && (
-            <button 
+          {/* View mode toggle */}
+          <div className="flex items-center bg-gray-100 rounded-md p-0.5 border border-gray-200">
+            <button
+              onClick={() => setViewMode('user')}
+              title="User View – variables only"
+              className={`flex items-center gap-1.5 py-1 px-2.5 rounded text-xs font-medium transition-colors ${viewMode === 'user'
+                  ? 'bg-white text-indigo-700 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+                }`}
+            >
+              <Eye className="w-3.5 h-3.5" /> User
+            </button>
+            <button
+              onClick={() => setViewMode('designer')}
+              title="Designer View – full editor"
+              className={`flex items-center gap-1.5 py-1 px-2.5 rounded text-xs font-medium transition-colors ${viewMode === 'designer'
+                  ? 'bg-white text-indigo-700 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+                }`}
+            >
+              <LayoutTemplate className="w-3.5 h-3.5" /> Designer
+            </button>
+          </div>
+
+          {viewMode === 'designer' && (
+            <button onClick={handleExport} className="bg-white border border-gray-300 text-gray-700 py-1.5 px-3 rounded-md text-xs font-medium hover:bg-gray-50 flex items-center gap-1.5">
+              <Download className="w-3.5 h-3.5" /> Export Image
+            </button>
+          )}
+          {viewMode === 'designer' && template.id !== 'temp_1' && (
+            <button
               onClick={handleDuplicateTemplate}
               disabled={isSaving}
               className="bg-white border border-indigo-200 text-indigo-700 py-1.5 px-3 rounded-md text-xs font-medium hover:bg-indigo-50 flex items-center gap-1.5 disabled:opacity-50"
@@ -588,7 +738,7 @@ export const StoneForgeEditor = () => {
               <Copy className="w-3.5 h-3.5" /> Duplicate Design
             </button>
           )}
-          <button 
+          <button
             onClick={handleSaveTemplate}
             disabled={isSaving}
             className="bg-indigo-600 text-white py-1.5 px-3 rounded-md text-xs font-medium hover:bg-indigo-700 flex items-center gap-1.5 disabled:opacity-50"
@@ -599,8 +749,8 @@ export const StoneForgeEditor = () => {
       </div>
     );
     return () => setToolBar(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, template, isSaving, setToolBar]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, template, isSaving, viewMode, setToolBar]);
 
   if (isLoading) {
     return (
@@ -617,342 +767,454 @@ export const StoneForgeEditor = () => {
     <div className="flex flex-col flex-1 bg-gray-100 overflow-hidden font-sans">
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar (Library & Variables) */}
-        <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-full shadow-sm z-10">
-          <div className="p-3 border-b border-gray-100 bg-gray-50 flex gap-2">
-            <button 
-              onClick={() => setActiveLeftTab('assembly')}
-              className={`flex-1 text-xs font-medium py-1.5 rounded ${activeLeftTab === 'assembly' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-500 hover:bg-gray-100'}`}
-            >
-              Assembly
-            </button>
-            <button 
-              onClick={() => setActiveLeftTab('variables')}
-              className={`flex-1 text-xs font-medium py-1.5 rounded ${activeLeftTab === 'variables' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-500 hover:bg-gray-100'}`}
-            >
-              Variables
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4">
-            {activeLeftTab === 'assembly' ? (
-              <>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5" /> Components
-                  </h3>
-                  <button onClick={handleAddComponent} className="text-gray-400 hover:text-indigo-600">
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="space-y-1">
-                  {renderComponentTree(template.components)}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-                    Variables
-                  </h3>
-                  <button onClick={handleAddVariable} className="text-gray-400 hover:text-indigo-600">
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {template.variables.length === 0 && (
-                    <p className="text-xs text-gray-500 text-center py-4">No variables defined yet.</p>
-                  )}
-                  {template.variables.map(v => (
-                    <div key={v.id} className="p-2 bg-gray-50 rounded-md border border-gray-200">
-                      <input 
-                        type="text"
-                        value={v.label} 
-                        onChange={(e) => {
-                          // Only allow alphanumeric and underscores
-                          const safeLabel = e.target.value.replace(/[^a-zA-Z0-9_]/g, '');
-                          handleUpdateVariable(v.id, 'label', safeLabel);
-                        }} 
-                        className="text-xs font-medium text-gray-700 w-full mb-2 p-1 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500" 
-                        placeholder="Variable Name (e.g. length_a)"
+
+        {/* ── USER VIEW ─────────────────────────────────────────────── */}
+        {viewMode === 'user' && (
+          <>
+            {/* Full-width 3D Canvas */}
+            <div className="flex-1 relative bg-gray-50">
+              <Canvas camera={{ position: [150, 150, 200], fov: 45 }} gl={{ preserveDrawingBuffer: true }}>
+                <color attach="background" args={['#f9fafb']} />
+                <ambientLight intensity={0.5} />
+                <directionalLight position={[100, 200, 100]} intensity={1} castShadow />
+                <React.Suspense fallback={null}>
+                  <Environment preset="city" />
+                  <group position={[-100, 0, 50]}>
+                    {template.components.map(comp => (
+                      <Slab3D
+                        key={comp.id}
+                        slab={comp}
+                        isSelected={false}
+                        onSelect={() => { }}
+                        selectedComponentId={null}
+                        onEdgeSelect={() => { }}
+                        selectedEdge={null}
+                        selectedDimensionLabelId={null}
+                        variables={variablesMap}
                       />
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-gray-500 uppercase font-semibold">Default:</span>
-                        <input 
-                          type="number" 
-                          value={v.default} 
-                          onChange={(e) => handleUpdateVariable(v.id, 'default', parseFloat(e.target.value) || 0)} 
-                          className="text-xs flex-1 p-1 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500" 
-                        />
-                        <button onClick={() => handleRemoveVariable(v.id)} className="p-1 hover:bg-gray-200 rounded">
-                          <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                    ))}
+                    <Grid
+                      position={[100, -0.1, -50]}
+                      args={[500, 500]}
+                      cellSize={10}
+                      cellThickness={1}
+                      cellColor="#e5e7eb"
+                      sectionSize={50}
+                      sectionThickness={1.5}
+                      sectionColor="#d1d5db"
+                      fadeDistance={400}
+                      fadeStrength={1}
+                    />
+                  </group>
+                </React.Suspense>
+                <OrbitControls makeDefault minDistance={50} maxDistance={500} />
+              </Canvas>
+            </div>
+
+            {/* Right Panel – Variable Editor */}
+            <div className="w-72 bg-white border-l border-gray-200 flex flex-col h-full shadow-sm z-10">
+              <StoneForgeVariableEditor
+                template={template}
+                onVariableChange={(id, value) => handleUpdateVariable(id, 'default', value)}
+              />
+            </div>
+          </>
+        )}
+
+        {/* ── DESIGNER VIEW ──────────────────────────────────────────── */}
+        {viewMode === 'designer' && (
+          <>
+            {/* Left Sidebar (Library & Variables) */}
+            <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-full shadow-sm z-10">
+              <div className="p-3 border-b border-gray-100 bg-gray-50 flex gap-2">
+                <button
+                  onClick={() => setActiveLeftTab('assembly')}
+                  className={`flex-1 text-xs font-medium py-1.5 rounded ${activeLeftTab === 'assembly' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-500 hover:bg-gray-100'}`}
+                >
+                  Assembly
+                </button>
+                <button
+                  onClick={() => setActiveLeftTab('variables')}
+                  className={`flex-1 text-xs font-medium py-1.5 rounded ${activeLeftTab === 'variables' ? 'text-indigo-600 bg-indigo-50' : 'text-gray-500 hover:bg-gray-100'}`}
+                >
+                  Variables
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4">
+                {activeLeftTab === 'assembly' ? (
+                  <>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5" /> Components
+                      </h3>
+                      <button onClick={handleAddComponent} className="text-gray-400 hover:text-indigo-600">
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      {renderComponentTree(template.components)}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                        Variables
+                      </h3>
+                      <button onClick={handleAddVariable} className="text-gray-400 hover:text-indigo-600">
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      {template.variables.length === 0 && (
+                        <p className="text-xs text-gray-500 text-center py-4">No variables defined yet.</p>
+                      )}
+                      {template.variables.map(v => (
+                        <div key={v.id} className="p-2 bg-gray-50 rounded-md border border-gray-200">
+                          <input
+                            type="text"
+                            value={v.label}
+                            onChange={(e) => {
+                              // Only allow alphanumeric and underscores
+                              const safeLabel = e.target.value.replace(/[^a-zA-Z0-9_]/g, '');
+                              handleUpdateVariable(v.id, 'label', safeLabel);
+                            }}
+                            className="text-xs font-medium text-gray-700 w-full mb-2 p-1 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500"
+                            placeholder="Variable Name (e.g. length_a)"
+                          />
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-gray-500 uppercase font-semibold">Default:</span>
+                            <input
+                              type="number"
+                              value={v.default}
+                              onChange={(e) => handleUpdateVariable(v.id, 'default', parseFloat(e.target.value) || 0)}
+                              className="text-xs flex-1 p-1 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500"
+                            />
+                            <button onClick={() => handleRemoveVariable(v.id)} className="p-1 hover:bg-gray-200 rounded">
+                              <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Center Workspace (3D Canvas) */}
+            <div className="flex-1 relative bg-gray-50">
+              <Canvas camera={{ position: [150, 150, 200], fov: 45 }} gl={{ preserveDrawingBuffer: true }}>
+                <color attach="background" args={['#f9fafb']} />
+                <ambientLight intensity={0.5} />
+                <directionalLight position={[100, 200, 100]} intensity={1} castShadow />
+
+                <React.Suspense fallback={null}>
+                  <Environment preset="city" />
+
+                  {/* Center the assembly */}
+                  <group position={[-100, 0, 50]}>
+                    {template.components.map(comp => (
+                      <Slab3D
+                        key={comp.id}
+                        slab={comp}
+                        isSelected={selectedComponentId === comp.id}
+                        onSelect={handleSelectComponent}
+                        selectedComponentId={selectedComponentId}
+                        selectedDimensionLabelId={selectedDimensionLabelId}
+                        onEdgeSelect={handleSelectEdge}
+                        selectedEdge={selectedEdge}
+                        variables={variablesMap}
+                      />
+                    ))}
+
+                    <Grid
+                      position={[100, -0.1, -50]}
+                      args={[500, 500]}
+                      cellSize={10}
+                      cellThickness={1}
+                      cellColor="#e5e7eb"
+                      sectionSize={50}
+                      sectionThickness={1.5}
+                      sectionColor="#d1d5db"
+                      fadeDistance={400}
+                      fadeStrength={1}
+                    />
+                  </group>
+                </React.Suspense>
+
+                <OrbitControls makeDefault minDistance={50} maxDistance={500} />
+              </Canvas>
+            </div>
+
+            {/* Right Sidebar (Properties Inspector) */}
+            <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full shadow-sm z-10">
+              <div className="p-3 border-b border-gray-100 bg-gray-50">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                  <Settings className="w-3.5 h-3.5" /> Properties
+                </h3>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
+                {selectedEdge ? (
+                  <div className="space-y-6">
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-900 capitalize mb-1">{selectedEdge.edge} Edge Selected</h4>
+                      <p className="text-xs text-gray-500 mb-4">Add an attached component to this edge.</p>
+                      <div className="grid grid-cols-1 gap-2">
+                        <button onClick={() => handleAddEdgeComponent('splash')} className="text-xs bg-white hover:bg-gray-50 text-gray-700 py-2 px-3 rounded border border-gray-300 text-left flex items-center justify-between">
+                          <span>Add Splash</span>
+                          <Plus className="w-3.5 h-3.5 text-gray-400" />
+                        </button>
+                        <button onClick={() => handleAddEdgeComponent('waterfall')} className="text-xs bg-white hover:bg-gray-50 text-gray-700 py-2 px-3 rounded border border-gray-300 text-left flex items-center justify-between">
+                          <span>Add Waterfall</span>
+                          <Plus className="w-3.5 h-3.5 text-gray-400" />
+                        </button>
+                        <button onClick={() => handleAddEdgeComponent('raised')} className="text-xs bg-white hover:bg-gray-50 text-gray-700 py-2 px-3 rounded border border-gray-300 text-left flex items-center justify-between">
+                          <span>Add Raised Edge</span>
+                          <Plus className="w-3.5 h-3.5 text-gray-400" />
+                        </button>
+                        <button onClick={() => handleAddEdgeComponent('custom')} className="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-2 px-3 rounded border border-indigo-200 text-left flex items-center justify-between mt-2">
+                          <span>Add Custom Component</span>
+                          <Plus className="w-3.5 h-3.5 text-indigo-500" />
+                        </button>
+                        <button onClick={handleAddDimensionLabel} className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 py-2 px-3 rounded border border-amber-200 text-left flex items-center justify-between mt-2">
+                          <span>Add Dimension Label</span>
+                          <Ruler className="w-3.5 h-3.5 text-amber-500" />
                         </button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+                  </div>
+                ) : selectedDimLabel ? (
+                  <div className="space-y-6">
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-900 capitalize mb-1 flex items-center gap-1.5">
+                        <Ruler className="w-4 h-4 text-amber-600" /> Dimension Label
+                      </h4>
+                      <p className="text-xs text-gray-500 mb-4">Configure this dimension label.</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
+                      <input
+                        type="text"
+                        value={selectedDimLabel.label.name}
+                        onChange={(e) => handleUpdateDimensionLabel(selectedDimLabel.slabId, selectedDimLabel.label.id, 'name', e.target.value)}
+                        className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Edge</label>
+                      <div className="text-sm text-gray-600 bg-gray-50 px-2 py-1.5 rounded border border-gray-200 capitalize">{selectedDimLabel.label.edge}</div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Text Expression</label>
+                      <input
+                        type="text"
+                        value={selectedDimLabel.label.text}
+                        onChange={(e) => handleUpdateDimensionLabel(selectedDimLabel.slabId, selectedDimLabel.label.id, 'text', e.target.value)}
+                        className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 font-mono"
+                        placeholder="e.g. length_a or 228"
+                      />
+                      <p className="text-[10px] text-gray-500 mt-1">Evaluated: <span className="font-medium">{evaluateExpression(selectedDimLabel.label.text, variablesMap)}</span></p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Offset (distance from edge)</label>
+                      <input
+                        type="number"
+                        value={selectedDimLabel.label.offset}
+                        onChange={(e) => handleUpdateDimensionLabel(selectedDimLabel.slabId, selectedDimLabel.label.id, 'offset', parseFloat(e.target.value) || 0)}
+                        className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
+                      />
+                    </div>
+                    <div className="pt-4 border-t border-gray-100">
+                      <button
+                        onClick={() => handleRemoveDimensionLabel(selectedDimLabel.slabId, selectedDimLabel.label.id)}
+                        className="text-xs text-red-600 hover:text-red-800 flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Remove Label
+                      </button>
+                    </div>
+                  </div>
+                ) : selectedComponent ? (
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
+                      <input
+                        type="text"
+                        value={selectedComponent.name}
+                        onChange={(e) => handleComponentChange(selectedComponent.id, 'name', e.target.value)}
+                        className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    </div>
 
-        {/* Center Workspace (3D Canvas) */}
-        <div className="flex-1 relative bg-gray-50">
-          <Canvas camera={{ position: [150, 150, 200], fov: 45 }} gl={{ preserveDrawingBuffer: true }}>
-            <color attach="background" args={['#f9fafb']} />
-            <ambientLight intensity={0.5} />
-            <directionalLight position={[100, 200, 100]} intensity={1} castShadow />
-            
-            <React.Suspense fallback={null}>
-              <Environment preset="city" />
-              
-              {/* Center the assembly */}
-              <group position={[-100, 0, 50]}>
-                {template.components.map(comp => (
-                  <Slab3D 
-                    key={comp.id} 
-                    slab={comp} 
-                    isSelected={selectedComponentId === comp.id}
-                    onSelect={handleSelectComponent}
-                    selectedComponentId={selectedComponentId}
-                    onEdgeSelect={handleSelectEdge}
-                    selectedEdge={selectedEdge}
-                    variables={variablesMap}
-                  />
-                ))}
-                
-                <Grid 
-                  position={[100, -0.1, -50]} 
-                  args={[500, 500]} 
-                  cellSize={10} 
-                  cellThickness={1} 
-                  cellColor="#e5e7eb" 
-                  sectionSize={50} 
-                  sectionThickness={1.5} 
-                  sectionColor="#d1d5db" 
-                  fadeDistance={400} 
-                  fadeStrength={1} 
-                />
-              </group>
-            </React.Suspense>
-            
-              <OrbitControls makeDefault minDistance={50} maxDistance={500} />
-          </Canvas>
-        </div>
-
-        {/* Right Sidebar (Properties Inspector) */}
-        <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full shadow-sm z-10">
-          <div className="p-3 border-b border-gray-100 bg-gray-50">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-              <Settings className="w-3.5 h-3.5" /> Properties
-            </h3>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
-            {selectedEdge ? (
-              <div className="space-y-6">
-                <div>
-                  <h4 className="text-sm font-bold text-gray-900 capitalize mb-1">{selectedEdge.edge} Edge Selected</h4>
-                  <p className="text-xs text-gray-500 mb-4">Add an attached component to this edge.</p>
-                  <div className="grid grid-cols-1 gap-2">
-                    <button onClick={() => handleAddEdgeComponent('splash')} className="text-xs bg-white hover:bg-gray-50 text-gray-700 py-2 px-3 rounded border border-gray-300 text-left flex items-center justify-between">
-                      <span>Add Splash</span>
-                      <Plus className="w-3.5 h-3.5 text-gray-400" />
-                    </button>
-                    <button onClick={() => handleAddEdgeComponent('waterfall')} className="text-xs bg-white hover:bg-gray-50 text-gray-700 py-2 px-3 rounded border border-gray-300 text-left flex items-center justify-between">
-                      <span>Add Waterfall</span>
-                      <Plus className="w-3.5 h-3.5 text-gray-400" />
-                    </button>
-                    <button onClick={() => handleAddEdgeComponent('drop')} className="text-xs bg-white hover:bg-gray-50 text-gray-700 py-2 px-3 rounded border border-gray-300 text-left flex items-center justify-between">
-                      <span>Add Drop Edge</span>
-                      <Plus className="w-3.5 h-3.5 text-gray-400" />
-                    </button>
-                    <button onClick={() => handleAddEdgeComponent('raised')} className="text-xs bg-white hover:bg-gray-50 text-gray-700 py-2 px-3 rounded border border-gray-300 text-left flex items-center justify-between">
-                      <span>Add Raised Edge</span>
-                      <Plus className="w-3.5 h-3.5 text-gray-400" />
-                    </button>
-                    <button onClick={() => handleAddEdgeComponent('custom')} className="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-2 px-3 rounded border border-indigo-200 text-left flex items-center justify-between mt-2">
-                      <span>Add Custom Component</span>
-                      <Plus className="w-3.5 h-3.5 text-indigo-500" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : selectedComponent ? (
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
-                  <input 
-                    type="text" 
-                    value={selectedComponent.name}
-                    onChange={(e) => handleComponentChange(selectedComponent.id, 'name', e.target.value)}
-                    className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-                
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Length (X)</label>
-                    <input 
-                      type="text" 
-                      value={selectedComponent.length}
-                      onChange={(e) => handleComponentChange(selectedComponent.id, 'length', e.target.value)}
-                      className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Thickness (Y)</label>
-                    <input 
-                      type="text" 
-                      value={selectedComponent.thickness}
-                      onChange={(e) => handleComponentChange(selectedComponent.id, 'thickness', e.target.value)}
-                      className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">Depth (Z)</label>
-                    <input 
-                      type="text" 
-                      value={selectedComponent.depth}
-                      onChange={(e) => handleComponentChange(selectedComponent.id, 'depth', e.target.value)}
-                      className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-gray-100">
-                  <h4 className="text-xs font-semibold text-gray-900 mb-3">Position</h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    {['X', 'Y', 'Z'].map((axis, i) => (
-                      <div key={axis}>
-                        <label className="block text-[10px] font-medium text-gray-500 mb-1">{axis}</label>
-                        <input 
-                          type="text" 
-                          value={selectedComponent.position[i as 0 | 1 | 2]}
-                          onChange={(e) => {
-                            const newPos = [...selectedComponent.position] as [Expression, Expression, Expression];
-                            newPos[i] = e.target.value;
-                            handleComponentChange(selectedComponent.id, 'position', newPos);
-                          }}
-                          className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Length (X)</label>
+                        <input
+                          type="text"
+                          value={selectedComponent.length}
+                          onChange={(e) => handleComponentChange(selectedComponent.id, 'length', e.target.value)}
+                          className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5"
                         />
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-gray-100">
-                  <h4 className="text-xs font-semibold text-gray-900 mb-3">Rotation (Radians)</h4>
-                  <div className="grid grid-cols-3 gap-2">
-                    {['X', 'Y', 'Z'].map((axis, i) => (
-                      <div key={axis}>
-                        <label className="block text-[10px] font-medium text-gray-500 mb-1">{axis}</label>
-                        <input 
-                          type="text" 
-                          value={selectedComponent.rotation?.[i as 0 | 1 | 2] || 0}
-                          onChange={(e) => {
-                            const newRot = [...(selectedComponent.rotation || [0,0,0])] as [Expression, Expression, Expression];
-                            newRot[i] = e.target.value;
-                            handleComponentChange(selectedComponent.id, 'rotation', newRot);
-                          }}
-                          className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Thickness (Y)</label>
+                        <input
+                          type="text"
+                          value={selectedComponent.thickness}
+                          onChange={(e) => handleComponentChange(selectedComponent.id, 'thickness', e.target.value)}
+                          className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5"
                         />
                       </div>
-                    ))}
-                  </div>
-                </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Depth (Z)</label>
+                        <input
+                          type="text"
+                          value={selectedComponent.depth}
+                          onChange={(e) => handleComponentChange(selectedComponent.id, 'depth', e.target.value)}
+                          className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5"
+                        />
+                      </div>
+                    </div>
 
-                <div className="pt-4 border-t border-gray-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <h4 className="text-xs font-semibold text-gray-900">Sinks / Cutouts</h4>
-                    <button onClick={() => handleAddCutout(selectedComponent.id)} className="text-indigo-600 hover:text-indigo-800">
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  {selectedComponent.cutouts.length === 0 && (
-                    <p className="text-[10px] text-gray-500 mb-4">No sinks added.</p>
-                  )}
-                  {selectedComponent.cutouts.map((cutout, idx) => (
-                    <div key={cutout.id} className="mb-3 bg-gray-50 p-2 rounded-md border border-gray-100">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-medium text-gray-700">Sink {idx + 1}</span>
-                        <button onClick={() => handleRemoveCutout(selectedComponent.id, cutout.id)}>
-                          <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                    <div className="pt-4 border-t border-gray-100">
+                      <h4 className="text-xs font-semibold text-gray-900 mb-3">Position</h4>
+                      <div className="grid grid-cols-3 gap-2">
+                        {['X', 'Y', 'Z'].map((axis, i) => (
+                          <div key={axis}>
+                            <label className="block text-[10px] font-medium text-gray-500 mb-1">{axis}</label>
+                            <input
+                              type="text"
+                              value={selectedComponent.position[i as 0 | 1 | 2]}
+                              onChange={(e) => {
+                                const newPos = [...selectedComponent.position] as [Expression, Expression, Expression];
+                                newPos[i] = e.target.value;
+                                handleComponentChange(selectedComponent.id, 'position', newPos);
+                              }}
+                              className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-100">
+                      <h4 className="text-xs font-semibold text-gray-900 mb-3">Rotation (Radians)</h4>
+                      <div className="grid grid-cols-3 gap-2">
+                        {['X', 'Y', 'Z'].map((axis, i) => (
+                          <div key={axis}>
+                            <label className="block text-[10px] font-medium text-gray-500 mb-1">{axis}</label>
+                            <input
+                              type="text"
+                              value={selectedComponent.rotation?.[i as 0 | 1 | 2] || 0}
+                              onChange={(e) => {
+                                const newRot = [...(selectedComponent.rotation || [0, 0, 0])] as [Expression, Expression, Expression];
+                                newRot[i] = e.target.value;
+                                handleComponentChange(selectedComponent.id, 'rotation', newRot);
+                              }}
+                              className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-100">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-xs font-semibold text-gray-900">Sinks / Cutouts</h4>
+                        <button onClick={() => handleAddCutout(selectedComponent.id)} className="text-indigo-600 hover:text-indigo-800">
+                          <Plus className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                      
-                      <div className="space-y-2">
-                        <div>
-                          <label className="block text-[10px] text-gray-500 mb-1">Shape</label>
-                          <select 
-                            value={cutout.shape}
-                            onChange={(e) => handleUpdateCutout(selectedComponent.id, cutout.id, 'shape', e.target.value)}
-                            className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                          >
-                            <option value="rectangular">Rectangular</option>
-                            <option value="circular">Circular</option>
-                            <option value="oval">Oval</option>
-                          </select>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-[10px] text-gray-500 mb-1">Center X (from Left)</label>
-                            <input 
-                              type="text" 
-                              value={cutout.centerX}
-                              onChange={(e) => handleUpdateCutout(selectedComponent.id, cutout.id, 'centerX', e.target.value)}
-                              className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                            />
+                      {selectedComponent.cutouts.length === 0 && (
+                        <p className="text-[10px] text-gray-500 mb-4">No sinks added.</p>
+                      )}
+                      {selectedComponent.cutouts.map((cutout, idx) => (
+                        <div key={cutout.id} className="mb-3 bg-gray-50 p-2 rounded-md border border-gray-100">
+                          <div className="flex justify-between items-center mb-2">
+                            <span className="text-xs font-medium text-gray-700">Sink {idx + 1}</span>
+                            <button onClick={() => handleRemoveCutout(selectedComponent.id, cutout.id)}>
+                              <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                            </button>
                           </div>
-                          <div>
-                            <label className="block text-[10px] text-gray-500 mb-1">Center Y (from Front)</label>
-                            <input 
-                              type="text" 
-                              value={cutout.centerY}
-                              onChange={(e) => handleUpdateCutout(selectedComponent.id, cutout.id, 'centerY', e.target.value)}
-                              className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-[10px] text-gray-500 mb-1">
-                              {cutout.shape === 'circular' ? 'Diameter' : 'Width'}
-                            </label>
-                            <input 
-                              type="text" 
-                              value={cutout.width}
-                              onChange={(e) => handleUpdateCutout(selectedComponent.id, cutout.id, 'width', e.target.value)}
-                              className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                            />
-                          </div>
-                          {cutout.shape !== 'circular' && (
+
+                          <div className="space-y-2">
                             <div>
-                              <label className="block text-[10px] text-gray-500 mb-1">Depth</label>
-                              <input 
-                                type="text" 
-                                value={cutout.depth}
-                                onChange={(e) => handleUpdateCutout(selectedComponent.id, cutout.id, 'depth', e.target.value)}
+                              <label className="block text-[10px] text-gray-500 mb-1">Shape</label>
+                              <select
+                                value={cutout.shape}
+                                onChange={(e) => handleUpdateCutout(selectedComponent.id, cutout.id, 'shape', e.target.value)}
                                 className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                              />
+                              >
+                                <option value="rectangular">Rectangular</option>
+                                <option value="circular">Circular</option>
+                                <option value="oval">Oval</option>
+                              </select>
                             </div>
-                          )}
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[10px] text-gray-500 mb-1">Center X (from Left)</label>
+                                <input
+                                  type="text"
+                                  value={cutout.centerX}
+                                  onChange={(e) => handleUpdateCutout(selectedComponent.id, cutout.id, 'centerX', e.target.value)}
+                                  className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] text-gray-500 mb-1">Center Y (from Front)</label>
+                                <input
+                                  type="text"
+                                  value={cutout.centerY}
+                                  onChange={(e) => handleUpdateCutout(selectedComponent.id, cutout.id, 'centerY', e.target.value)}
+                                  className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[10px] text-gray-500 mb-1">
+                                  {cutout.shape === 'circular' ? 'Diameter' : 'Width'}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={cutout.width}
+                                  onChange={(e) => handleUpdateCutout(selectedComponent.id, cutout.id, 'width', e.target.value)}
+                                  className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                                />
+                              </div>
+                              {cutout.shape !== 'circular' && (
+                                <div>
+                                  <label className="block text-[10px] text-gray-500 mb-1">Depth</label>
+                                  <input
+                                    type="text"
+                                    value={cutout.depth}
+                                    onChange={(e) => handleUpdateCutout(selectedComponent.id, cutout.id, 'depth', e.target.value)}
+                                    className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500 text-center mt-10">
+                    Select a component to edit its properties.
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="text-sm text-gray-500 text-center mt-10">
-                Select a component to edit its properties.
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+            </div>
+          </>
+        )}
+
+      </div>{/* end flex flex-1 overflow-hidden */}
 
       {toastMessage && (
+
         <div className="fixed bottom-4 right-4 bg-gray-900 text-white px-4 py-2 rounded-md shadow-lg text-sm z-50 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-green-400" />
           {toastMessage}

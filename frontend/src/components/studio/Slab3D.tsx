@@ -4,15 +4,17 @@ import React, { useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { SlabComponent } from '@backend/common/schemas/studio';
 import { evaluateExpression } from '../../lib/evaluator';
+import { DimensionLabel3D } from './DimensionLabel3D';
 
 interface Slab3DProps {
   slab: SlabComponent;
   isSelected: boolean;
   onSelect: (id: string) => void;
   selectedComponentId: string | null;
-  onEdgeSelect: (id: string, edge: 'front' | 'back' | 'left' | 'right') => void;
-  selectedEdge: { slabId: string, edge: 'front' | 'back' | 'left' | 'right' } | null;
+  onEdgeSelect: (id: string, edge: string) => void;
+  selectedEdge: { slabId: string, edge: string } | null;
   variables: Record<string, number>;
+  selectedDimensionLabelId?: string | null;
 }
 
 const EdgeHitbox = ({ position, args, edgeName, slabId, onEdgeSelect, isSelected }: any) => {
@@ -30,7 +32,7 @@ const EdgeHitbox = ({ position, args, edgeName, slabId, onEdgeSelect, isSelected
   );
 };
 
-export const Slab3D: React.FC<Slab3DProps> = ({ slab, isSelected, onSelect, selectedComponentId, onEdgeSelect, selectedEdge, variables }) => {
+export const Slab3D: React.FC<Slab3DProps> = ({ slab, isSelected, onSelect, selectedComponentId, onEdgeSelect, selectedEdge, variables, selectedDimensionLabelId }) => {
   const L = evaluateExpression(slab.length, variables);
   const D = evaluateExpression(slab.depth, variables);
   const T = evaluateExpression(slab.thickness, variables);
@@ -128,38 +130,121 @@ export const Slab3D: React.FC<Slab3DProps> = ({ slab, isSelected, onSelect, sele
       </group>
 
       {/* Edge Hitboxes */}
+      {/* Top Edges */}
       <EdgeHitbox
-        position={[L / 2, T / 2, 0]}
-        args={[L, T + 2, hitT]}
-        edgeName="front"
+        position={[L / 2, T, 0]}
+        args={[L, hitT, hitT]}
+        edgeName="top-front"
         slabId={slab.id}
         onEdgeSelect={onEdgeSelect}
-        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'front'}
+        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-front'}
       />
       <EdgeHitbox
-        position={[L / 2, T / 2, -D]}
-        args={[L, T + 2, hitT]}
-        edgeName="back"
+        position={[L / 2, T, -D]}
+        args={[L, hitT, hitT]}
+        edgeName="top-back"
         slabId={slab.id}
         onEdgeSelect={onEdgeSelect}
-        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'back'}
+        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-back'}
       />
       <EdgeHitbox
-        position={[0, T / 2, -D / 2]}
-        args={[hitT, T + 2, D]}
-        edgeName="left"
+        position={[0, T, -D / 2]}
+        args={[hitT, hitT, D]}
+        edgeName="top-left"
         slabId={slab.id}
         onEdgeSelect={onEdgeSelect}
-        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'left'}
+        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-left'}
       />
       <EdgeHitbox
-        position={[L, T / 2, -D / 2]}
-        args={[hitT, T + 2, D]}
-        edgeName="right"
+        position={[L, T, -D / 2]}
+        args={[hitT, hitT, D]}
+        edgeName="top-right"
         slabId={slab.id}
         onEdgeSelect={onEdgeSelect}
-        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'right'}
+        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-right'}
       />
+
+      {/* Bottom Edges */}
+      <EdgeHitbox
+        position={[L / 2, 0, 0]}
+        args={[L, hitT, hitT]}
+        edgeName="bottom-front"
+        slabId={slab.id}
+        onEdgeSelect={onEdgeSelect}
+        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'bottom-front'}
+      />
+      <EdgeHitbox
+        position={[L / 2, 0, -D]}
+        args={[L, hitT, hitT]}
+        edgeName="bottom-back"
+        slabId={slab.id}
+        onEdgeSelect={onEdgeSelect}
+        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'bottom-back'}
+      />
+      <EdgeHitbox
+        position={[0, 0, -D / 2]}
+        args={[hitT, hitT, D]}
+        edgeName="bottom-left"
+        slabId={slab.id}
+        onEdgeSelect={onEdgeSelect}
+        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'bottom-left'}
+      />
+      <EdgeHitbox
+        position={[L, 0, -D / 2]}
+        args={[hitT, hitT, D]}
+        edgeName="bottom-right"
+        slabId={slab.id}
+        onEdgeSelect={onEdgeSelect}
+        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'bottom-right'}
+      />
+
+      {/* Vertical Edges */}
+      <EdgeHitbox
+        position={[0, T / 2, 0]}
+        args={[hitT, T, hitT]}
+        edgeName="front-left"
+        slabId={slab.id}
+        onEdgeSelect={onEdgeSelect}
+        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'front-left'}
+      />
+      <EdgeHitbox
+        position={[L, T / 2, 0]}
+        args={[hitT, T, hitT]}
+        edgeName="front-right"
+        slabId={slab.id}
+        onEdgeSelect={onEdgeSelect}
+        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'front-right'}
+      />
+      <EdgeHitbox
+        position={[0, T / 2, -D]}
+        args={[hitT, T, hitT]}
+        edgeName="back-left"
+        slabId={slab.id}
+        onEdgeSelect={onEdgeSelect}
+        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'back-left'}
+      />
+      <EdgeHitbox
+        position={[L, T / 2, -D]}
+        args={[hitT, T, hitT]}
+        edgeName="back-right"
+        slabId={slab.id}
+        onEdgeSelect={onEdgeSelect}
+        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'back-right'}
+      />
+
+      {/* Dimension Labels */}
+      {slab.dimensionLabels?.map(label => (
+        <DimensionLabel3D
+          key={label.id}
+          label={label}
+          parentLength={L}
+          parentDepth={D}
+          parentThickness={T}
+          variables={variables}
+          isSelected={selectedDimensionLabelId === label.id}
+          onSelect={onSelect}
+        />
+      ))}
 
       {/* Children */}
       {slab.children?.map(child => (
@@ -172,6 +257,7 @@ export const Slab3D: React.FC<Slab3DProps> = ({ slab, isSelected, onSelect, sele
           onEdgeSelect={onEdgeSelect}
           selectedEdge={selectedEdge}
           variables={variables}
+          selectedDimensionLabelId={selectedDimensionLabelId}
         />
       ))}
     </group>

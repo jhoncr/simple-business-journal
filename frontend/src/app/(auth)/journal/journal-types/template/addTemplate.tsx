@@ -11,13 +11,13 @@ export const TemplateDetails = ({ journalId, entryId }: { journalId: string, ent
     <div className="w-full max-w-4xl mx-auto space-y-6 pt-4">
       <div className="flex justify-between items-center rounded-lg border p-6 bg-card">
         <div className="flex flex-col gap-2">
-           <h2 className="text-2xl font-bold flex items-center gap-2">
-             <Box /> Template Options
-           </h2>
-           <p className="text-muted-foreground">This template can be viewed and edited inside the Studio interface.</p>
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            <Box /> Template Options
+          </h2>
+          <p className="text-muted-foreground">This template can be viewed and edited inside the Studio interface.</p>
         </div>
         <Button asChild variant="default">
-          <Link href={`/studio?jid=${journalId}`}>Open in Studio</Link>
+          <Link href={`/journal/entry?jid=${journalId}&jtype=template`}>Open in Studio</Link>
         </Button>
       </div>
 
@@ -36,7 +36,7 @@ export const AddNewTemplateBtn = ({ journalId }: { journalId: string }) => {
   return (
     <div>
       <Button variant="brutalist" className="mb-4" asChild>
-        <Link href={`/studio?jid=${journalId}`}>
+        <Link href={`/journal/entry?jid=${journalId}&jtype=template`}>
           Create Template
         </Link>
       </Button>

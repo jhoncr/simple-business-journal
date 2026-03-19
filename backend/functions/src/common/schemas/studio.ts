@@ -16,6 +16,16 @@ export const CutoutSchema = z.object({
 });
 export type Cutout = z.infer<typeof CutoutSchema>;
 
+export const DimensionLabelSchema = z.object({
+  id: z.string(),
+  type: z.literal('dimension_label'),
+  name: z.string(),
+  edge: z.string(),
+  text: ExpressionSchema,
+  offset: z.number().default(15),
+});
+export type DimensionLabel = z.infer<typeof DimensionLabelSchema>;
+
 const baseComponentSchema = z.object({
   id: z.string(),
   type: z.literal('slab'),
@@ -26,6 +36,7 @@ const baseComponentSchema = z.object({
   position: z.tuple([ExpressionSchema, ExpressionSchema, ExpressionSchema]),
   rotation: z.tuple([ExpressionSchema, ExpressionSchema, ExpressionSchema]).optional(),
   cutouts: z.array(CutoutSchema),
+  dimensionLabels: z.array(DimensionLabelSchema).optional(),
 });
 
 export type SlabComponent = z.infer<typeof baseComponentSchema> & {
