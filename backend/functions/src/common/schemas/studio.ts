@@ -23,6 +23,9 @@ export const DimensionLabelSchema = z.object({
   edge: z.string(),
   text: ExpressionSchema,
   offset: z.number().default(15),
+  startPos: z.tuple([ExpressionSchema, ExpressionSchema, ExpressionSchema]).optional(),
+  endPos: z.tuple([ExpressionSchema, ExpressionSchema, ExpressionSchema]).optional(),
+  offsetDirection: z.tuple([ExpressionSchema, ExpressionSchema, ExpressionSchema]).optional(),
 });
 export type DimensionLabel = z.infer<typeof DimensionLabelSchema>;
 
@@ -45,7 +48,7 @@ export type SlabComponent = z.infer<typeof baseComponentSchema> & {
 
 export const SlabComponentSchema: z.ZodType<SlabComponent> = baseComponentSchema.extend({
   children: z.lazy(() => z.array(SlabComponentSchema)).optional(),
-});
+}) as any;
 
 export const AssemblyVariableSchema = z.object({
   id: z.string(),
