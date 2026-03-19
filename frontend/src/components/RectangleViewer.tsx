@@ -46,9 +46,10 @@ export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles }) 
     if (!rectangles || rectangles.length === 0 || containerWidth === 0) return 1;
     
     // Find the max dimension among all rectangles to ensure all fit proportionately
-    const maxDimensionCM = Math.max(
-      ...rectangles.map(r => Math.max(r.length, r.width))
-    );
+    const maxDimensionCM = rectangles.reduce((max, r) => {
+      const currentMax = Math.max(r.length, r.width);
+      return currentMax > max ? currentMax : max;
+    }, 0);
 
     // Dynamic padding: use ~80% of container width to be visually appealing
     // We limit max base representation to 600px unless screen is small
