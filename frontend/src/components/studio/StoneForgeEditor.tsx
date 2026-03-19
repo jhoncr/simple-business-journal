@@ -559,28 +559,43 @@ export const StoneForgeEditor = () => {
     return null;
   };
 
-  const handleAddDimensionLabel = () => {
+  const handleAddDimensionLabel = (isCustom: boolean = false) => {
     if (!selectedEdge) return;
     const { slabId, edge } = selectedEdge;
     const parent = findComponentDeep(template.components, slabId);
     if (!parent) return;
 
-    // Default text expression: use the dimension that the edge measures
-    const isXEdge = edge.includes('front') || edge.includes('back');
-    const isZEdge = edge.includes('left') || edge.includes('right');
-    const isVertical = !edge.includes('top') && !edge.includes('bottom');
-    let defaultText: Expression = parent.length;
-    if (isZEdge) defaultText = parent.depth;
-    if (isVertical) defaultText = parent.thickness;
+    let newLabel: DimensionLabel;
 
-    const newLabel: DimensionLabel = {
-      id: `dim_${Date.now()}`,
-      type: 'dimension_label',
-      name: `${edge} Dimension`,
-      edge: edge,
-      text: defaultText,
-      offset: 15,
-    };
+    if (isCustom) {
+      newLabel = {
+        id: `dim_${Date.now()}`,
+        type: 'dimension_label',
+        name: `Custom Dimension`,
+        edge: 'custom',
+        text: '0',
+        offset: 15,
+        startPos: [0, 0, 0],
+        endPos: [parent.length, 0, 0],
+      };
+    } else {
+      // Default text expression: use the dimension that the edge measures
+      const isXEdge = edge.includes('front') || edge.includes('back');
+      const isZEdge = edge.includes('left') || edge.includes('right');
+      const isVertical = !edge.includes('top') && !edge.includes('bottom');
+      let defaultText: Expression = parent.length;
+      if (isZEdge) defaultText = parent.depth;
+      if (isVertical) defaultText = parent.thickness;
+
+      newLabel = {
+        id: `dim_${Date.now()}`,
+        type: 'dimension_label',
+        name: `${edge} Dimension`,
+        edge: edge,
+        text: defaultText,
+        offset: 15,
+      };
+    }
 
     setTemplate(prev => ({
       ...prev,
@@ -977,8 +992,12 @@ export const StoneForgeEditor = () => {
                           <span>Add Custom Component</span>
                           <Plus className="w-3.5 h-3.5 text-indigo-500" />
                         </button>
-                        <button onClick={handleAddDimensionLabel} className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 py-2 px-3 rounded border border-amber-200 text-left flex items-center justify-between mt-2">
+                        <button onClick={() => handleAddDimensionLabel()} className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 py-2 px-3 rounded border border-amber-200 text-left flex items-center justify-between mt-2">
                           <span>Add Dimension Label</span>
+                          <Ruler className="w-3.5 h-3.5 text-amber-500" />
+                        </button>
+                        <button onClick={() => handleAddDimensionLabel(true)} className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 py-2 px-3 rounded border border-amber-200 text-left flex items-center justify-between mt-2">
+                          <span>Add Custom Dimension</span>
                           <Ruler className="w-3.5 h-3.5 text-amber-500" />
                         </button>
                       </div>
@@ -1025,6 +1044,49 @@ export const StoneForgeEditor = () => {
                         className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
                       />
                     </div>
+                    {selectedDimLabel.label.edge === 'custom' && (
+                      <div className="pt-4 border-t border-gray-100">
+                        <h4 className="text-xs font-semibold text-gray-900 mb-3">Custom Points</h4>
+
+                        <div className="mb-3">
+                          <label className="block text-[10px] font-medium text-gray-500 mb-1">Start Pos (X, Y, Z)</label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {['X', 'Y', 'Z'].map((axis, i) => (
+                              <input
+                                key={`start-${axis}`}
+                                type="text"
+                                value={selectedDimLabel.label.startPos?.[i] ?? 0}
+                                onChange={(e) => {
+                                  const newPos = [...(selectedDimLabel.label.startPos || [0,0,0])] as [Expression, Expression, Expression];
+                                  newPos[i] = e.target.value;
+                                  handleUpdateDimensionLabel(selectedDimLabel.slabId, selectedDimLabel.label.id, 'startPos', newPos);
+                                }}
+                                className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                              />
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-medium text-gray-500 mb-1">End Pos (X, Y, Z)</label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {['X', 'Y', 'Z'].map((axis, i) => (
+                              <input
+                                key={`end-${axis}`}
+                                type="text"
+                                value={selectedDimLabel.label.endPos?.[i] ?? 0}
+                                onChange={(e) => {
+                                  const newPos = [...(selectedDimLabel.label.endPos || [0,0,0])] as [Expression, Expression, Expression];
+                                  newPos[i] = e.target.value;
+                                  handleUpdateDimensionLabel(selectedDimLabel.slabId, selectedDimLabel.label.id, 'endPos', newPos);
+                                }}
+                                className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <div className="pt-4 border-t border-gray-100">
                       <button
                         onClick={() => handleRemoveDimensionLabel(selectedDimLabel.slabId, selectedDimLabel.label.id)}

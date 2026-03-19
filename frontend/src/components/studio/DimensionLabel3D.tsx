@@ -17,16 +17,97 @@ interface DimensionLabel3DProps {
 }
 
 /**
+ * Evaluates a 3-component expression tuple into a THREE.Vector3.
+ */
+const evaluateVector = (
+  pos: [Expression, Expression, Expression],
+  vars: Record<string, number>
+): THREE.Vector3 => new THREE.Vector3(
+  evaluateExpression(pos[0], vars),
+  evaluateExpression(pos[1], vars),
+  evaluateExpression(pos[2], vars)
+);
+
+/**
  * Computes the midpoint position and extension line endpoints for a dimension label
  * based on which edge of the parent slab it is attached to.
  */
 const getEdgeGeometry = (
-  edge: string,
+  label: DimensionLabel,
   L: number,
   D: number,
   T: number,
-  offset: number,
+  variables: Record<string, number>,
 ): { midpoint: [number, number, number]; lineStart: [number, number, number]; lineEnd: [number, number, number]; extensionA: [number, number, number][]; extensionB: [number, number, number][] } => {
+  const { edge, offset = 15, startPos, endPos, offsetDirection } = label;
+
+  if (edge === 'custom' && startPos && endPos) {
+    // Evaluate expressions to get absolute positions relative to the component
+    const startVector = evaluateVector(startPos as [Expression, Expression, Expression], variables);
+    const endVector = evaluateVector(endPos as [Expression, Expression, Expression], variables);
+
+    const lineDir = new THREE.Vector3().subVectors(endVector, startVector);
+    const length = lineDir.length();
+
+    if (length > 0) {
+      lineDir.normalize();
+
+      let offsetVec = new THREE.Vector3();
+
+      if (offsetDirection) {
+        offsetVec = evaluateVector(offsetDirection as [Expression, Expression, Expression], variables)
+          .normalize()
+          .multiplyScalar(offset);
+      } else {
+        // Default offset calculation
+        // Try to cross with Y axis. If line is vertical, cross with X axis.
+        const up = new THREE.Vector3(0, 1, 0);
+        if (Math.abs(lineDir.dot(up)) > 0.99) {
+          up.set(1, 0, 0);
+        }
+
+        offsetVec.crossVectors(lineDir, up).normalize().multiplyScalar(offset);
+
+        // For horizontal planes, we want the offset to go outward/upward.
+        if (lineDir.y === 0 && offsetVec.y === 0) {
+          offsetVec.set(0, offset, 0);
+        }
+      }
+
+      const lineStartVector = new THREE.Vector3().addVectors(startVector, offsetVec);
+      const lineEndVector = new THREE.Vector3().addVectors(endVector, offsetVec);
+      const midVector = new THREE.Vector3().addVectors(lineStartVector, lineEndVector).multiplyScalar(0.5);
+
+      // Extending slightly beyond the dimension line
+      const extDir = offsetVec.clone().normalize();
+      const extAmount = 3;
+
+      return {
+        midpoint: [midVector.x, midVector.y, midVector.z],
+        lineStart: [lineStartVector.x, lineStartVector.y, lineStartVector.z],
+        lineEnd: [lineEndVector.x, lineEndVector.y, lineEndVector.z],
+        extensionA: [
+          [startVector.x, startVector.y, startVector.z],
+          [lineStartVector.x + extDir.x * extAmount, lineStartVector.y + extDir.y * extAmount, lineStartVector.z + extDir.z * extAmount]
+        ],
+        extensionB: [
+          [endVector.x, endVector.y, endVector.z],
+          [lineEndVector.x + extDir.x * extAmount, lineEndVector.y + extDir.y * extAmount, lineEndVector.z + extDir.z * extAmount]
+        ]
+      };
+    }
+
+    // When start and end points are the same, return an empty geometry to avoid fall-through.
+    // Drei's Line component requires at least 2 points to avoid negative typed array lengths.
+    return {
+      midpoint: [0, 0, 0],
+      lineStart: [0, 0, 0],
+      lineEnd: [0, 0, 0],
+      extensionA: [[0, 0, 0], [0, 0, 0]],
+      extensionB: [[0, 0, 0], [0, 0, 0]],
+    };
+  }
+
   // Default to top-front
   let midpoint: [number, number, number] = [L / 2, T + offset, 0];
   let lineStart: [number, number, number] = [0, T + offset, 0];
@@ -96,11 +177,14 @@ export const DimensionLabel3D: React.FC<DimensionLabel3DProps> = ({
   }, [label.text, variables]);
 
   const geometry = useMemo(() => {
-    return getEdgeGeometry(label.edge, parentLength, parentDepth, parentThickness, label.offset);
-  }, [label.edge, parentLength, parentDepth, parentThickness, label.offset]);
+    return getEdgeGeometry(label, parentLength, parentDepth, parentThickness, variables);
+  }, [label, parentLength, parentDepth, parentThickness, variables]);
 
-  const lineColor = isSelected ? '#4f46e5' : '#6366f1';
-  const textColor = isSelected ? '#312e81' : '#1e1b4b';
+  const lineColor = isSelected ? '#f59e0b' : '#6366f1';
+  const textColor = isSelected ? '#78350f' : '#1e1b4b';
+  const bgColor = isSelected ? '#fef3c7' : 'white';
+  const mainLineWidth = isSelected ? 3 : 1.5;
+  const extLineWidth = isSelected ? 2 : 1;
 
   return (
     <group onClick={(e) => { e.stopPropagation(); onSelect(label.id); }}>
@@ -108,25 +192,25 @@ export const DimensionLabel3D: React.FC<DimensionLabel3DProps> = ({
       <Line
         points={[geometry.lineStart, geometry.lineEnd]}
         color={lineColor}
-        lineWidth={1.5}
+        lineWidth={mainLineWidth}
       />
 
       {/* Arrow heads (small triangles at each end) */}
       <Line
         points={[geometry.lineStart, geometry.lineEnd]}
         color={lineColor}
-        lineWidth={1.5}
+        lineWidth={mainLineWidth}
       />
 
       {/* Extension lines */}
-      <Line points={geometry.extensionA} color={lineColor} lineWidth={1} />
-      <Line points={geometry.extensionB} color={lineColor} lineWidth={1} />
+      <Line points={geometry.extensionA} color={lineColor} lineWidth={extLineWidth} />
+      <Line points={geometry.extensionB} color={lineColor} lineWidth={extLineWidth} />
 
       {/* Text label - always faces camera */}
       <Billboard position={geometry.midpoint} follow={true} lockX={false} lockY={false} lockZ={false}>
         <mesh position={[0, 0, -0.1]}>
           <planeGeometry args={[evaluatedText.length * 3.2 + 6, 7]} />
-          <meshBasicMaterial color="white" transparent opacity={0.9} depthTest={false} />
+          <meshBasicMaterial color={bgColor} transparent opacity={isSelected ? 1 : 0.9} depthTest={false} />
         </mesh>
         <Text
           fontSize={4}
