@@ -179,8 +179,11 @@ export const DimensionLabel3D: React.FC<DimensionLabel3DProps> = ({
     return getEdgeGeometry(label, parentLength, parentDepth, parentThickness, variables);
   }, [label, parentLength, parentDepth, parentThickness, variables]);
 
-  const lineColor = isSelected ? '#4f46e5' : '#6366f1';
-  const textColor = isSelected ? '#312e81' : '#1e1b4b';
+  const lineColor = isSelected ? '#f59e0b' : '#6366f1';
+  const textColor = isSelected ? '#78350f' : '#1e1b4b';
+  const bgColor = isSelected ? '#fef3c7' : 'white';
+  const mainLineWidth = isSelected ? 3 : 1.5;
+  const extLineWidth = isSelected ? 2 : 1;
 
   return (
     <group onClick={(e) => { e.stopPropagation(); onSelect(label.id); }}>
@@ -188,25 +191,25 @@ export const DimensionLabel3D: React.FC<DimensionLabel3DProps> = ({
       <Line
         points={[geometry.lineStart, geometry.lineEnd]}
         color={lineColor}
-        lineWidth={1.5}
+        lineWidth={mainLineWidth}
       />
 
       {/* Arrow heads (small triangles at each end) */}
       <Line
         points={[geometry.lineStart, geometry.lineEnd]}
         color={lineColor}
-        lineWidth={1.5}
+        lineWidth={mainLineWidth}
       />
 
       {/* Extension lines */}
-      <Line points={geometry.extensionA} color={lineColor} lineWidth={1} />
-      <Line points={geometry.extensionB} color={lineColor} lineWidth={1} />
+      <Line points={geometry.extensionA} color={lineColor} lineWidth={extLineWidth} />
+      <Line points={geometry.extensionB} color={lineColor} lineWidth={extLineWidth} />
 
       {/* Text label - always faces camera */}
       <Billboard position={geometry.midpoint} follow={true} lockX={false} lockY={false} lockZ={false}>
         <mesh position={[0, 0, -0.1]}>
           <planeGeometry args={[evaluatedText.length * 3.2 + 6, 7]} />
-          <meshBasicMaterial color="white" transparent opacity={0.9} depthTest={false} />
+          <meshBasicMaterial color={bgColor} transparent opacity={isSelected ? 1 : 0.9} depthTest={false} />
         </mesh>
         <Text
           fontSize={4}
