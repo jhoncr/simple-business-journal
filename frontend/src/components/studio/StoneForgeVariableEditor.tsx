@@ -65,7 +65,7 @@ export const StoneForgeVariableEditor = ({
                 id={`var-${v.id}`}
                 type="number"
                 value={v.default}
-                step="0.5"
+                step="0.1"
                 onChange={(e) =>
                   onVariableChange(v.id, parseFloat(e.target.value) || 0)
                 }
@@ -74,7 +74,7 @@ export const StoneForgeVariableEditor = ({
                            hover:border-gray-400 transition-colors"
               />
               <span className="absolute right-3 text-xs text-gray-400 pointer-events-none font-medium select-none">
-                in
+                cm
               </span>
             </div>
             <p className="text-[10px] text-gray-400 mt-1 hidden group-focus-within:block">

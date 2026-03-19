@@ -48,6 +48,22 @@ const deleteComponentDeep = (components: SlabComponent[], id: string): SlabCompo
   });
 };
 
+const calculateMinY = (components: SlabComponent[], variables: Record<string, number>, currentY = 0): number => {
+  let minY = currentY;
+  for (const comp of components) {
+    const posY = evaluateExpression(comp.position[1], variables);
+    // The lowest point of this component in its parent's space
+    const compMinY = currentY + posY;
+    if (compMinY < minY) minY = compMinY;
+
+    if (comp.children && comp.children.length > 0) {
+      const childrenMinY = calculateMinY(comp.children, variables, currentY + posY);
+      if (childrenMinY < minY) minY = childrenMinY;
+    }
+  }
+  return minY;
+};
+
 export const StoneForgeEditor = () => {
   const searchParams = useSearchParams();
   const journalId = searchParams.get('jid');
@@ -237,6 +253,10 @@ export const StoneForgeEditor = () => {
     });
     return map;
   }, [template.variables]);
+
+  const minY = useMemo(() => {
+    return calculateMinY(template.components, variablesMap);
+  }, [template.components, variablesMap]);
 
   const handleAddComponent = () => {
     const newId = `slab_${Date.now()}`;
@@ -809,7 +829,7 @@ export const StoneForgeEditor = () => {
                       />
                     ))}
                     <Grid
-                      position={[100, -0.1, -50]}
+                      position={[100, minY - 0.1, -50]}
                       args={[500, 500]}
                       cellSize={10}
                       cellThickness={1}
