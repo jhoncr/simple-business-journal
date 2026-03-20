@@ -1075,7 +1075,7 @@ export const StoneForgeEditor = () => {
                               <input
                                 key={`start-${axis}`}
                                 type="text"
-                                value={selectedDimLabel.label.startPos?.[i] ?? 0}
+                                value={String(selectedDimLabel.label.startPos?.[i] ?? 0)}
                                 onChange={(e) => {
                                   const newPos = [...(selectedDimLabel.label.startPos || [0,0,0])] as [Expression, Expression, Expression];
                                   newPos[i] = e.target.value;
@@ -1094,7 +1094,7 @@ export const StoneForgeEditor = () => {
                               <input
                                 key={`end-${axis}`}
                                 type="text"
-                                value={selectedDimLabel.label.endPos?.[i] ?? 0}
+                                value={String(selectedDimLabel.label.endPos?.[i] ?? 0)}
                                 onChange={(e) => {
                                   const newPos = [...(selectedDimLabel.label.endPos || [0,0,0])] as [Expression, Expression, Expression];
                                   newPos[i] = e.target.value;
@@ -1133,7 +1133,7 @@ export const StoneForgeEditor = () => {
                         <label className="block text-xs font-medium text-gray-700 mb-1">Length (X)</label>
                         <input
                           type="text"
-                          value={selectedComponent.length}
+                          value={String(selectedComponent.length)}
                           onChange={(e) => handleComponentChange(selectedComponent.id, 'length', e.target.value)}
                           className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5"
                         />
@@ -1142,7 +1142,7 @@ export const StoneForgeEditor = () => {
                         <label className="block text-xs font-medium text-gray-700 mb-1">Thickness (Y)</label>
                         <input
                           type="text"
-                          value={selectedComponent.thickness}
+                          value={String(selectedComponent.thickness)}
                           onChange={(e) => handleComponentChange(selectedComponent.id, 'thickness', e.target.value)}
                           className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5"
                         />
@@ -1151,7 +1151,7 @@ export const StoneForgeEditor = () => {
                         <label className="block text-xs font-medium text-gray-700 mb-1">Depth (Z)</label>
                         <input
                           type="text"
-                          value={selectedComponent.depth}
+                          value={String(selectedComponent.depth)}
                           onChange={(e) => handleComponentChange(selectedComponent.id, 'depth', e.target.value)}
                           className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5"
                         />
@@ -1166,7 +1166,7 @@ export const StoneForgeEditor = () => {
                             <label className="block text-[10px] font-medium text-gray-500 mb-1">{axis}</label>
                             <input
                               type="text"
-                              value={selectedComponent.position[i as 0 | 1 | 2]}
+                              value={String(selectedComponent.position[i as 0 | 1 | 2])}
                               onChange={(e) => {
                                 const newPos = [...selectedComponent.position] as [Expression, Expression, Expression];
                                 newPos[i] = e.target.value;
@@ -1187,7 +1187,7 @@ export const StoneForgeEditor = () => {
                             <label className="block text-[10px] font-medium text-gray-500 mb-1">{axis}</label>
                             <input
                               type="text"
-                              value={selectedComponent.rotation?.[i as 0 | 1 | 2] || 0}
+                              value={String(selectedComponent.rotation?.[i as 0 | 1 | 2] || 0)}
                               onChange={(e) => {
                                 const newRot = [...(selectedComponent.rotation || [0, 0, 0])] as [Expression, Expression, Expression];
                                 newRot[i] = e.target.value;
@@ -1238,7 +1238,7 @@ export const StoneForgeEditor = () => {
                                 <label className="block text-[10px] text-gray-500 mb-1">Center X (from Left)</label>
                                 <input
                                   type="text"
-                                  value={cutout.centerX}
+                                  value={String(cutout.centerX)}
                                   onChange={(e) => handleUpdateCutout(selectedComponent.id, cutout.id, 'centerX', e.target.value)}
                                   className="w-full text-xs border border-gray-300 rounded px-2 py-1"
                                 />
@@ -1247,7 +1247,7 @@ export const StoneForgeEditor = () => {
                                 <label className="block text-[10px] text-gray-500 mb-1">Center Y (from Front)</label>
                                 <input
                                   type="text"
-                                  value={cutout.centerY}
+                                  value={String(cutout.centerY)}
                                   onChange={(e) => handleUpdateCutout(selectedComponent.id, cutout.id, 'centerY', e.target.value)}
                                   className="w-full text-xs border border-gray-300 rounded px-2 py-1"
                                 />
@@ -1261,7 +1261,7 @@ export const StoneForgeEditor = () => {
                                 </label>
                                 <input
                                   type="text"
-                                  value={cutout.width}
+                                  value={String(cutout.width)}
                                   onChange={(e) => handleUpdateCutout(selectedComponent.id, cutout.id, 'width', e.target.value)}
                                   className="w-full text-xs border border-gray-300 rounded px-2 py-1"
                                 />
@@ -1271,7 +1271,7 @@ export const StoneForgeEditor = () => {
                                   <label className="block text-[10px] text-gray-500 mb-1">Depth</label>
                                   <input
                                     type="text"
-                                    value={cutout.depth}
+                                    value={String(cutout.depth)}
                                     onChange={(e) => handleUpdateCutout(selectedComponent.id, cutout.id, 'depth', e.target.value)}
                                     className="w-full text-xs border border-gray-300 rounded px-2 py-1"
                                   />

@@ -44,6 +44,13 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { TemplateGalleryModal } from "./TemplateGalleryModal";
+import { DBentry } from "@/lib/custom_types";
+import { AssemblyTemplate } from "@backend/common/schemas/studio";
+import { AttachedTemplate } from "@backend/common/schemas/estimate_schema";
+import { StoneForgeViewer } from "@/components/studio/StoneForgeViewer";
+import { StoneForgeVariableEditor } from "@/components/studio/StoneForgeVariableEditor";
+import { useParams, useSearchParams } from "next/navigation";
 
 interface NewItemFormProps {
   onAddItem: (items: LineItem[]) => Promise<boolean>; // Expects a promise now
@@ -128,6 +135,7 @@ const defaultFormValues: ItemFormValues = {
   laborRate: 0,
 };
 
+
 export function NewItemForm({
   onAddItem,
   currency,
@@ -142,6 +150,11 @@ export function NewItemForm({
   const [isOpen, setIsOpen] = useState(false);
   const isDesktop = useMediaQuery("(min-width: 1340px)");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const journalId = (params?.journalId as string) || searchParams?.get("jid") || "";
+
+  const [attachedTemplate, setAttachedTemplate] = useState<AttachedTemplate | null>(null);
 
   const canAdd = useMemo(() => ROLES_THAT_ADD.has(userRole), [userRole]);
 
@@ -254,9 +267,11 @@ export function NewItemForm({
     if (editingItem && editingItem.parentId === "root") {
       const formValues = populateFormFromLineItem(editingItem);
       form.reset(formValues);
+      setAttachedTemplate(editingItem.attachedTemplate || null);
       setIsOpen(true); // Open dialog on mobile
     } else if (!editingItem) {
       form.reset(defaultFormValues);
+      setAttachedTemplate(null);
       setIsOpen(false); // Close dialog when not editing
     }
   }, [editingItem, form, populateFormFromLineItem]);
@@ -354,9 +369,10 @@ export function NewItemForm({
           currency: currency,
           labor: null,
         },
+        attachedTemplate: attachedTemplate,
       };
     },
-    [currency, editingItem],
+    [currency, editingItem, attachedTemplate],
   );
 
   const createLaborItem = useCallback(
@@ -447,6 +463,7 @@ export function NewItemForm({
 
       if (success) {
         form.reset(defaultFormValues);
+        setAttachedTemplate(null);
         setIsOpen(false);
         if (editingItem && onCancelEdit) {
           onCancelEdit(); // Clear editing state
@@ -459,6 +476,53 @@ export function NewItemForm({
       setIsSubmitting(false);
     }
   };
+
+  const handleSelectTemplate = (templateEntry: DBentry) => {
+    const templateDetails = templateEntry.details as AssemblyTemplate;
+
+    const newAttachedTemplate: AttachedTemplate = {
+      sourceTemplateId: templateEntry.id,
+      snapshot: JSON.parse(JSON.stringify(templateDetails)), // deep copy
+      variableOverrides: {},
+    };
+
+    setAttachedTemplate(newAttachedTemplate);
+    form.setValue("description", `Custom ${templateDetails.name}`);
+    form.setValue("quantity", 1);
+    setIsOpen(true);
+  };
+
+  const handleVariableChange = (variableId: string, newValue: number) => {
+    if (!attachedTemplate) return;
+
+    setAttachedTemplate({
+      ...attachedTemplate,
+      variableOverrides: {
+        ...(attachedTemplate.variableOverrides || {}),
+        [variableId]: newValue
+      }
+    });
+  };
+
+  const mergedVariables = useMemo(() => {
+    if (!attachedTemplate) return {};
+
+    const merged: Record<string, number> = {};
+    attachedTemplate.snapshot.variables.forEach(v => {
+      if (v.label) {
+        merged[v.label] = v.default;
+      }
+    });
+
+    Object.entries(attachedTemplate.variableOverrides || {}).forEach(([id, value]) => {
+      const variable = attachedTemplate.snapshot.variables.find(v => v.id === id);
+      if (variable && variable.label) {
+        merged[variable.label] = value;
+      }
+    });
+
+    return merged;
+  }, [attachedTemplate]);
 
   const formContent = (
     <Form {...form}>
@@ -808,29 +872,72 @@ export function NewItemForm({
     </Form>
   );
 
+  const combinedContent = attachedTemplate ? (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full min-h-[500px]">
+      <div className="flex flex-col border-r pr-4 h-full">
+        <div className="flex-1 min-h-[300px] bg-secondary/20 rounded-md overflow-hidden border mb-4">
+          <StoneForgeViewer
+            components={attachedTemplate.snapshot.components}
+            variables={mergedVariables}
+          />
+        </div>
+        <div className="flex-1 bg-white rounded-md border overflow-hidden">
+          <StoneForgeVariableEditor
+            template={attachedTemplate.snapshot}
+            overrides={attachedTemplate.variableOverrides}
+            onVariableChange={handleVariableChange}
+          />
+        </div>
+      </div>
+      <div className="flex flex-col h-full">
+        {formContent}
+      </div>
+    </div>
+  ) : (
+    <div className="flex-grow overflow-y-auto pr-2">{formContent}</div>
+  );
+
   if (isDesktop) {
     return (
       <div
         id="estimate-add-item-form"
-        className="print:hidden fixed bottom-4 right-4 z-50 bg-background border rounded-lg p-4 w-[400px] shadow-lg max-h-[calc(100vh-4rem)] flex flex-col"
+        className={`print:hidden fixed bottom-4 right-4 z-50 bg-background border rounded-lg p-4 shadow-lg max-h-[calc(100vh-4rem)] flex flex-col ${attachedTemplate ? 'w-[800px] xl:w-[1000px]' : 'w-[400px]'}`}
       >
         <div className="mb-4 flex-shrink-0">
           <h3 className="text-lg font-semibold">
             {editingItem ? t("editItem") : t("title")}
           </h3>
         </div>
-        <div className="flex-grow overflow-y-auto pr-2">{formContent}</div>
+        <div className="flex-grow overflow-y-auto pr-2">{combinedContent}</div>
         <div className="flex justify-end gap-2 mt-4 flex-shrink-0">
+          {!editingItem && !attachedTemplate && (
+            <div className="mr-auto">
+              <TemplateGalleryModal journalId={journalId} onSelectTemplate={handleSelectTemplate} disabled={!canAdd} />
+            </div>
+          )}
           {editingItem && onCancelEdit && (
             <Button
               type="button"
               variant="outline"
               onClick={() => {
                 form.reset(defaultFormValues);
+                setAttachedTemplate(null);
                 onCancelEdit();
               }}
             >
               {t("cancel")}
+            </Button>
+          )}
+          {!editingItem && attachedTemplate && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                form.reset(defaultFormValues);
+                setAttachedTemplate(null);
+              }}
+            >
+              Clear Template
             </Button>
           )}
           <Button
@@ -871,27 +978,51 @@ export function NewItemForm({
           }
         }}
       >
-        <DialogTrigger asChild>
-          <Button
-            size="sm"
-            className="w-full gap-2 print:hidden"
-            variant={"brutalist"}
-            disabled={!canAdd}
-            title={!canAdd ? t("permissionDenied") : ""}
-          >
-            <PackagePlus size={16} /> {t("title")}
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+        {!editingItem && (
+          <div className="flex gap-2 w-full">
+            <DialogTrigger asChild>
+              <Button
+                size="sm"
+                className="w-full gap-2 print:hidden"
+                variant={"brutalist"}
+                disabled={!canAdd}
+                title={!canAdd ? t("permissionDenied") : ""}
+              >
+                <PackagePlus size={16} /> {t("title")}
+              </Button>
+            </DialogTrigger>
+            <div className="w-full">
+              <TemplateGalleryModal journalId={journalId} onSelectTemplate={handleSelectTemplate} disabled={!canAdd} />
+            </div>
+          </div>
+        )}
+        <DialogContent className={`${attachedTemplate ? 'max-w-4xl max-h-[90vh]' : 'max-w-md max-h-[90vh]'} flex flex-col overflow-hidden`}>
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>
               {editingItem ? t("editItem") : t("title")}
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-grow overflow-y-auto pr-2">{formContent}</div>
-          <DialogFooter className="pt-4 flex flex-row -shrink-0 gap-2">
+          <div className="flex-grow overflow-y-auto pr-2">{combinedContent}</div>
+          <DialogFooter className="pt-4 flex flex-row shrink-0 gap-2">
+            {attachedTemplate && !editingItem && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  form.reset(defaultFormValues);
+                  setAttachedTemplate(null);
+                }}
+              >
+                Clear Template
+              </Button>
+            )}
             <DialogClose asChild>
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full" onClick={() => {
+                if (editingItem && onCancelEdit) {
+                  onCancelEdit();
+                }
+              }}>
                 {editingItem ? t("cancel") : tCommon("cancel")}
               </Button>
             </DialogClose>

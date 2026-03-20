@@ -1,5 +1,14 @@
 import * as z from "zod";
 import { contactInfoSchema, allowedCurrencySchema } from "./common_schemas";
+import { AssemblyTemplateSchema } from "./studio";
+
+// Define the schema for the attached template snapshot
+export const attachedTemplateSchema = z.object({
+  sourceTemplateId: z.string(), // Keep a reference just in case we want to show "Based on: [Name]"
+  snapshot: AssemblyTemplateSchema, // The deep copy of the template structure
+  variableOverrides: z.record(z.string(), z.number()).optional(), // User's variable changes
+});
+export type AttachedTemplate = z.infer<typeof attachedTemplateSchema>;
 
 export const currencyCodeSchema = allowedCurrencySchema; // ISO 4217 currency codes are 3 letters
 // Add this near the top of the file, before the schemas
@@ -58,6 +67,9 @@ export const lineItemSchema = z.object({
       message: "A max of 254 characters is allowed in the description.",
     }),
   material: materialSchema,
+
+  // Optional attached template snapshot
+  attachedTemplate: attachedTemplateSchema.optional().nullable(),
 });
 
 export const adjustmentSchema = z.object({

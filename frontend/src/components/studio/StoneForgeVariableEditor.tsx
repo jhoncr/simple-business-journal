@@ -6,6 +6,7 @@ import { Ruler, Info } from 'lucide-react';
 
 interface StoneForgeVariableEditorProps {
   template: AssemblyTemplate;
+  overrides?: Record<string, number>;
   onVariableChange: (id: string, value: number) => void;
 }
 
@@ -19,6 +20,7 @@ function humanizeLabel(label: string): string {
 
 export const StoneForgeVariableEditor = ({
   template,
+  overrides = {},
   onVariableChange,
 }: StoneForgeVariableEditorProps) => {
   const variables = template.variables;
@@ -64,7 +66,7 @@ export const StoneForgeVariableEditor = ({
               <input
                 id={`var-${v.id}`}
                 type="number"
-                value={v.default}
+                value={overrides[v.id] !== undefined ? overrides[v.id] : v.default}
                 step="0.1"
                 onChange={(e) =>
                   onVariableChange(v.id, parseFloat(e.target.value) || 0)
