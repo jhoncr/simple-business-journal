@@ -196,6 +196,17 @@ export const EstimateDetails = React.memo(function EstimateDetails(
           </Link>
         </Button>
         <div className="flex items-center space-x-2">
+          {confirmedItems.some(item => !!item.attachedTemplate) && (
+            <Button variant="outline" asChild size="sm" disabled={isSaving}>
+              <Link
+                href={`/journal/entry/technical-drawings?jid=${props.journalId}&eid=${entryId}`}
+                target="_blank"
+              >
+                <Printer className="h-4 w-4 mr-2" />
+                Print Technical Drawings
+              </Link>
+            </Button>
+          )}
           <Button
             variant="brutalist"
             size="sm"
