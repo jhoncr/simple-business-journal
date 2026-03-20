@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { EllipsisVertical, ListTree, List } from "lucide-react";
+import { EllipsisVertical, ListTree, List, Box } from "lucide-react";
 import { LineItem } from "@/../../backend/functions/src/common/schemas/estimate_schema";
 import { useTranslations } from "next-intl";
 import {
@@ -8,6 +8,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { useState } from "react";
 
@@ -27,6 +33,32 @@ interface AggregatedItem extends LineItem {
   itemTotal: number;
   total: number;
 }
+
+const AttachedTemplateIndicator = ({ name }: { name?: string }) => {
+  const t = useTranslations("estimate.itemsList");
+
+  if (!name) return null;
+
+  return (
+    <div className="mt-1">
+      <TooltipProvider>
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <div className="inline-flex items-center gap-1 text-2xs text-muted-foreground bg-secondary/30 px-1.5 py-0.5 rounded-sm w-fit border border-secondary/50">
+              <Box className="h-3 w-3" />
+              <span className="truncate max-w-[150px] sm:max-w-[200px]">
+                {name}
+              </span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>{t("contains3DTemplate")}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </div>
+  );
+};
 
 export const ItemsList = ({
   confirmedItems,
@@ -149,6 +181,9 @@ export const ItemsList = ({
                     <span>+ {t("headerService")}</span>
                   )}
                 </div>
+                <AttachedTemplateIndicator
+                  name={item.attachedTemplate?.snapshot?.name}
+                />
               </td>
               <td className="py-1 px-1 text-right align-top font-semibold">
                 {currencyFormat(item.total)}
@@ -178,6 +213,8 @@ export const ItemsList = ({
                     >
                       {editingItem?.id === item.id
                         ? "Editing..."
+                        : item.attachedTemplate
+                        ? t("editItemAnd3DModel")
                         : t("editItem")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
@@ -277,6 +314,9 @@ export const ItemsList = ({
                     ) : null}
                   </span>
                 </div>
+                <AttachedTemplateIndicator
+                  name={item.attachedTemplate?.snapshot?.name}
+                />
               </td>
               <td className="py-1 px-1 text-left align-top">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1 items-start w-min">
@@ -330,6 +370,8 @@ export const ItemsList = ({
                     >
                       {editingItem?.id === item.id
                         ? "Editing..."
+                        : item.attachedTemplate
+                        ? t("editItemAnd3DModel")
                         : t("editItem")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
