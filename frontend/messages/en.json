@@ -198,7 +198,9 @@
       "viewExpanded": "Expanded",
       "viewAggregated": "Aggregated",
       "headerItemTotal": "Subtotal",
-      "headerService": "Service"
+      "headerService": "Service",
+      "editItemAnd3DModel": "Edit Item & 3D Model",
+      "contains3DTemplate": "Contains 3D Template Configuration"
     }
   },
   "contactInfo": {
