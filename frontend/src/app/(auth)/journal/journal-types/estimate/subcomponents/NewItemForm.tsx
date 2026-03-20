@@ -887,18 +887,18 @@ export function NewItemForm({
   );
 
   const combinedContent = attachedTemplate ? (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full min-h-[600px]">
-      {/* LEFT PANE: Form & Variables */}
-      <div className="flex flex-col h-full overflow-hidden border-r pr-2">
-        {formContent}
-      </div>
-
-      {/* RIGHT PANE: 3D Viewer */}
+    <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] lg:grid-cols-[2fr_1fr] gap-6 h-full min-h-[600px]">
+      {/* LEFT PANE: 3D Viewer (Maximized Real Estate) */}
       <div className="flex flex-col h-full bg-secondary/20 rounded-md overflow-hidden border relative min-h-[400px]">
         <StoneForgeViewer
           components={attachedTemplate.snapshot.components}
           variables={mergedVariables}
         />
+      </div>
+
+      {/* RIGHT PANE: Form & Variables */}
+      <div className="flex flex-col h-full overflow-hidden border-l pl-2">
+        {formContent}
       </div>
     </div>
   ) : (
@@ -909,7 +909,7 @@ export function NewItemForm({
     return (
       <div
         id="estimate-add-item-form"
-        className={`print:hidden fixed bottom-4 right-4 z-50 bg-background border rounded-lg p-4 shadow-lg max-h-[calc(100vh-4rem)] flex flex-col ${attachedTemplate ? 'w-[90vw] max-w-5xl' : 'w-[400px]'}`}
+        className={`print:hidden fixed bottom-4 right-4 z-50 bg-background border rounded-lg p-4 shadow-lg max-h-[calc(100vh-4rem)] flex flex-col ${attachedTemplate ? 'w-[95vw] max-w-7xl' : 'w-[400px]'}`}
       >
         <div className="mb-4 flex-shrink-0">
           <h3 className="text-lg font-semibold">
@@ -1004,7 +1004,7 @@ export function NewItemForm({
             </div>
           </div>
         )}
-        <DialogContent className={`${attachedTemplate ? 'max-w-[90vw] xl:max-w-5xl max-h-[90vh]' : 'max-w-md max-h-[90vh]'} flex flex-col overflow-hidden`}>
+        <DialogContent className={`${attachedTemplate ? 'max-w-[95vw] xl:max-w-7xl max-h-[90vh]' : 'max-w-md max-h-[90vh]'} flex flex-col overflow-hidden`}>
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>
               {editingItem ? t("editItem") : t("title")}
