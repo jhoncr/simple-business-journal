@@ -551,30 +551,57 @@ export function NewItemForm({
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="unitPrice"
-          render={({ field }) => (
-            <FormItem className="space-y-0 mt-2">
-              <FormLabel>{t("unitPrice")}</FormLabel>
-              <FormControl>
-                <NumericInput
-                  value={field.value.toString()}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                    const value = e.target.value;
-                    field.onChange(Number.parseFloat(value) || 0);
-                  }}
-                  prefix={currencyToSymbol(currency || "")}
-                  placeholder="0.00"
-                  className="peer text-center"
-                  disabled={!canAdd}
-                  aria-label={t("unitPrice")}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="unitPrice"
+            render={({ field }) => (
+              <FormItem className="space-y-0 mt-2">
+                <FormLabel>{t("unitPrice")}</FormLabel>
+                <FormControl>
+                  <NumericInput
+                    value={field.value.toString()}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                      const value = e.target.value;
+                      field.onChange(Number.parseFloat(value) || 0);
+                    }}
+                    prefix={currencyToSymbol(currency || "")}
+                    placeholder="0.00"
+                    className="peer text-center"
+                    disabled={!canAdd}
+                    aria-label={t("unitPrice")}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {!form.watch("dimensionType").startsWith("area") && (
+            <FormField
+              control={form.control}
+              name="quantity"
+              render={({ field }) => (
+                <FormItem className="space-y-0 mt-2">
+                  <FormLabel>{t("quantity")}</FormLabel>
+                  <FormControl>
+                    <NumericInput
+                      className="peer text-center"
+                      value={field.value.toString()}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                        const value = Number(e.target.value);
+                        field.onChange(value >= 0 ? value : 0);
+                      }}
+                      disabled={!canAdd}
+                      aria-label={t("quantity")}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           )}
-        />
+        </div>
 
         <FormField
           control={form.control}
@@ -710,30 +737,6 @@ export function NewItemForm({
           </div>
         )}
 
-        {!form.watch("dimensionType").startsWith("area") && (
-          <FormField
-            control={form.control}
-            name="quantity"
-            render={({ field }) => (
-              <FormItem className="space-y-0 mt-2">
-                <FormLabel>{t("quantity")}</FormLabel>
-                <FormControl>
-                  <NumericInput
-                    className="peer text-center"
-                    value={field.value.toString()}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                      const value = Number(e.target.value);
-                      field.onChange(value >= 0 ? value : 0);
-                    }}
-                    disabled={!canAdd}
-                    aria-label={t("quantity")}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
         <div className="text-right text-sm font-medium text-muted-foreground mt-0">
           {form.watch("quantity")}{" "}
           {form.watch("dimensionType").split("-")[1] || ""}
@@ -854,6 +857,17 @@ export function NewItemForm({
           )}
         />
 
+        {attachedTemplate && (
+          <div className="mt-6 mb-2 border rounded-md overflow-hidden bg-white shadow-sm">
+            <StoneForgeVariableEditor
+              template={attachedTemplate.snapshot}
+              overrides={attachedTemplate.variableOverrides}
+              onVariableChange={handleVariableChange}
+              scrollable={false}
+            />
+          </div>
+        )}
+
         <div className="text-sm font-semibold text-right mt-auto pt-4 border-t">
           <div className="flex justify-between">
             <span>{t("material")}:</span>
@@ -873,24 +887,18 @@ export function NewItemForm({
   );
 
   const combinedContent = attachedTemplate ? (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-full min-h-[500px]">
-      <div className="flex flex-col border-r pr-4 h-full">
-        <div className="flex-1 min-h-[300px] bg-secondary/20 rounded-md overflow-hidden border mb-4">
-          <StoneForgeViewer
-            components={attachedTemplate.snapshot.components}
-            variables={mergedVariables}
-          />
-        </div>
-        <div className="flex-1 bg-white rounded-md border overflow-hidden">
-          <StoneForgeVariableEditor
-            template={attachedTemplate.snapshot}
-            overrides={attachedTemplate.variableOverrides}
-            onVariableChange={handleVariableChange}
-          />
-        </div>
-      </div>
-      <div className="flex flex-col h-full">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full min-h-[600px]">
+      {/* LEFT PANE: Form & Variables */}
+      <div className="flex flex-col h-full overflow-hidden border-r pr-2">
         {formContent}
+      </div>
+
+      {/* RIGHT PANE: 3D Viewer */}
+      <div className="flex flex-col h-full bg-secondary/20 rounded-md overflow-hidden border relative min-h-[400px]">
+        <StoneForgeViewer
+          components={attachedTemplate.snapshot.components}
+          variables={mergedVariables}
+        />
       </div>
     </div>
   ) : (
@@ -901,7 +909,7 @@ export function NewItemForm({
     return (
       <div
         id="estimate-add-item-form"
-        className={`print:hidden fixed bottom-4 right-4 z-50 bg-background border rounded-lg p-4 shadow-lg max-h-[calc(100vh-4rem)] flex flex-col ${attachedTemplate ? 'w-[800px] xl:w-[1000px]' : 'w-[400px]'}`}
+        className={`print:hidden fixed bottom-4 right-4 z-50 bg-background border rounded-lg p-4 shadow-lg max-h-[calc(100vh-4rem)] flex flex-col ${attachedTemplate ? 'w-[90vw] max-w-5xl' : 'w-[400px]'}`}
       >
         <div className="mb-4 flex-shrink-0">
           <h3 className="text-lg font-semibold">
@@ -996,7 +1004,7 @@ export function NewItemForm({
             </div>
           </div>
         )}
-        <DialogContent className={`${attachedTemplate ? 'max-w-4xl max-h-[90vh]' : 'max-w-md max-h-[90vh]'} flex flex-col overflow-hidden`}>
+        <DialogContent className={`${attachedTemplate ? 'max-w-[90vw] xl:max-w-5xl max-h-[90vh]' : 'max-w-md max-h-[90vh]'} flex flex-col overflow-hidden`}>
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>
               {editingItem ? t("editItem") : t("title")}

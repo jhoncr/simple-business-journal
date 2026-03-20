@@ -8,6 +8,7 @@ interface StoneForgeVariableEditorProps {
   template: AssemblyTemplate;
   overrides?: Record<string, number>;
   onVariableChange: (id: string, value: number) => void;
+  scrollable?: boolean;
 }
 
 /** Converts `snake_case` or `camelCase` labels into a friendly "Title Case" label. */
@@ -22,12 +23,13 @@ export const StoneForgeVariableEditor = ({
   template,
   overrides = {},
   onVariableChange,
+  scrollable = true,
 }: StoneForgeVariableEditorProps) => {
   const variables = template.variables;
 
   if (variables.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12 gap-3">
+      <div className={`flex flex-col items-center justify-center text-center px-6 py-12 gap-3 ${scrollable ? 'h-full' : ''}`}>
         <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
           <Ruler className="w-5 h-5 text-gray-400" />
         </div>
@@ -41,7 +43,7 @@ export const StoneForgeVariableEditor = ({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className={`flex flex-col ${scrollable ? 'h-full' : 'w-full'}`}>
       {/* Header */}
       <div className="p-4 border-b border-gray-100 bg-gray-50">
         <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
@@ -53,7 +55,7 @@ export const StoneForgeVariableEditor = ({
       </div>
 
       {/* Variable List */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className={`${scrollable ? 'flex-1 overflow-y-auto' : ''} p-4 space-y-4`}>
         {variables.map((v) => (
           <div key={v.id} className="group">
             <label
