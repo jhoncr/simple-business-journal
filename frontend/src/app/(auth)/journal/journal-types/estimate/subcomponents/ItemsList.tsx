@@ -34,6 +34,32 @@ interface AggregatedItem extends LineItem {
   total: number;
 }
 
+const AttachedTemplateIndicator = ({ name }: { name?: string }) => {
+  const t = useTranslations("estimate.itemsList");
+
+  if (!name) return null;
+
+  return (
+    <div className="mt-1">
+      <TooltipProvider>
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <div className="inline-flex items-center gap-1 text-2xs text-muted-foreground bg-secondary/30 px-1.5 py-0.5 rounded-sm w-fit border border-secondary/50">
+              <Box className="h-3 w-3" />
+              <span className="truncate max-w-[150px] sm:max-w-[200px]">
+                {name}
+              </span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            <p>{t("contains3DTemplate")}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </div>
+  );
+};
+
 export const ItemsList = ({
   confirmedItems,
   removeConfirmedItem,
@@ -155,25 +181,9 @@ export const ItemsList = ({
                     <span>+ {t("headerService")}</span>
                   )}
                 </div>
-                {item.attachedTemplate && (
-                  <div className="mt-1">
-                    <TooltipProvider>
-                      <Tooltip delayDuration={300}>
-                        <TooltipTrigger asChild>
-                          <div className="inline-flex items-center gap-1 text-2xs text-muted-foreground bg-secondary/30 px-1.5 py-0.5 rounded-sm w-fit border border-secondary/50">
-                            <Box className="h-3 w-3" />
-                            <span className="truncate max-w-[150px] sm:max-w-[200px]">
-                              {item.attachedTemplate.snapshot?.name}
-                            </span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">
-                          <p>{t("contains3DTemplate")}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                )}
+                <AttachedTemplateIndicator
+                  name={item.attachedTemplate?.snapshot?.name}
+                />
               </td>
               <td className="py-1 px-1 text-right align-top font-semibold">
                 {currencyFormat(item.total)}
@@ -304,25 +314,9 @@ export const ItemsList = ({
                     ) : null}
                   </span>
                 </div>
-                {item.attachedTemplate && (
-                  <div className="mt-1">
-                    <TooltipProvider>
-                      <Tooltip delayDuration={300}>
-                        <TooltipTrigger asChild>
-                          <div className="inline-flex items-center gap-1 text-2xs text-muted-foreground bg-secondary/30 px-1.5 py-0.5 rounded-sm w-fit border border-secondary/50">
-                            <Box className="h-3 w-3" />
-                            <span className="truncate max-w-[150px] sm:max-w-[200px]">
-                              {item.attachedTemplate.snapshot?.name}
-                            </span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="right">
-                          <p>{t("contains3DTemplate")}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                )}
+                <AttachedTemplateIndicator
+                  name={item.attachedTemplate?.snapshot?.name}
+                />
               </td>
               <td className="py-1 px-1 text-left align-top">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1 items-start w-min">
