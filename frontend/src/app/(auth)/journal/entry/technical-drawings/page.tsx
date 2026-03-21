@@ -4,9 +4,12 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { fetchEntry, fetchJournal } from "@/lib/db_handler";
 import { EstimateHeader } from "../../journal-types/estimate/subcomponents/header";
+import { InvoiceDetails } from "../../journal-types/estimate/subcomponents/InvoiceDetails";
+import { ContactInfo } from "../../journal-types/estimate/subcomponents/ContactInfo";
 import { StoneForgeViewer } from "@/components/studio/StoneForgeViewer";
 import { estimateDetailsStateSchema } from "@backend/common/schemas/estimate_schema";
 import { format } from "date-fns";
+import { AlertCircle } from "lucide-react";
 
 export default function TechnicalDrawingsPrintLayout() {
   const searchParams = useSearchParams();
@@ -89,7 +92,7 @@ export default function TechnicalDrawingsPrintLayout() {
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          @page { margin: 0.5in; size: portrait; }
+          @page { margin: 1cm; size: portrait; }
         }
       `}} />
 
@@ -98,21 +101,37 @@ export default function TechnicalDrawingsPrintLayout() {
         contactInfo={journalData.contactInfo}
       />
 
-      <div className="mt-8 mb-6 border-b pb-4 flex justify-between items-end">
-        <div>
-          <h2 className="text-2xl font-bold">Technical Drawings</h2>
-          <p className="text-gray-600 mt-1">
-            Estimate #{entryId?.slice(-6).toUpperCase()}
-          </p>
+      <div className="print:hidden bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 rounded-md shadow-sm">
+        <div className="flex">
+          <div className="flex-shrink-0">
+            <AlertCircle className="h-5 w-5 text-blue-400" />
+          </div>
+          <div className="ml-3">
+            <p className="text-sm text-blue-700">
+              <strong>Printing Tip:</strong> For best results, enable &quot;Headers and footers&quot; and &quot;Background graphics&quot; in your browser&apos;s print settings to ensure page numbers and styling appear correctly.
+            </p>
+          </div>
         </div>
-        <div className="text-right text-sm">
-          <p><strong>Date:</strong> {estimateData.createdAt ? format(new Date(estimateData.createdAt), "MMMM d, yyyy") : 'N/A'}</p>
-          {estimateData.customer && (
-            <div className="mt-2">
-              <p><strong>Customer:</strong> {estimateData.customer.name}</p>
-              {estimateData.customer.phone && <p>{estimateData.customer.phone}</p>}
-            </div>
-          )}
+      </div>
+
+      <div className="mt-4 mb-6 pb-2">
+        <h2 className="text-2xl font-bold uppercase tracking-wider text-gray-800 border-b-2 border-gray-200 pb-2 mb-4">
+          Technical Drawings
+        </h2>
+
+        <InvoiceDetails
+          entryId={entryId}
+          createdDate={estimateData.createdAt ? new Date(estimateData.createdAt) : null}
+          status={estimateData.status}
+          handleStatusChange={() => {}} // Read-only
+        />
+
+        <div className="mt-4">
+          <h3 className="font-semibold text-gray-700 text-sm mb-2">CLIENT</h3>
+          <ContactInfo
+            info={estimateData.customer}
+            setInfo={() => {}} // Read-only
+          />
         </div>
       </div>
 
@@ -141,12 +160,12 @@ export default function TechnicalDrawingsPrintLayout() {
           return (
             <div key={item.id} className="break-inside-avoid border rounded-lg overflow-hidden border-gray-200">
               <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-                <h3 className="text-lg font-semibold">
+                <h3 className="text-lg font-semibold text-gray-800">
                   {index + 1}. {item.description || template.snapshot.name}
                 </h3>
               </div>
 
-              <div className="w-full h-[400px] bg-white relative print:h-[500px]">
+              <div className="w-full aspect-[4/3] relative overflow-hidden bg-white">
                 <StoneForgeViewer
                   components={template.snapshot.components}
                   variables={mergedVariables}
