@@ -1,5 +1,5 @@
 // frontend/src/app/(auth)/journal/journal-types/estimate/subcomponents/NewItemForm.tsx
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -77,7 +77,7 @@ const createItemFormSchema = (
         .max(254, t("validationErrors.maxCharacters", { count: 254 }))
         .optional(),
       quantity: z.number().min(0.01, t("validationErrors.quantityRequired")),
-      unitPrice: z.number().min(0.01, t("validationErrors.unitPriceRequired")),
+      unitPrice: z.number().min(0, t("validationErrors.unitPriceRequired")),
       dimensionType: z.string(),
       length: z.number().optional(),
       width: z.number().optional(),
@@ -145,6 +145,7 @@ export function NewItemForm({
   onCancelEdit,
   confirmedItems = [],
 }: NewItemFormProps) {
+  const formId = useId();
   const t = useTranslations("newItemForm");
   const tCommon = useTranslations("common");
   const [isOpen, setIsOpen] = useState(false);
@@ -531,7 +532,7 @@ export function NewItemForm({
         className={`px-4 flex flex-col flex-grow overflow-y-auto ${
           editingItem ? "bg-orange-500/20" : ""
         }`}
-        id="newItemForm"
+        id={formId}
       >
         <FormField
           control={form.control}
@@ -950,7 +951,7 @@ export function NewItemForm({
           )}
           <Button
             type="submit"
-            form="newItemForm"
+            form={formId}
             disabled={isSubmitting || !canAdd}
             variant={"brutalist"}
             title={!canAdd ? t("permissionDenied") : ""}
@@ -1036,7 +1037,7 @@ export function NewItemForm({
             </DialogClose>
             <Button
               type="submit"
-              form="newItemForm"
+              form={formId}
               disabled={isSubmitting || !canAdd}
               variant={"brutalist"}
               className="w-full"
