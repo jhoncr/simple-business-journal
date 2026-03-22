@@ -19,6 +19,32 @@ import {
 import Image from "next/image";
 import { useAuth } from "@/lib/auth_handler";
 import { useTranslations } from "next-intl";
+import { useEffect } from "react";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+
+// --- AI TESTING BACKDOOR ---
+// This hook will only trigger if NEXT_PUBLIC_AI_TEST_MODE is set to "true".
+// It silently logs the AI agent into the pre-created test account.
+function useAiAutoLogin() {
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_AI_TEST_MODE === "true") {
+      const auth = getAuth();
+
+      signInWithEmailAndPassword(auth, "ai-tester@test.com", "password123")
+        .then((userCredential) => {
+          console.log(
+            `🤖 AI Agent silently logged in! UID: ${userCredential.user.uid}`,
+          );
+        })
+        .catch((err) => {
+          console.error(
+            "🤖 Test login failed. Did you remember to create the user in the emulator UI and save the state?",
+            err,
+          );
+        });
+    }
+  }, []);
+}
 
 const GoogleIcon = () => (
   <div className="flex items-center justify-center w-6 h-6 rounded-full shadow">
@@ -36,6 +62,7 @@ const GoogleIcon = () => (
   </div>
 );
 export default function LandingPage() {
+  useAiAutoLogin();
   const { authUser, signInWithGoogle } = useAuth();
   const t = useTranslations("LandingPage");
 
