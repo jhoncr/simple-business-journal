@@ -36,7 +36,12 @@ export default function TechnicalDrawingsPrintLayout() {
           const parsed = estimateDetailsStateSchema.safeParse(entryRes.details);
           if (parsed.success) {
             // Note: entryRes.createdAt is a Firestore Timestamp
-            setEstimateData({ ...parsed.data, createdAt: entryRes.createdAt?.toDate ? entryRes.createdAt.toDate().toISOString() : new Date().toISOString() });
+            setEstimateData({
+              ...parsed.data,
+              createdAt: entryRes.createdAt?.toDate
+                ? entryRes.createdAt.toDate().toISOString()
+                : new Date().toISOString(),
+            });
           } else {
             console.error("Failed to parse estimate data", parsed.error);
           }
@@ -66,16 +71,20 @@ export default function TechnicalDrawingsPrintLayout() {
   }, [loading, estimateData]);
 
   if (loading) {
-    return <div className="p-10 text-center">Loading technical drawings...</div>;
+    return (
+      <div className="p-10 text-center">Loading technical drawings...</div>
+    );
   }
 
   if (!estimateData || !journalData) {
-    return <div className="p-10 text-center text-red-600">Failed to load data.</div>;
+    return (
+      <div className="p-10 text-center text-red-600">Failed to load data.</div>
+    );
   }
 
   // Filter items that have an attached template
   const printableItems = estimateData.confirmedItems.filter(
-    (item: any) => item.attachedTemplate != null
+    (item: any) => item.attachedTemplate != null,
   );
 
   if (printableItems.length === 0) {
@@ -89,12 +98,16 @@ export default function TechnicalDrawingsPrintLayout() {
   return (
     <div className="min-h-screen bg-white text-black p-8 font-sans max-w-4xl mx-auto">
       {/* Hide standard app UI using print media query or just rely on the clean route */}
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         @media print {
           body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           @page { margin: 1cm; size: portrait; }
         }
-      `}} />
+      `,
+        }}
+      />
 
       <EstimateHeader
         logo={journalData.details?.logo}
@@ -108,7 +121,10 @@ export default function TechnicalDrawingsPrintLayout() {
           </div>
           <div className="ml-3">
             <p className="text-sm text-blue-700">
-              <strong>Printing Tip:</strong> For best results, enable &quot;Headers and footers&quot; and &quot;Background graphics&quot; in your browser&apos;s print settings to ensure page numbers and styling appear correctly.
+              <strong>Printing Tip:</strong> For best results, enable
+              &quot;Headers and footers&quot; and &quot;Background
+              graphics&quot; in your browser&apos;s print settings to ensure
+              page numbers and styling appear correctly.
             </p>
           </div>
         </div>
@@ -121,7 +137,9 @@ export default function TechnicalDrawingsPrintLayout() {
 
         <InvoiceDetails
           entryId={entryId}
-          createdDate={estimateData.createdAt ? new Date(estimateData.createdAt) : null}
+          createdDate={
+            estimateData.createdAt ? new Date(estimateData.createdAt) : null
+          }
           status={estimateData.status}
           handleStatusChange={() => {}} // Read-only
         />
@@ -149,38 +167,75 @@ export default function TechnicalDrawingsPrintLayout() {
           });
 
           if (template.variableOverrides) {
-            Object.entries(template.variableOverrides).forEach(([id, value]) => {
-              const variable = template.snapshot.variables.find((v: any) => v.id === id);
-              if (variable && variable.label) {
-                mergedVariables[variable.label] = value as number;
-              }
-            });
+            Object.entries(template.variableOverrides).forEach(
+              ([id, value]) => {
+                const variable = template.snapshot.variables.find(
+                  (v: any) => v.id === id,
+                );
+                if (variable && variable.label) {
+                  mergedVariables[variable.label] = value as number;
+                }
+              },
+            );
           }
 
+          const cameraViews = template.snapshot.cameraViews || [];
+
           return (
-            <div key={item.id} className="break-inside-avoid border rounded-lg overflow-hidden border-gray-200">
+            <div
+              key={item.id}
+              className="break-inside-avoid border rounded-lg overflow-hidden border-gray-200"
+            >
               <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-gray-800">
                   {index + 1}. {item.description || template.snapshot.name}
                 </h3>
               </div>
 
-              <div className="w-full min-h-[400px] relative overflow-hidden bg-white">
-                <StoneForgeViewer
-                  components={template.snapshot.components}
-                  variables={mergedVariables}
-                  printMode={true}
-                />
-              </div>
+              {cameraViews.length > 0 ? (
+                <div
+                  className={`grid gap-0 bg-white border-b border-gray-200 ${cameraViews.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}
+                >
+                  {cameraViews.map((view: any) => (
+                    <div
+                      key={view.id}
+                      className={`relative overflow-hidden ${cameraViews.length > 1 ? "min-h-[300px] border-r border-b border-gray-100" : "min-h-[400px]"}`}
+                    >
+                      <div className="absolute top-2 left-2 z-10 bg-white/80 backdrop-blur-sm px-2 py-1 rounded text-xs font-medium text-gray-600 border border-gray-200 shadow-sm">
+                        {view.name}
+                      </div>
+                      <StoneForgeViewer
+                        components={template.snapshot.components}
+                        variables={mergedVariables}
+                        printMode={true}
+                        fixedCameraView={view}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="w-full min-h-[400px] relative overflow-hidden bg-white border-b border-gray-200">
+                  <StoneForgeViewer
+                    components={template.snapshot.components}
+                    variables={mergedVariables}
+                    printMode={true}
+                  />
+                </div>
+              )}
 
-              <div className="bg-white px-4 py-4 border-t border-gray-200">
-                <h4 className="text-sm font-semibold mb-2 text-gray-700">Dimensions & Variables</h4>
+              <div className="bg-white px-4 py-4">
+                <h4 className="text-sm font-semibold mb-2 text-gray-700">
+                  Dimensions & Variables
+                </h4>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                   {template.snapshot.variables.map((v: any) => {
-                    const value = template.variableOverrides?.[v.id] ?? v.default;
+                    const value =
+                      template.variableOverrides?.[v.id] ?? v.default;
                     return (
                       <div key={v.id} className="text-sm">
-                        <span className="text-gray-500 block text-xs uppercase tracking-wide">{v.label}</span>
+                        <span className="text-gray-500 block text-xs uppercase tracking-wide">
+                          {v.label}
+                        </span>
                         <span className="font-medium">{value}</span>
                       </div>
                     );

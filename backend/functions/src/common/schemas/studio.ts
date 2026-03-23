@@ -59,10 +59,21 @@ export const AssemblyVariableSchema = z.object({
   default: z.number(),
 });
 
+export const CameraViewSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  position: z.tuple([z.number(), z.number(), z.number()]),
+  target: z.tuple([z.number(), z.number(), z.number()]),
+  zoom: z.number(),
+  isDefault: z.boolean()
+});
+export type CameraView = z.infer<typeof CameraViewSchema>;
+
 export const AssemblyTemplateSchema = z.object({
   id: z.string(),
   name: z.string(),
   variables: z.array(AssemblyVariableSchema),
   components: z.array(SlabComponentSchema),
+  cameraViews: z.array(CameraViewSchema).optional(),
 });
 export type AssemblyTemplate = z.infer<typeof AssemblyTemplateSchema>;

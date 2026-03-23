@@ -1,0 +1,37 @@
+
+> simplelog@0.1.0 dev
+> next dev
+
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /app/package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles:
+   * /app/frontend/package-lock.json
+
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+- Environments: .env.development
+
+✓ Starting...
+✓ Ready in 775ms
+Browserslist: browsers data (caniuse-lite) is 14 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+○ Compiling /journal/entry ...
+node_env: development -- hitting local auth and firestore emulators
+testing locally -- hitting local auth and firestore emulators
+Firestore connected to emulator
+ GET /journal/entry?jid=j1&eid=temp_1&jtype=template&mode=designer 200 in 14.5s (compile: 12.4s, render: 2.0s)
+ GET /journal/entry?jid=j1&eid=temp_1&jtype=template&mode=designer 200 in 197ms (compile: 7ms, render: 189ms)
+ GET /journal/entry?jid=j1&eid=temp_1&jtype=template&mode=designer 200 in 177ms (compile: 9ms, render: 168ms)
+○ Compiling / ...
+ GET / 200 in 4.8s (compile: 4.3s, render: 469ms)
+ GET /journal/entry?jid=j1&eid=temp_1&jtype=template&mode=designer 200 in 575ms (compile: 41ms, render: 534ms)
+ GET / 200 in 112ms (compile: 6ms, render: 106ms)
+ GET /journal/entry?jid=j1&eid=temp_1&jtype=template&mode=designer 200 in 124ms (compile: 4ms, render: 120ms)
+ GET / 200 in 106ms (compile: 4ms, render: 101ms)
+ GET /journal/entry?jid=j1&eid=temp_1&jtype=template&mode=designer 200 in 126ms (compile: 8ms, render: 118ms)
+ GET / 200 in 108ms (compile: 7ms, render: 101ms)
+ GET /journal/entry?jid=j1&eid=temp_1&jtype=template&mode=designer 200 in 130ms (compile: 5ms, render: 126ms)
