@@ -97,8 +97,8 @@ export default function TechnicalDrawingsPrintLayout() {
       `}} />
 
       <EstimateHeader
-        logo={journalData.image}
-        contactInfo={journalData.contactInfo}
+        logo={journalData.details?.logo}
+        contactInfo={journalData.details?.contactInfo}
       />
 
       <div className="print:hidden bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 rounded-md shadow-sm">
@@ -165,7 +165,7 @@ export default function TechnicalDrawingsPrintLayout() {
                 </h3>
               </div>
 
-              <div className="w-full aspect-[4/3] relative overflow-hidden bg-white">
+              <div className="w-full min-h-[400px] relative overflow-hidden bg-white">
                 <StoneForgeViewer
                   components={template.snapshot.components}
                   variables={mergedVariables}
