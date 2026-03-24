@@ -131,24 +131,11 @@ export default function TechnicalDrawingsPrintLayout() {
       </div>
 
       <div className="mt-4 mb-6 pb-2">
-        <h2 className="text-2xl font-bold uppercase tracking-wider text-gray-800 border-b-2 border-gray-200 pb-2 mb-4">
-          Technical Drawings
-        </h2>
-
-        <InvoiceDetails
-          entryId={entryId}
-          createdDate={
-            estimateData.createdAt ? new Date(estimateData.createdAt) : null
-          }
-          status={estimateData.status}
-          handleStatusChange={() => {}} // Read-only
-        />
-
         <div className="mt-4">
           <h3 className="font-semibold text-gray-700 text-sm mb-2">CLIENT</h3>
           <ContactInfo
             info={estimateData.customer}
-            setInfo={() => {}} // Read-only
+            setInfo={() => { }} // Read-only
           />
         </div>
       </div>
@@ -193,13 +180,18 @@ export default function TechnicalDrawingsPrintLayout() {
               </div>
 
               {cameraViews.length > 0 ? (
-                <div
-                  className={`grid gap-0 bg-white border-b border-gray-200 ${cameraViews.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}
-                >
+                <div className="flex flex-col bg-white border-b border-gray-200">
                   {cameraViews.map((view: any) => (
                     <div
                       key={view.id}
-                      className={`relative overflow-hidden ${cameraViews.length > 1 ? "min-h-[300px] border-r border-b border-gray-100" : "min-h-[400px]"}`}
+                      className="relative overflow-hidden w-full border-b border-gray-100 last:border-b-0 min-h-[200px]"
+                      style={{
+                        height: (!view.cropBox || !view.cropBox.width || !view.cropBox.height) ? '400px' : 'auto',
+                        maxHeight: '800px',
+                        aspectRatio: view.cropBox && view.cropBox.width > 0 && view.cropBox.height > 0
+                          ? `${view.cropBox.width} / ${view.cropBox.height}`
+                          : undefined
+                      }}
                     >
                       <div className="absolute top-2 left-2 z-10 bg-white/80 backdrop-blur-sm px-2 py-1 rounded text-xs font-medium text-gray-600 border border-gray-200 shadow-sm">
                         {view.name}
@@ -214,7 +206,7 @@ export default function TechnicalDrawingsPrintLayout() {
                   ))}
                 </div>
               ) : (
-                <div className="w-full min-h-[400px] relative overflow-hidden bg-white border-b border-gray-200">
+                <div className="w-full h-[400px] relative overflow-hidden bg-white border-b border-gray-200">
                   <StoneForgeViewer
                     components={template.snapshot.components}
                     variables={mergedVariables}

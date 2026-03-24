@@ -161,11 +161,18 @@ export const StoneForgeEditor = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const { setToolBar } = useToolbar();
 
+  const [isCropping, setIsCropping] = useState(false);
+  const [cropBox, setCropBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const cropStartRef = React.useRef<{ x: number; y: number } | null>(null);
+  const canvasContainerRef = React.useRef<HTMLDivElement>(null);
+
   const currentCameraState = React.useRef<{
     position: [number, number, number];
     target: [number, number, number];
     zoom: number;
   } | null>(null);
+
+  const controlsRef = React.useRef<any>(null);
 
   const CameraStateReporter = () => {
     const { camera } = useThree();
@@ -223,33 +230,6 @@ export const StoneForgeEditor = () => {
     setIsSaving(true);
     try {
       let finalTemplate = { ...template };
-      const camState = currentCameraState.current;
-
-      if (camState) {
-        const existingViews = finalTemplate.cameraViews || [];
-        const defaultViewIndex = existingViews.findIndex((v) => v.isDefault);
-
-        let newViews = [...existingViews];
-        if (defaultViewIndex >= 0) {
-          newViews[defaultViewIndex] = {
-            ...newViews[defaultViewIndex],
-            position: camState.position,
-            target: camState.target,
-            zoom: camState.zoom,
-          };
-        } else {
-          newViews.unshift({
-            id: `cam_${Date.now()}`,
-            name: "Default View",
-            position: camState.position,
-            target: camState.target,
-            zoom: camState.zoom,
-            isDefault: true,
-          });
-        }
-        finalTemplate = { ...finalTemplate, cameraViews: newViews };
-        setTemplate(finalTemplate);
-      }
 
       const auth = getAuth(app);
       if (!auth.currentUser) {
@@ -739,21 +719,126 @@ export const StoneForgeEditor = () => {
       return;
     }
 
+    const { position, target, zoom } = camState;
+    const existingViews = template.cameraViews || [];
+
+    if (existingViews.length >= 10) {
+      showToast("Maximum of 10 camera views allowed.");
+      return;
+    }
+
+    const isDuplicate = existingViews.some(
+      (v) =>
+        Math.abs(v.position[0] - position[0]) < 0.1 &&
+        Math.abs(v.position[1] - position[1]) < 0.1 &&
+        Math.abs(v.position[2] - position[2]) < 0.1 &&
+        Math.abs(v.target[0] - target[0]) < 0.1 &&
+        Math.abs(v.target[1] - target[1]) < 0.1 &&
+        Math.abs(v.target[2] - target[2]) < 0.1 &&
+        Math.abs((v.zoom || 1) - (zoom || 1)) < 0.1
+    );
+
+    if (isDuplicate) {
+      showToast("A view with these exact camera settings already exists.");
+      return;
+    }
+
+    setIsCropping(true);
+    setCropBox(null);
+  };
+
+  const finalizeCaptureCameraView = () => {
+    const camState = currentCameraState.current;
+    if (!camState) return;
+
+    let finalPos: [number, number, number] = [...camState.position];
+    let finalTarget: [number, number, number] = [...camState.target];
+    let normalizedCrop;
+
+    if (cropBox && canvasContainerRef.current && controlsRef.current) {
+      const rect = canvasContainerRef.current.getBoundingClientRect();
+      const oCam = controlsRef.current.object as THREE.OrthographicCamera;
+      const zoom = camState.zoom || 1;
+
+      if (cropBox.width > 5 && cropBox.height > 5) {
+        // Find the center of the crop box in pixel coordinates (origin at top-left of canvas)
+        const cx = cropBox.x + cropBox.width / 2;
+        const cy = cropBox.y + cropBox.height / 2;
+
+        // Find the offset from the screen center in pixels
+        const dx = cx - rect.width / 2;
+        const dy = rect.height / 2 - cy; // Y is up in 3D
+
+        // The camera's local right and up vectors in world space
+        const right = new THREE.Vector3(1, 0, 0).applyQuaternion(oCam.quaternion);
+        const up = new THREE.Vector3(0, 1, 0).applyQuaternion(oCam.quaternion);
+
+        // Convert the pixel offset to world-unit offset using the current zoom
+        const deltaWorld = new THREE.Vector3()
+          .addScaledVector(right, dx / zoom)
+          .addScaledVector(up, dy / zoom);
+
+        finalPos = [
+          camState.position[0] + deltaWorld.x,
+          camState.position[1] + deltaWorld.y,
+          camState.position[2] + deltaWorld.z,
+        ];
+
+        finalTarget = [
+          camState.target[0] + deltaWorld.x,
+          camState.target[1] + deltaWorld.y,
+          camState.target[2] + deltaWorld.z,
+        ];
+
+        // Store the world-space width and height of the crop box
+        normalizedCrop = {
+          x: 0,
+          y: 0,
+          width: cropBox.width / zoom,
+          height: cropBox.height / zoom,
+        };
+      }
+    }
+
+    const existingViews = template.cameraViews || [];
+
     setTemplate((prev) => ({
       ...prev,
       cameraViews: [
-        ...(prev.cameraViews || []),
+        ...existingViews,
         {
           id: `cam_${Date.now()}`,
-          name: `View ${(prev.cameraViews?.length || 0) + 1}`,
-          position: camState.position,
-          target: camState.target,
+          name: `View ${existingViews.length + 1}`,
+          position: finalPos,
+          target: finalTarget,
           zoom: camState.zoom,
-          isDefault: false,
+          isDefault: existingViews.length === 0,
+          ...(normalizedCrop ? { cropBox: normalizedCrop } : {}),
         },
       ],
     }));
     showToast("Camera view captured!");
+    setIsCropping(false);
+    setCropBox(null);
+  };
+
+  const handlePromoteToDefault = (id: string) => {
+    setTemplate((prev) => {
+      const views = prev.cameraViews || [];
+      const index = views.findIndex((v) => v.id === id);
+      if (index <= 0) return prev; // already default or not found
+
+      const newViews = [...views];
+      const [promotedView] = newViews.splice(index, 1);
+
+      promotedView.isDefault = true;
+      for (let i = 0; i < newViews.length; i++) {
+        newViews[i].isDefault = false;
+      }
+      newViews.unshift(promotedView);
+
+      return { ...prev, cameraViews: newViews };
+    });
   };
 
   const handleRemoveCameraView = (id: string) => {
@@ -764,11 +849,34 @@ export const StoneForgeEditor = () => {
   };
 
   const applyCameraView = (view: CameraView) => {
-    // We update the currentCameraState ref so that OrbitControls can pick it up.
-    // However, it's simpler to just set state that forces the camera to update.
-    // Since we don't have a robust two-way binding yet, we can skip implementing
-    // "click to view" for now, or implement a small effect inside Canvas.
-    // For simplicity, we just allow capturing and deleting views.
+    if (controlsRef.current) {
+      const controls = controlsRef.current;
+      controls.object.position.set(...view.position);
+      controls.target.set(...view.target);
+
+      let finalZoom = view.zoom || 1;
+      if (view.cropBox && canvasContainerRef.current) {
+        const rect = canvasContainerRef.current.getBoundingClientRect();
+        if (view.cropBox.width > 0 && view.cropBox.height > 0) {
+          finalZoom = Math.min(rect.width / view.cropBox.width, rect.height / view.cropBox.height);
+        }
+      }
+
+      controls.object.zoom = finalZoom;
+
+      const oCam = controls.object as THREE.OrthographicCamera;
+      if (oCam.isOrthographicCamera) {
+        oCam.clearViewOffset();
+      }
+      oCam.updateProjectionMatrix();
+      controls.update();
+
+      currentCameraState.current = {
+        position: view.position as [number, number, number],
+        target: view.target as [number, number, number],
+        zoom: finalZoom,
+      };
+    }
   };
 
   // ── Dimension Label Handlers ──────────────────────────
@@ -974,22 +1082,20 @@ export const StoneForgeEditor = () => {
             <button
               onClick={() => setViewMode("user")}
               title="User View – variables only"
-              className={`flex items-center gap-1.5 py-1 px-2.5 rounded text-xs font-medium transition-colors ${
-                viewMode === "user"
+              className={`flex items-center gap-1.5 py-1 px-2.5 rounded text-xs font-medium transition-colors ${viewMode === "user"
                   ? "bg-white text-indigo-700 shadow-sm"
                   : "text-gray-500 hover:text-gray-700"
-              }`}
+                }`}
             >
               <Eye className="w-3.5 h-3.5" /> User
             </button>
             <button
               onClick={() => setViewMode("designer")}
               title="Designer View – full editor"
-              className={`flex items-center gap-1.5 py-1 px-2.5 rounded text-xs font-medium transition-colors ${
-                viewMode === "designer"
+              className={`flex items-center gap-1.5 py-1 px-2.5 rounded text-xs font-medium transition-colors ${viewMode === "designer"
                   ? "bg-white text-indigo-700 shadow-sm"
                   : "text-gray-500 hover:text-gray-700"
-              }`}
+                }`}
             >
               <LayoutTemplate className="w-3.5 h-3.5" /> Designer
             </button>
@@ -1049,7 +1155,8 @@ export const StoneForgeEditor = () => {
             {/* Full-width 3D Canvas */}
             <div className="flex-1 relative bg-gray-50">
               <Canvas
-                camera={{ position: [150, 150, 200], fov: 45 }}
+                orthographic
+                camera={{ position: [200, 200, 200], zoom: 2 }}
                 gl={{ preserveDrawingBuffer: true }}
               >
                 <color attach="background" args={["#f9fafb"]} />
@@ -1067,9 +1174,9 @@ export const StoneForgeEditor = () => {
                         key={comp.id}
                         slab={comp}
                         isSelected={false}
-                        onSelect={() => {}}
+                        onSelect={() => { }}
                         selectedComponentId={null}
-                        onEdgeSelect={() => {}}
+                        onEdgeSelect={() => { }}
                         selectedEdge={null}
                         selectedDimensionLabelId={null}
                         variables={variablesMap}
@@ -1089,7 +1196,7 @@ export const StoneForgeEditor = () => {
                     />
                   </group>
                 </React.Suspense>
-                <OrbitControls makeDefault minDistance={50} maxDistance={500} />
+                <OrbitControls ref={controlsRef} makeDefault minDistance={50} maxDistance={500} />
               </Canvas>
             </div>
 
@@ -1164,19 +1271,21 @@ export const StoneForgeEditor = () => {
                     </div>
                     <p className="text-[10px] text-gray-500 mb-4 leading-relaxed">
                       Save multiple 3D perspectives to display on the technical
-                      drawings print layout. The last view you leave active when
-                      saving automatically becomes the default view.
+                      drawings print layout. You can explicitly promote any view
+                      to be the default view.
                     </p>
                     <div className="space-y-2">
                       {template.cameraViews?.map((view) => (
                         <div
                           key={view.id}
-                          className="p-2 bg-gray-50 rounded-md border border-gray-200 flex flex-col gap-1.5"
+                          onClick={() => applyCameraView(view)}
+                          className="p-2 bg-gray-50 rounded-md border border-gray-200 flex flex-col gap-1.5 cursor-pointer hover:border-indigo-300 transition-colors"
                         >
                           <div className="flex items-center justify-between">
                             <input
                               type="text"
                               value={view.name}
+                              onClick={(e) => e.stopPropagation()}
                               onChange={(e) => {
                                 setTemplate((prev) => ({
                                   ...prev,
@@ -1191,26 +1300,39 @@ export const StoneForgeEditor = () => {
                             />
                             {!view.isDefault && (
                               <button
-                                onClick={() => handleRemoveCameraView(view.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveCameraView(view.id);
+                                }}
                                 className="p-1 hover:bg-gray-200 rounded shrink-0"
                               >
                                 <Trash2 className="w-3.5 h-3.5 text-red-500" />
                               </button>
                             )}
                           </div>
-                          {view.isDefault && (
+                          {view.isDefault ? (
                             <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded w-max">
                               Default View
                             </span>
+                          ) : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePromoteToDefault(view.id);
+                              }}
+                              className="text-[10px] font-semibold text-gray-500 hover:text-indigo-600 bg-gray-100 hover:bg-indigo-50 px-1.5 py-0.5 rounded w-max text-left"
+                            >
+                              Set as Default
+                            </button>
                           )}
                         </div>
                       ))}
                       {(!template.cameraViews ||
                         template.cameraViews.length === 0) && (
-                        <p className="text-xs text-gray-500 text-center py-4">
-                          No camera views saved.
-                        </p>
-                      )}
+                          <p className="text-xs text-gray-500 text-center py-4">
+                            No camera views saved.
+                          </p>
+                        )}
                     </div>
                   </>
                 ) : (
@@ -1283,9 +1405,82 @@ export const StoneForgeEditor = () => {
             </div>
 
             {/* Center Workspace (3D Canvas) */}
-            <div className="flex-1 relative bg-gray-50">
+            <div className="flex-1 relative bg-gray-50" ref={canvasContainerRef}>
+              {isCropping && (
+                <div
+                  className="absolute inset-0 z-20 cursor-crosshair bg-black/5"
+                  onMouseDown={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    cropStartRef.current = { x, y };
+                    setCropBox({ x, y, width: 0, height: 0 });
+                  }}
+                  onMouseMove={(e) => {
+                    if (!cropStartRef.current) return;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const currentX = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+                    const currentY = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+                    const startX = cropStartRef.current.x;
+                    const startY = cropStartRef.current.y;
+                    setCropBox({
+                      x: Math.min(startX, currentX),
+                      y: Math.min(startY, currentY),
+                      width: Math.abs(currentX - startX),
+                      height: Math.abs(currentY - startY),
+                    });
+                  }}
+                  onMouseUp={() => {
+                    cropStartRef.current = null;
+                  }}
+                  onMouseLeave={() => {
+                    cropStartRef.current = null;
+                  }}
+                >
+                  <div className="absolute top-4 right-4 flex gap-2 z-30">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsCropping(false);
+                        setCropBox(null);
+                      }}
+                      className="bg-white border border-gray-300 text-gray-700 py-1.5 px-3 rounded-md text-xs font-medium hover:bg-gray-50 shadow-sm pointer-events-auto"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        finalizeCaptureCameraView();
+                      }}
+                      className="bg-indigo-600 text-white py-1.5 px-3 rounded-md text-xs font-medium hover:bg-indigo-700 shadow-sm pointer-events-auto"
+                    >
+                      Save View
+                    </button>
+                  </div>
+                  {cropBox && cropBox.width > 0 && cropBox.height > 0 && (
+                    <div
+                      className="absolute border-2 border-indigo-500 bg-indigo-500/20 pointer-events-none"
+                      style={{
+                        left: cropBox.x,
+                        top: cropBox.y,
+                        width: cropBox.width,
+                        height: cropBox.height,
+                      }}
+                    />
+                  )}
+                  {(!cropBox || cropBox.width === 0) && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="bg-black/75 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-lg backdrop-blur-sm">
+                        Click and drag to select the view boundaries
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
               <Canvas
-                camera={{ position: [150, 150, 200], fov: 45 }}
+                orthographic
+                camera={{ position: [200, 200, 200], zoom: 2 }}
                 gl={{ preserveDrawingBuffer: true }}
               >
                 <color attach="background" args={["#f9fafb"]} />
@@ -1331,9 +1526,17 @@ export const StoneForgeEditor = () => {
                 </React.Suspense>
 
                 <OrbitControls
+                  ref={controlsRef}
                   makeDefault
                   minDistance={50}
                   maxDistance={500}
+                  onStart={() => {
+                    const oCam = controlsRef.current?.object as THREE.OrthographicCamera;
+                    if (oCam && oCam.isOrthographicCamera) {
+                      oCam.clearViewOffset();
+                      oCam.updateProjectionMatrix();
+                    }
+                  }}
                   onChange={(e) => {
                     const controls = e?.target;
                     if (controls) {
@@ -1708,7 +1911,7 @@ export const StoneForgeEditor = () => {
                               type="text"
                               value={String(
                                 selectedComponent.rotation?.[i as 0 | 1 | 2] ||
-                                  0,
+                                0,
                               )}
                               onChange={(e) => {
                                 const newRot = [

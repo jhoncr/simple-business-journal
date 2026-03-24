@@ -16,12 +16,26 @@ interface StoneForgeViewerProps {
 }
 
 const FixedCameraSetup = ({ fixedView }: { fixedView: CameraView }) => {
-  const { camera, controls } = useThree();
+  const { camera, controls, size } = useThree();
 
   useEffect(() => {
     if (fixedView) {
       camera.position.set(fixedView.position[0], fixedView.position[1], fixedView.position[2]);
-      camera.zoom = fixedView.zoom;
+      
+      let finalZoom = fixedView.zoom || 1;
+      if (fixedView.cropBox) {
+        const { width, height } = fixedView.cropBox;
+        if (width > 0 && height > 0) {
+          finalZoom = Math.min(size.width / width, size.height / height);
+        }
+      }
+      camera.zoom = finalZoom;
+
+      const oCam = camera as THREE.OrthographicCamera;
+      if (oCam.isOrthographicCamera) {
+        oCam.clearViewOffset();
+      }
+      
       camera.updateProjectionMatrix();
 
       if (controls && (controls as any).target) {
@@ -29,7 +43,7 @@ const FixedCameraSetup = ({ fixedView }: { fixedView: CameraView }) => {
         (controls as any).update();
       }
     }
-  }, [camera, controls, fixedView]);
+  }, [camera, controls, fixedView, size]);
 
   return null;
 };
@@ -80,7 +94,8 @@ export const StoneForgeViewer = ({
       className={`w-full h-full relative ${printMode ? "bg-white" : "bg-gray-50"}`}
     >
       <Canvas
-        camera={{ position: [150, 150, 200], fov: 45 }}
+        orthographic
+        camera={{ position: [200, 200, 200], zoom: 2 }}
         gl={{ preserveDrawingBuffer: true }}
       >
         <color attach="background" args={[printMode ? "#ffffff" : "#f9fafb"]} />
@@ -98,9 +113,9 @@ export const StoneForgeViewer = ({
                     key={comp.id}
                     slab={comp}
                     isSelected={false}
-                    onSelect={() => {}}
+                    onSelect={() => { }}
                     selectedComponentId={null}
-                    onEdgeSelect={() => {}}
+                    onEdgeSelect={() => { }}
                     selectedEdge={null}
                     selectedDimensionLabelId={null}
                     variables={variables}
@@ -130,9 +145,9 @@ export const StoneForgeViewer = ({
                     key={comp.id}
                     slab={comp}
                     isSelected={false}
-                    onSelect={() => {}}
+                    onSelect={() => { }}
                     selectedComponentId={null}
-                    onEdgeSelect={() => {}}
+                    onEdgeSelect={() => { }}
                     selectedEdge={null}
                     selectedDimensionLabelId={null}
                     variables={variables}

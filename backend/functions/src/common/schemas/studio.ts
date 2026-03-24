@@ -65,7 +65,13 @@ export const CameraViewSchema = z.object({
   position: z.tuple([z.number(), z.number(), z.number()]),
   target: z.tuple([z.number(), z.number(), z.number()]),
   zoom: z.number(),
-  isDefault: z.boolean()
+  isDefault: z.boolean(),
+  cropBox: z.object({
+    x: z.number(),
+    y: z.number(),
+    width: z.number(),
+    height: z.number(),
+  }).nullish()
 });
 export type CameraView = z.infer<typeof CameraViewSchema>;
 
