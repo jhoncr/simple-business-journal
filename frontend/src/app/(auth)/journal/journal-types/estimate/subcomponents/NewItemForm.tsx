@@ -529,9 +529,8 @@ export function NewItemForm({
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(handleAddItem)}
-        className={`px-4 flex flex-col flex-grow overflow-y-auto ${
-          editingItem ? "bg-orange-500/20" : ""
-        }`}
+        className={`px-4 flex flex-col flex-grow overflow-y-auto ${editingItem ? "bg-orange-500/20" : ""
+          }`}
         id={formId}
       >
         <FormField
@@ -643,11 +642,10 @@ export function NewItemForm({
                   ].map((item) => (
                     <div
                       key={item.value}
-                      className={`border-input hover:bg-accent/50 relative flex flex-col items-center justify-center rounded-md border p-2 shadow-xs outline-none ${
-                        field.value === item.value
+                      className={`border-input hover:bg-accent/50 relative flex flex-col items-center justify-center rounded-md border p-2 shadow-xs outline-none ${field.value === item.value
                           ? "border-4 bg-primary/10 shadow-md border-primary"
                           : ""
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center">
                         <RadioGroupItem
@@ -658,11 +656,10 @@ export function NewItemForm({
                         />
                         <Label
                           htmlFor={`dim-${item.value}`}
-                          className={`cursor-pointer flex h-full w-full items-center justify-center gap-2 ${
-                            field.value === item.value
+                          className={`cursor-pointer flex h-full w-full items-center justify-center gap-2 ${field.value === item.value
                               ? "font-semibold text-primary"
                               : ""
-                          } ${!canAdd ? "cursor-not-allowed opacity-50" : ""}`}
+                            } ${!canAdd ? "cursor-not-allowed opacity-50" : ""}`}
                         >
                           {item.icon}
                           {item.label}
@@ -780,11 +777,10 @@ export function NewItemForm({
                   ].map((item) => (
                     <div
                       key={item.value}
-                      className={`border-input hover:bg-accent/50 relative flex flex-col items-center justify-center border p-1 shadow-xs outline-none ${
-                        field.value === item.value
+                      className={`border-input hover:bg-accent/50 relative flex flex-col items-center justify-center border p-1 shadow-xs outline-none ${field.value === item.value
                           ? "border-primary border-4 bg-primary/10"
                           : ""
-                      }`}
+                        }`}
                     >
                       <RadioGroupItem
                         value={item.value}
@@ -794,11 +790,10 @@ export function NewItemForm({
                       />
                       <Label
                         htmlFor={`labor-${item.value}`}
-                        className={`flex h-full w-full cursor-pointer flex-row items-center justify-center gap-2 p-2 text-center ${
-                          field.value === item.value
+                        className={`flex h-full w-full cursor-pointer flex-row items-center justify-center gap-2 p-2 text-center ${field.value === item.value
                             ? "font-semibold text-primary"
                             : ""
-                        } ${!canAdd ? "cursor-not-allowed opacity-50" : ""}`}
+                          } ${!canAdd ? "cursor-not-allowed opacity-50" : ""}`}
                       >
                         {item.icon}
                         {item.label}
@@ -894,6 +889,7 @@ export function NewItemForm({
         <StoneForgeViewer
           components={attachedTemplate.snapshot.components}
           variables={mergedVariables}
+          fixedCameraView={attachedTemplate.snapshot.cameraViews?.[0]}
         />
       </div>
 
