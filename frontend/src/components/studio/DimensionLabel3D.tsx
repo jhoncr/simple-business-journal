@@ -187,7 +187,7 @@ export const DimensionLabel3D: React.FC<DimensionLabel3DProps> = ({
   const extLineWidth = isSelected ? 2 : 1;
 
   return (
-    <group onClick={(e) => { e.stopPropagation(); onSelect(label.id); }}>
+    <group name={label.id} onClick={(e) => { e.stopPropagation(); onSelect(label.id); }}>
       {/* Main dimension line */}
       <Line
         points={[geometry.lineStart, geometry.lineEnd]}

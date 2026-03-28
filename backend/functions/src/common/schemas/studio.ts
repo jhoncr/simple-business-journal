@@ -62,16 +62,10 @@ export const AssemblyVariableSchema = z.object({
 export const CameraViewSchema = z.object({
   id: z.string(),
   name: z.string(),
-  position: z.tuple([z.number(), z.number(), z.number()]),
-  target: z.tuple([z.number(), z.number(), z.number()]),
-  zoom: z.number(),
+  preset: z.enum(['front', 'back', 'left', 'right', 'top', 'bottom', 'isometric']).default('isometric'),
+  focusTargetId: z.string().optional(),
+  zoomMultiplier: z.number().optional().default(1),
   isDefault: z.boolean(),
-  cropBox: z.object({
-    x: z.number(),
-    y: z.number(),
-    width: z.number(),
-    height: z.number(),
-  }).nullish()
 });
 export type CameraView = z.infer<typeof CameraViewSchema>;
 

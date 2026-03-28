@@ -113,6 +113,7 @@ export const Slab3D: React.FC<Slab3DProps> = ({ slab, isSelected, onSelect, sele
     <group 
       position={[posX, posY, posZ]} 
       rotation={[rotX, rotY, rotZ]} 
+      name={slab.id}
       onClick={(e) => {
         e.stopPropagation();
         onSelect(slab.id);

@@ -2,7 +2,7 @@
 
 import React, { useMemo, useEffect } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
-import { OrbitControls, Environment, Grid, Bounds } from "@react-three/drei";
+import { OrbitControls, Environment, Grid, Bounds, useBounds } from "@react-three/drei";
 import * as THREE from "three";
 import { SlabComponent, CameraView } from "@backend/common/schemas/studio";
 import { evaluateExpression } from "../../lib/evaluator";
@@ -15,36 +15,75 @@ interface StoneForgeViewerProps {
   fixedCameraView?: CameraView;
 }
 
-const FixedCameraSetup = ({ fixedView }: { fixedView: CameraView }) => {
-  const { camera, controls, size } = useThree();
+export const PresetCameraFitter = ({ preset, focusTargetId, zoomMultiplier = 1, forceRenderRefreshCount = 0 }: { preset: string, focusTargetId?: string, zoomMultiplier?: number, forceRenderRefreshCount?: number }) => {
+  const bounds = useBounds();
+  const { scene, camera, controls } = useThree();
 
   useEffect(() => {
-    if (fixedView) {
-      camera.position.set(fixedView.position[0], fixedView.position[1], fixedView.position[2]);
+    let attempts = 0;
+    
+    const attemptFit = () => {
+      let targetObject = scene;
       
-      let finalZoom = fixedView.zoom || 1;
-      if (fixedView.cropBox) {
-        const { width, height } = fixedView.cropBox;
-        if (width > 0 && height > 0) {
-          finalZoom = Math.min(size.width / width, size.height / height);
+      // If we have a specific target, recursively try to fetch it to ensure R3F has mounted the graph
+      if (focusTargetId) {
+        const found = scene.getObjectByName(focusTargetId);
+        if (found) {
+          targetObject = found as any;
+        } else {
+          attempts++;
+          if (attempts < 20) {
+            setTimeout(attemptFit, 100);
+            return;
+          }
+          console.warn(`[PresetCameraFitter] Could not find focusTargetId: ${focusTargetId}`);
         }
       }
-      camera.zoom = finalZoom;
 
-      const oCam = camera as THREE.OrthographicCamera;
-      if (oCam.isOrthographicCamera) {
-        oCam.clearViewOffset();
+      bounds.refresh(targetObject).clip().fit();
+
+      const size = bounds.getSize();
+      const center = size.center;
+      
+      // Default upward axis
+      camera.up.set(0, 1, 0);
+
+      // We explicitly override 'up' vector for direct-overhead shots to prevent Gimbal Lock
+      if (preset === 'top') {
+        camera.position.set(center.x, center.y + 100, center.z);
+        camera.up.set(0, 0, -1);
+      } else if (preset === 'bottom') {
+        camera.position.set(center.x, center.y - 100, center.z);
+        camera.up.set(0, 0, 1);
+      } else if (preset === 'front') {
+        camera.position.set(center.x, center.y, center.z + 100);
+      } else if (preset === 'back') {
+        camera.position.set(center.x, center.y, center.z - 100);
+      } else if (preset === 'right') {
+        camera.position.set(center.x + 100, center.y, center.z);
+      } else if (preset === 'left') {
+        camera.position.set(center.x - 100, center.y, center.z);
+      } else if (preset === 'isometric') {
+        camera.position.set(center.x + 100, center.y + 100, center.z + 100);
       }
       
-      camera.updateProjectionMatrix();
-
-      if (controls && (controls as any).target) {
-        (controls as any).target.set(fixedView.target[0], fixedView.target[1], fixedView.target[2]);
-        (controls as any).update();
+      camera.lookAt(center);
+      if (controls) {
+          (controls as any).target.copy(center);
+          (controls as any).update();
       }
-    }
-  }, [camera, controls, fixedView, size]);
+      
+      bounds.refresh(targetObject).clip().fit();
+      
+      if (zoomMultiplier !== 1) {
+        camera.zoom *= zoomMultiplier;
+        camera.updateProjectionMatrix();
+      }
+    };
 
+    attemptFit();
+  }, [preset, focusTargetId, zoomMultiplier, bounds, scene, camera, controls, forceRenderRefreshCount]);
+  
   return null;
 };
 
@@ -104,72 +143,44 @@ export const StoneForgeViewer = ({
 
         <React.Suspense fallback={null}>
           <Environment preset="city" />
-          {fixedCameraView ? (
-            <>
-              <FixedCameraSetup fixedView={fixedCameraView} />
-              <group position={[-100, 0, 50]}>
-                {components.map((comp) => (
-                  <Slab3D
-                    key={comp.id}
-                    slab={comp}
-                    isSelected={false}
-                    onSelect={() => { }}
-                    selectedComponentId={null}
-                    onEdgeSelect={() => { }}
-                    selectedEdge={null}
-                    selectedDimensionLabelId={null}
-                    variables={variables}
-                  />
-                ))}
-                {!printMode && (
-                  <Grid
-                    position={[100, minY - 0.1, -50]}
-                    args={[500, 500]}
-                    cellSize={10}
-                    cellThickness={1}
-                    cellColor="#e5e7eb"
-                    sectionSize={50}
-                    sectionThickness={1.5}
-                    sectionColor="#d1d5db"
-                    fadeDistance={400}
-                    fadeStrength={1}
-                  />
-                )}
-              </group>
-            </>
-          ) : (
-            <Bounds fit clip observe margin={1.2}>
-              <group position={[-100, 0, 50]}>
-                {components.map((comp) => (
-                  <Slab3D
-                    key={comp.id}
-                    slab={comp}
-                    isSelected={false}
-                    onSelect={() => { }}
-                    selectedComponentId={null}
-                    onEdgeSelect={() => { }}
-                    selectedEdge={null}
-                    selectedDimensionLabelId={null}
-                    variables={variables}
-                  />
-                ))}
-                {!printMode && (
-                  <Grid
-                    position={[100, minY - 0.1, -50]}
-                    args={[500, 500]}
-                    cellSize={10}
-                    cellThickness={1}
-                    cellColor="#e5e7eb"
-                    sectionSize={50}
-                    sectionThickness={1.5}
-                    sectionColor="#d1d5db"
-                    fadeDistance={400}
-                    fadeStrength={1}
-                  />
-                )}
-              </group>
-            </Bounds>
-          )}
+          <Bounds fit clip observe margin={1.2}>
+            {fixedCameraView && fixedCameraView.preset && (
+              <PresetCameraFitter 
+                preset={fixedCameraView.preset} 
+                focusTargetId={fixedCameraView.focusTargetId} 
+                zoomMultiplier={fixedCameraView.zoomMultiplier} 
+              />
+            )}
+            <group position={[-100, 0, 50]}>
+              {components.map((comp) => (
+                <Slab3D
+                  key={comp.id}
+                  slab={comp}
+                  isSelected={false}
+                  onSelect={() => { }}
+                  selectedComponentId={null}
+                  onEdgeSelect={() => { }}
+                  selectedEdge={null}
+                  selectedDimensionLabelId={null}
+                  variables={variables}
+                />
+              ))}
+              {!printMode && (
+                <Grid
+                  position={[100, minY - 0.1, -50]}
+                  args={[500, 500]}
+                  cellSize={10}
+                  cellThickness={1}
+                  cellColor="#e5e7eb"
+                  sectionSize={50}
+                  sectionThickness={1.5}
+                  sectionColor="#d1d5db"
+                  fadeDistance={400}
+                  fadeStrength={1}
+                />
+              )}
+            </group>
+          </Bounds>
         </React.Suspense>
 
         <OrbitControls
