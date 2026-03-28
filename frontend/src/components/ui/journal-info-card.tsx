@@ -96,7 +96,7 @@ export function JournalInfoCard({
     try {
       // Call deleteJournal function
       const deleteJournalFn = httpsCallable(functions, "deleteJournal"); // Use correct name
-      await deleteJournalFn({ journalId: id }); // Pass journalId
+      await deleteJournalFn({ jid: id }); // Pass journalId
       toast.info("Journal deleted");
       router.push("/"); // Navigate home after delete
       router.refresh(); // Force refresh

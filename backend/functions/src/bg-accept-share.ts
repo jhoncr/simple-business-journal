@@ -1,12 +1,12 @@
 // backend/functions/src/bg-accept-share.ts
 
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as z from 'zod';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { JOURNAL_COLLECTION } from './common/const';
-import { ALLOWED } from './lib/bg-consts';
+import { createAuditedCallable } from './helpers/audited-function';
 import { JournalSchema } from './common/schemas/JournalSchema';
 
 if (getApps().length === 0) {
@@ -17,45 +17,34 @@ const db = getFirestore();
 
 const schema = z
   .object({
-    businessID: z.string(),
+    jid: z.string(),
     operation: z.enum(['accept', 'ignore', 'check']),
   })
   .strict();
 
-export const acceptShare = onCall(
-  {
-    cors: ALLOWED,
-    enforceAppCheck: true, // Keep App Check enforcement
-  },
+export const acceptShare = createAuditedCallable(
+  'acceptShare',
+  JOURNAL_COLLECTION,
+  [],
+  schema,
   async (request) => {
     try {
       logger.info('acceptShare called');
-      if (!request.auth || !request.auth.uid || !request.auth.token?.email) {
-        throw new HttpsError(
-          'unauthenticated',
-          'You must be signed in to manage sharing.',
-        );
-      }
 
-      const result = schema.safeParse(request.data);
-      if (!result.success) {
-        throw new HttpsError(
-          'invalid-argument',
-          result.error.message, // Simplified error message
-        );
-      }
-
-      const { businessID: businessId, operation } = result.data; // Use businessId for consistency with original code
-      const uid = request.auth.uid;
-      const email = request.auth.token?.email;
+      const data = request.data as z.infer<typeof schema>;
+      const { jid: businessId, operation } = data; // Use businessId internally for consistency
+      const uid = request.auth!.uid;
+      const email = request.auth!.token?.email;
       const escapedEmail = email?.replace(/\./g, ',');
 
       if (operation === 'ignore') {
-        // Optionally: You could add logic here to record the ignore action if needed
         logger.info(
           `User ${uid} (${email}) ignored share for business ${businessId}`,
         );
-        return { result: 'ok', message: 'Ignored grant to access log' };
+        return {
+          id: businessId,
+          response: { result: 'ok', message: 'Ignored grant to access log' }
+        };
       }
 
       // Transaction to modify the business document
@@ -96,8 +85,11 @@ export const acceptShare = onCall(
             // Message now includes the role.
             // This return is inside the transaction, so the main return after transaction won't be hit for "check".
             return {
-              result: 'ok',
-              message: `You have a pending invitation as a ${role}.`,
+              id: businessId,
+              response: {
+                result: 'ok',
+                message: `You have a pending invitation as a ${role}.`,
+              }
             };
           } else {
             logger.warn(
@@ -170,7 +162,7 @@ export const acceptShare = onCall(
       // that object will be returned by the onCall function.
       // If the transaction promise resolves to undefined (normal successful transaction for "accept"),
       // then the specific message for "accept" is returned.
-      return { result: 'ok', message: 'Accepted grant to access business' };
+      return {  id: businessId, response: { result: 'ok', message: 'Accepted grant to access business' } };
     } catch (error) {
       // If HttpsError was thrown from within the transaction for "check" (e.g. "not-found"),
       // it will be caught here and re-thrown.

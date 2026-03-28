@@ -1,11 +1,11 @@
 // backend/functions/src/bg-duplicate-entry.ts
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { JOURNAL_COLLECTION } from './common/const';
 import { ENTRY_CONFIG, EntryType } from './common/schemas/configmap';
-import { ALLOWED } from './lib/bg-consts';
+import { createAuditedCallable } from './helpers/audited-function';
 import { EntryItf } from './common/common_types';
 import * as z from 'zod';
 
@@ -17,40 +17,23 @@ const db = getFirestore();
 
 // Schema for the duplicate entry request
 const duplicateEntrySchema = z.object({
-  journalId: z.string().min(1, 'Journal ID is required'),
+  jid: z.string().min(1, 'Journal ID is required'),
   entryId: z.string().min(1, 'Entry ID is required'),
   entryType: z.enum(Object.keys(ENTRY_CONFIG) as [string, ...string[]]),
 });
 
-export const duplicateEntry = onCall(
-  {
-    cors: ALLOWED,
-    enforceAppCheck: true,
-  },
+export const duplicateEntry = createAuditedCallable(
+  'duplicateEntry',
+  JOURNAL_COLLECTION,
+  [], // Custom role check below
+  duplicateEntrySchema,
   async (request) => {
     try {
       logger.info('duplicateEntry called');
 
-      if (!request.auth) {
-        throw new HttpsError(
-          'unauthenticated',
-          'You must be signed in to duplicate an entry',
-        );
-      }
-
-      const requestResult = duplicateEntrySchema.safeParse(request.data);
-      if (!requestResult.success) {
-        logger.error('Invalid request data format:', {
-          error: requestResult.error.format(),
-        });
-        throw new HttpsError(
-          'invalid-argument',
-          `Invalid request data: ${requestResult.error.message}`,
-        );
-      }
-
-      const { journalId, entryId, entryType } = requestResult.data;
-      const uid = request.auth.uid;
+      const data = request.data as z.infer<typeof duplicateEntrySchema>;
+      const { jid: journalId, entryId, entryType } = data;
+      const uid = request.auth!.uid;
 
       // Get the main journal document to check access
       const journalDocRef = db.collection(JOURNAL_COLLECTION).doc(journalId);
@@ -130,10 +113,13 @@ export const duplicateEntry = onCall(
       );
 
       return {
-        result: 'ok',
-        message: `${entryType} duplicated successfully`,
-        id: docRef.id,
-        originalId: entryId,
+        id: journalId,
+        response: {
+          result: 'ok',
+          message: `${entryType} duplicated successfully`,
+          id: docRef.id,
+          originalId: entryId,
+        }
       };
     } catch (error) {
       logger.error('Error in duplicateEntry: ', error);

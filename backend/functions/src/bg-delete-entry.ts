@@ -1,11 +1,11 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import * as z from 'zod';
 import { JOURNAL_COLLECTION, ROLES_CAN_DELETE } from './common/const';
 import { ENTRY_CONFIG, EntryType } from './common/schemas/configmap';
-import { ALLOWED } from './lib/bg-consts';
+import { createAuditedCallable } from './helpers/audited-function';
 
 if (getApps().length === 0) {
   initializeApp();
@@ -15,32 +15,21 @@ const db = getFirestore();
 
 // --- Schema for deleteJournal ---
 const deleteJournalSchema = z.object({
-  journalId: z.string().min(1),
+  jid: z.string().min(1),
 });
 
-export const deleteJournal = onCall(
-  {
-    cors: ALLOWED,
-    enforceAppCheck: true,
-  },
+export const deleteJournal = createAuditedCallable(
+  'deleteJournal',
+  JOURNAL_COLLECTION,
+  [], // Custom role check below using ROLES_CAN_DELETE
+  deleteJournalSchema,
   async (request) => {
     logger.info('deleteJournal called');
     try {
-      if (!request.auth) {
-        throw new HttpsError('unauthenticated', 'User is not logged in.');
-      }
-      const uid = request.auth.uid;
+      const uid = request.auth!.uid;
+      const data = request.data as z.infer<typeof deleteJournalSchema>;
 
-      const result = deleteJournalSchema.safeParse(request.data);
-      if (!result.success) {
-        logger.error('Invalid data for deleteJournal:', result.error.format());
-        throw new HttpsError(
-          'invalid-argument',
-          result.error.message, // Use Zod error message
-        );
-      }
-
-      const { journalId } = result.data;
+      const { jid: journalId } = data;
       const journalRef = db.collection(JOURNAL_COLLECTION).doc(journalId);
       const journalDoc = await journalRef.get();
 
@@ -77,7 +66,10 @@ export const deleteJournal = onCall(
 
       // --- REMOVED logic to delete children documents ---
 
-      return { message: 'Journal deleted successfully.' };
+      return {
+        id: journalId,
+        response: { message: 'Journal deleted successfully.' }
+      };
     } catch (error) {
       logger.error('deleteJournal error:', error);
       if (error instanceof HttpsError) {
@@ -93,34 +85,23 @@ export const deleteJournal = onCall(
 
 // --- Schema for deleteEntry ---
 const deleteEntrySchema = z.object({
-  journalId: z.string().min(1),
+  jid: z.string().min(1),
   entryId: z.string().min(1),
   entryType: z.enum(Object.keys(ENTRY_CONFIG) as [string, ...string[]]),
 });
 
-export const deleteEntry = onCall(
-  {
-    cors: ALLOWED,
-    enforceAppCheck: true,
-  },
+export const deleteEntry = createAuditedCallable(
+  'deleteEntry',
+  JOURNAL_COLLECTION,
+  [], // Custom role check below
+  deleteEntrySchema,
   async (request) => {
     logger.info('deleteEntry called');
     try {
-      if (!request.auth) {
-        throw new HttpsError('unauthenticated', 'User is not logged in.');
-      }
-      const uid = request.auth.uid;
+      const uid = request.auth!.uid;
+      const data = request.data as z.infer<typeof deleteEntrySchema>;
 
-      const result = deleteEntrySchema.safeParse(request.data);
-      if (!result.success) {
-        logger.error('Invalid data for deleteEntry:', result.error.format());
-        throw new HttpsError(
-          'invalid-argument',
-          result.error.message, // Simplified error message
-        );
-      }
-
-      const { journalId, entryId, entryType } = result.data;
+      const { jid: journalId, entryId, entryType } = data;
 
       // --- Get journal to check permissions ---
       const journalRef = db.collection(JOURNAL_COLLECTION).doc(journalId);
@@ -180,7 +161,10 @@ export const deleteEntry = onCall(
       logger.info(
         `Entry ${entryId} (${entryType}) in journal ${journalId} marked as deleted by user ${uid}.`,
       );
-      return { message: 'Entry deleted successfully.' };
+      return {
+        id: journalId,
+        response: { message: 'Entry deleted successfully.' }
+      };
     } catch (error) {
       logger.error('deleteEntry error:', error);
       if (error instanceof HttpsError) {

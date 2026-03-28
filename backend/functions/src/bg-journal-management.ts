@@ -96,7 +96,7 @@ export const createJournal = createAuditedCallable(
 
 const UpdateJournalPayloadSchema = _CreateJournalPayloadSchema
   .extend({
-    id: z.string().min(1),
+    jid: z.string().min(1),
     details: businessDetailsSchema.partial().optional(),
   })
   .partial();
@@ -110,7 +110,7 @@ export const updateJournal = createAuditedCallable(
   ['admin'],
   UpdateJournalPayloadSchema,
   async (request) => {
-    const { id: journalId, title, details } = request.data;
+    const { jid: journalId, title, details } = request.data;
 
     try {
       const docRef = db.collection(JOURNAL_COLLECTION).doc(journalId);

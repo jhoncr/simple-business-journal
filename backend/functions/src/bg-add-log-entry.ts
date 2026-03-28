@@ -1,16 +1,18 @@
 // backend/functions/src/bg-add-log-entry.ts
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp, getApps } from 'firebase-admin/app';
+import * as z from 'zod';
 import { JOURNAL_COLLECTION } from './common/const';
 import {
   ENTRY_CONFIG,
   entrySchema,
   EntryType,
 } from './common/schemas/configmap';
-import { ALLOWED, handleSchemaValidationError } from './lib/bg-consts';
+import { handleSchemaValidationError } from './lib/bg-consts';
 import { EntryItf } from './common/common_types';
+import { createAuditedCallable } from './helpers/audited-function';
 
 if (getApps().length === 0) {
   initializeApp();
@@ -18,42 +20,23 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 
-export const addLogFn = onCall(
-  {
-    cors: ALLOWED,
-    enforceAppCheck: true,
-  },
+export const addLogFn = createAuditedCallable(
+  'addLogFn',
+  JOURNAL_COLLECTION,
+  [], // Custom role check below
+  entrySchema,
   async (request) => {
     try {
       logger.info('addLogFn called');
-      if (!request.auth) {
-        throw new HttpsError(
-          'unauthenticated',
-          'You must be signed in to add an entry',
-        );
-      }
-
-      const requestResult = entrySchema.safeParse(request.data);
-      if (!requestResult.success) {
-        // Use format() for better error logging
-        logger.error(
-          'Invalid request data format:',
-          requestResult.error.format(),
-        );
-        throw new HttpsError(
-          'invalid-argument',
-          `Invalid request data: ${requestResult.error.message}`,
-        );
-      }
-
       const {
-        journalId,
+        jid: journalId,
         entryType,
         name,
         details: rawDetails,
         entryId,
-      } = requestResult.data;
-      const uid = request.auth.uid;
+      } = request.data as z.infer<typeof entrySchema>;
+      
+      const uid = request.auth!.uid;
 
       // Get the main journal document to check access and journalType
       const journalDocRef = db.collection(JOURNAL_COLLECTION).doc(journalId);
@@ -110,7 +93,7 @@ export const addLogFn = onCall(
       const entriesColRef = journalDocRef.collection(targetSubcollectionName);
 
       if (entryId) {
-        return await _updateEntry(
+        const res = await _updateEntry(
           db,
           entriesColRef,
           entryId,
@@ -118,8 +101,9 @@ export const addLogFn = onCall(
           validatedDetails,
           targetSubcollectionName,
         );
+        return { id: journalId, response: res };
       } else {
-        return await _addEntry(
+        const res = await _addEntry(
           entriesColRef,
           baseEntry,
           validatedDetails,
@@ -128,6 +112,7 @@ export const addLogFn = onCall(
           journalId,
           targetSubcollectionName,
         );
+        return { id: journalId, response: res };
       }
     } catch (error) {
       logger.error('Error in addLogFn: ', error);

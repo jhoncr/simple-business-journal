@@ -83,7 +83,7 @@ export type EntryType = keyof typeof ENTRY_CONFIG;
 
 export const entrySchema = z.object({
   entryId: z.string().optional(),
-  journalId: z.string(),
+  jid: z.string(),
   entryType: entryTypeSchema,
   name: z
     .string()

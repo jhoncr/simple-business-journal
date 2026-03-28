@@ -263,7 +263,7 @@ export const StoneForgeEditor = () => {
         } else {
           // It's an existing template, update it
           const payload = {
-            journalId: journalId,
+            jid: journalId,
             entryType: "template",
             entryId: finalTemplate.id,
             name: finalTemplate.name,
@@ -293,7 +293,7 @@ export const StoneForgeEditor = () => {
     try {
       const duplicateFn = httpsCallable(functions, "duplicateEntry");
       const response = await duplicateFn({
-        journalId: journalId,
+        jid: journalId,
         entryId: template.id,
         entryType: "template",
       });
@@ -1083,8 +1083,8 @@ export const StoneForgeEditor = () => {
               onClick={() => setViewMode("user")}
               title="User View – variables only"
               className={`flex items-center gap-1.5 py-1 px-2.5 rounded text-xs font-medium transition-colors ${viewMode === "user"
-                  ? "bg-white text-indigo-700 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
+                ? "bg-white text-indigo-700 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
                 }`}
             >
               <Eye className="w-3.5 h-3.5" /> User
@@ -1093,8 +1093,8 @@ export const StoneForgeEditor = () => {
               onClick={() => setViewMode("designer")}
               title="Designer View – full editor"
               className={`flex items-center gap-1.5 py-1 px-2.5 rounded text-xs font-medium transition-colors ${viewMode === "designer"
-                  ? "bg-white text-indigo-700 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
+                ? "bg-white text-indigo-700 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
                 }`}
             >
               <LayoutTemplate className="w-3.5 h-3.5" /> Designer

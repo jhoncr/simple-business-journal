@@ -157,7 +157,7 @@ export function AddContributers({
           email,
           role: form.getValues().role,
           operation: "add",
-          journalId,
+          jid: journalId,
         })
           .then((result) => {
             if (result) {
@@ -189,7 +189,7 @@ export function AddContributers({
       email: people[idx].email,
       role: people[idx].role,
       operation: "remove",
-      journalId,
+      jid: journalId,
     })
       .then((result) => {
         if (result) {

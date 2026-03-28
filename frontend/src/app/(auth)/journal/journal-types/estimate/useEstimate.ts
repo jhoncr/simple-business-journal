@@ -243,11 +243,10 @@ export const useEstimate = ({
     }
 
     return {
-      journalId: journalId,
+      jid: journalId,
       entryType: ESTIMATE_ENTRY_TYPE,
-      name: `Estimate for ${
-        detailsValidation.data.customer.name || "Unknown"
-      }`,
+      name: `Estimate for ${detailsValidation.data.customer.name || "Unknown"
+        }`,
       details: detailsValidation.data,
       ...(entryId && { entryId }),
     };
@@ -401,7 +400,7 @@ export const useEstimate = ({
       (sum, item) =>
         sum +
         (item.quantity || 0) *
-          (item.material?.unitPrice ? Number(item.material.unitPrice) : 0),
+        (item.material?.unitPrice ? Number(item.material.unitPrice) : 0),
       0,
     );
   }, [confirmedItems]);
