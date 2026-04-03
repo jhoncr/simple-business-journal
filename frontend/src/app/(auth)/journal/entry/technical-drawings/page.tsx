@@ -1,14 +1,11 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { fetchEntry, fetchJournal } from "@/lib/db_handler";
 import { EstimateHeader } from "../../journal-types/estimate/subcomponents/header";
-import { InvoiceDetails } from "../../journal-types/estimate/subcomponents/InvoiceDetails";
-import { ContactInfo } from "../../journal-types/estimate/subcomponents/ContactInfo";
 import { StoneForgeViewer } from "@/components/studio/StoneForgeViewer";
 import { estimateDetailsStateSchema } from "@backend/common/schemas/estimate_schema";
-import { format } from "date-fns";
 import { AlertCircle } from "lucide-react";
 
 export default function TechnicalDrawingsPrintLayout() {
@@ -31,11 +28,8 @@ export default function TechnicalDrawingsPrintLayout() {
         ]);
 
         if (entryRes) {
-          // Parse the entry details against the schema to ensure we have valid estimate details
-          // DBentry implements EntryItf which has a `details` property where the specific state is stored
           const parsed = estimateDetailsStateSchema.safeParse(entryRes.details);
           if (parsed.success) {
-            // Note: entryRes.createdAt is a Firestore Timestamp
             setEstimateData({
               ...parsed.data,
               createdAt: entryRes.createdAt?.toDate
@@ -61,11 +55,10 @@ export default function TechnicalDrawingsPrintLayout() {
   }, [journalId, entryId]);
 
   useEffect(() => {
-    // Wait for data to load and a short delay for 3D canvases to render before printing
     if (!loading && estimateData) {
       const timer = setTimeout(() => {
         window.print();
-      }, 1500); // Give Three.js some time to render
+      }, 2000);
       return () => clearTimeout(timer);
     }
   }, [loading, estimateData]);
@@ -82,7 +75,6 @@ export default function TechnicalDrawingsPrintLayout() {
     );
   }
 
-  // Filter items that have an attached template
   const printableItems = estimateData.confirmedItems.filter(
     (item: any) => item.attachedTemplate != null,
   );
@@ -95,148 +87,242 @@ export default function TechnicalDrawingsPrintLayout() {
     );
   }
 
+  const customer = estimateData.customer;
+
   return (
-    <div className="min-h-screen bg-white text-black p-8 font-sans max-w-4xl mx-auto">
-      {/* Hide standard app UI using print media query or just rely on the clean route */}
+    <div className="min-h-screen bg-gray-200 text-black font-sans flex flex-col items-center overflow-x-auto print:block print:bg-white print:overflow-visible">
       <style
         dangerouslySetInnerHTML={{
           __html: `
-        @media print {
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          @page { margin: 1cm; size: portrait; }
-        }
-      `,
+          @media print {
+            ::-webkit-scrollbar { display: none; }
+            body, html { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; padding: 0; }
+            @page { margin: 0.6cm; size: landscape; }
+            .td-no-print { display: none !important; }
+            .td-view-card { break-inside: avoid; }
+            .td-dimensions { break-inside: avoid; }
+            .td-item-header { break-after: avoid; }
+            .td-item-page { page-break-after: always; break-after: page; }
+            .td-item-page:last-child { page-break-after: auto; break-after: auto; }
+          }
+        `,
         }}
       />
 
-      <EstimateHeader
-        logo={journalData.details?.logo}
-        contactInfo={journalData.details?.contactInfo}
-      />
-
-      <div className="print:hidden bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 rounded-md shadow-sm">
-        <div className="flex">
-          <div className="flex-shrink-0">
-            <AlertCircle className="h-5 w-5 text-blue-400" />
-          </div>
-          <div className="ml-3">
-            <p className="text-sm text-blue-700">
-              <strong>Printing Tip:</strong> For best results, enable
-              &quot;Headers and footers&quot; and &quot;Background
-              graphics&quot; in your browser&apos;s print settings to ensure
-              page numbers and styling appear correctly.
-            </p>
-          </div>
-        </div>
+      {/* Non-print tip */}
+      <div className="td-no-print print:hidden w-full max-w-[285mm] bg-blue-50 border-l-4 border-blue-400 p-2 my-4 mx-auto rounded text-xs text-blue-700 shadow-sm">
+        <AlertCircle className="h-3 w-3 inline mr-1" />
+        <strong>Tip:</strong> Enable &quot;Background graphics&quot; in print settings.
       </div>
 
-      <div className="mt-4 mb-6 pb-2">
-        <div className="mt-4">
-          <h3 className="font-semibold text-gray-700 text-sm mb-2">CLIENT</h3>
-          <ContactInfo
-            info={estimateData.customer}
-            setInfo={() => { }} // Read-only
-          />
-        </div>
-      </div>
+      <div className="bg-white shadow-xl print:shadow-none mb-8 print:m-0 print:p-0 flex-shrink-0" style={{ width: '285mm' }}>
+        {/* Items */}
+        <div className="pt-1">
+          {printableItems.map((item: any, index: number) => {
+            const template = item.attachedTemplate;
+            if (!template) return null;
 
-      <div className="space-y-12">
-        {printableItems.map((item: any, index: number) => {
-          const template = item.attachedTemplate;
-          if (!template) return null;
+            const mergedVariables: Record<string, number> = {};
+            template.snapshot.variables.forEach((v: any) => {
+              if (v.label) {
+                mergedVariables[v.label] = v.default;
+              }
+            });
 
-          // Merge default variables with overrides
-          const mergedVariables: Record<string, number> = {};
-          template.snapshot.variables.forEach((v: any) => {
-            if (v.label) {
-              mergedVariables[v.label] = v.default;
+            if (template.variableOverrides) {
+              Object.entries(template.variableOverrides).forEach(
+                ([id, value]) => {
+                  const variable = template.snapshot.variables.find(
+                    (v: any) => v.id === id,
+                  );
+                  if (variable && variable.label) {
+                    mergedVariables[variable.label] = value as number;
+                  }
+                },
+              );
             }
-          });
 
-          if (template.variableOverrides) {
-            Object.entries(template.variableOverrides).forEach(
-              ([id, value]) => {
-                const variable = template.snapshot.variables.find(
-                  (v: any) => v.id === id,
-                );
-                if (variable && variable.label) {
-                  mergedVariables[variable.label] = value as number;
-                }
-              },
-            );
-          }
+            const cameraViews = template.snapshot.cameraViews || [];
+            // Separate main views (full scene) from detail views (focused on specific component)
+            const mainViews = cameraViews.filter((v: any) => !v.focusTargetId);
+            const detailViews = cameraViews.filter((v: any) => v.focusTargetId);
 
-          const cameraViews = template.snapshot.cameraViews || [];
+            const defaultView = mainViews.length > 0 ? mainViews[0] : null;
+            const otherMainViews = mainViews.length > 0 ? mainViews.slice(1) : [];
 
-          return (
-            <div
-              key={item.id}
-              className="break-inside-avoid border rounded-lg overflow-hidden border-gray-200"
-            >
-              <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-800">
-                  {index + 1}. {item.description || template.snapshot.name}
-                </h3>
-              </div>
-
-              {cameraViews.length > 0 ? (
-                <div className="flex flex-col bg-white border-b border-gray-200">
-                  {cameraViews.map((view: any) => (
-                    <div
-                      key={view.id}
-                      className="relative overflow-hidden w-full border-b border-gray-100 last:border-b-0 min-h-[200px]"
-                      style={{
-                        height: (!view.cropBox || !view.cropBox.width || !view.cropBox.height) ? '400px' : 'auto',
-                        maxHeight: '800px',
-                        aspectRatio: view.cropBox && view.cropBox.width > 0 && view.cropBox.height > 0
-                          ? `${view.cropBox.width} / ${view.cropBox.height}`
-                          : undefined
-                      }}
-                    >
-                      <div className="absolute top-2 left-2 z-10 bg-white/80 backdrop-blur-sm px-2 py-1 rounded text-xs font-medium text-gray-600 border border-gray-200 shadow-sm">
-                        {view.name}
+            return (
+              <div key={item.id} className="td-item-page px-4 pb-4 flex flex-col" style={{ minHeight: '196mm' }}>
+                {/* Header repeated for each page/item */}
+                <div className="pt-2 pb-0 mb-0">
+                  <div className="flex items-center justify-between">
+                    <EstimateHeader
+                      logo={journalData.details?.logo}
+                      contactInfo={journalData.details?.contactInfo}
+                    />
+                    {/* Inline compact client info — 2 lines max */}
+                    <div className="text-right text-[11px] text-gray-600 leading-tight">
+                      <div className="font-bold text-gray-800">
+                        {customer?.name}
+                        {customer?.address?.street && (
+                          <span className="font-normal text-gray-500">
+                            {" · "}{customer.address.street}
+                            {customer.address.city && `, ${customer.address.city}`}
+                            {customer.address.state && ` ${customer.address.state}`}
+                            {customer.address.zipCode && ` ${customer.address.zipCode}`}
+                          </span>
+                        )}
                       </div>
+                      {(customer?.phone || customer?.email) && (
+                        <div className="text-gray-400 text-[10px]">
+                          {customer.phone}{customer.phone && customer.email && " · "}{customer.email}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  className="border rounded overflow-hidden border-gray-300 flex-1 flex flex-col"
+                >
+                  {/* Item title bar */}
+                  <div className="td-item-header bg-gray-100 px-3 py-1 border-b border-gray-300">
+                    <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wide">
+                      {index + 1}. {item.description || template.snapshot.name}
+                    </h3>
+                  </div>
+
+                  {/* Camera views */}
+                  {cameraViews.length > 0 ? (
+                    <div className="bg-white p-0 flex flex-col gap-0 flex-1">
+                      {/* Default View — Gets the most space, full width */}
+                      {defaultView && (() => {
+                        const hasCropBox = defaultView.cropBox && defaultView.cropBox.width > 0 && defaultView.cropBox.height > 0;
+                        return (
+                          <div
+                            key={defaultView.id}
+                            className="td-view-card relative w-full overflow-hidden"
+                            style={{
+                              height: hasCropBox ? 'auto' : '300px',
+                              minHeight: hasCropBox ? undefined : '220px',
+                              aspectRatio: hasCropBox
+                                ? `${defaultView.cropBox.width} / ${defaultView.cropBox.height}`
+                                : undefined
+                            }}
+                          >
+                            <div className="absolute top-0.5 left-0.5 z-10 bg-white/90 px-1 py-0 text-[9px] font-bold text-gray-500">
+                              {defaultView.name}
+                            </div>
+                            <StoneForgeViewer
+                              components={template.snapshot.components}
+                              variables={mergedVariables}
+                              printMode={true}
+                              fixedCameraView={defaultView}
+                            />
+                          </div>
+                        );
+                      })()}
+
+                      {/* Secondary Views Row — Side by side to save space and make them smaller */}
+                      {(otherMainViews.length > 0 || detailViews.length > 0) && (
+                        <div className="grid grid-cols-4 gap-1.5 w-full items-start">
+                          {/* Other main views — smaller width, col-span-3 */}
+                          {otherMainViews.length > 0 && (
+                            <div className={`flex flex-col gap-1.5 min-w-0 ${detailViews.length > 0 ? 'col-span-3' : 'col-span-4'}`}>
+                              {otherMainViews.map((view: any) => {
+                                const hasCropBox = view.cropBox && view.cropBox.width > 0 && view.cropBox.height > 0;
+                                return (
+                                  <div
+                                    key={view.id}
+                                    className="td-view-card relative border border-gray-200 rounded w-full overflow-hidden"
+                                    style={{
+                                      height: hasCropBox ? 'auto' : '200px',
+                                      minHeight: hasCropBox ? undefined : '140px',
+                                      aspectRatio: hasCropBox
+                                        ? `${view.cropBox.width} / ${view.cropBox.height}`
+                                        : undefined
+                                    }}
+                                  >
+                                    <div className="absolute top-0.5 left-0.5 z-10 bg-white/90 px-1 py-px rounded text-[9px] font-bold text-gray-500 border border-gray-200">
+                                      {view.name}
+                                    </div>
+                                    <StoneForgeViewer
+                                      components={template.snapshot.components}
+                                      variables={mergedVariables}
+                                      printMode={true}
+                                      fixedCameraView={view}
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Detail views — smallest width, col-span-1 */}
+                          {detailViews.length > 0 && (
+                            <div className={`flex flex-row flex-wrap gap-1.5 min-w-0 ${otherMainViews.length > 0 ? 'col-span-1' : 'col-span-4 justify-center mx-auto w-full'}`}>
+                              {detailViews.map((view: any) => {
+                                const hasCropBox = view.cropBox && view.cropBox.width > 0 && view.cropBox.height > 0;
+                                return (
+                                  <div
+                                    key={view.id}
+                                    className="td-view-card relative border border-gray-200 rounded flex-1 min-w-[120px] overflow-hidden"
+                                    style={{
+                                      height: hasCropBox ? 'auto' : '150px',
+                                      minHeight: hasCropBox ? undefined : '100px',
+                                      aspectRatio: hasCropBox
+                                        ? `${view.cropBox.width} / ${view.cropBox.height}`
+                                        : '4/3'
+                                    }}
+                                  >
+                                    <div className="absolute top-0.5 left-0.5 z-10 bg-white/90 px-1 py-px rounded text-[9px] font-bold text-gray-500 border border-gray-200">
+                                      {view.name}
+                                    </div>
+                                    <StoneForgeViewer
+                                      components={template.snapshot.components}
+                                      variables={mergedVariables}
+                                      printMode={true}
+                                      fixedCameraView={view}
+                                    />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="td-view-card w-full h-[300px] relative overflow-hidden bg-white">
                       <StoneForgeViewer
                         components={template.snapshot.components}
                         variables={mergedVariables}
                         printMode={true}
-                        fixedCameraView={view}
                       />
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="w-full h-[400px] relative overflow-hidden bg-white border-b border-gray-200">
-                  <StoneForgeViewer
-                    components={template.snapshot.components}
-                    variables={mergedVariables}
-                    printMode={true}
-                  />
-                </div>
-              )}
+                  )}
 
-              <div className="bg-white px-4 py-4">
-                <h4 className="text-sm font-semibold mb-2 text-gray-700">
-                  Dimensions & Variables
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {template.snapshot.variables.map((v: any) => {
-                    const value =
-                      template.variableOverrides?.[v.id] ?? v.default;
-                    return (
-                      <div key={v.id} className="text-sm">
-                        <span className="text-gray-500 block text-xs uppercase tracking-wide">
-                          {v.label}
+                  {/* Dimensions — compact inline strip */}
+                  <div className="td-dimensions bg-gray-50 px-3 py-1 border-t border-gray-200 flex items-center gap-3 flex-wrap">
+                    <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                      Dimensions:
+                    </span>
+                    {template.snapshot.variables.map((v: any) => {
+                      const value =
+                        template.variableOverrides?.[v.id] ?? v.default;
+                      return (
+                        <span key={v.id} className="text-[11px] text-gray-700">
+                          <span className="text-gray-400 uppercase text-[9px]">{v.label}</span>
+                          {" "}
+                          <span className="font-bold">{value}</span>
                         </span>
-                        <span className="font-medium">{value}</span>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

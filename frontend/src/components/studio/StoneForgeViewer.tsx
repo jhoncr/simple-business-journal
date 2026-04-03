@@ -17,14 +17,14 @@ interface StoneForgeViewerProps {
 
 export const PresetCameraFitter = ({ preset, focusTargetId, zoomMultiplier = 1, forceRenderRefreshCount = 0 }: { preset: string, focusTargetId?: string, zoomMultiplier?: number, forceRenderRefreshCount?: number }) => {
   const bounds = useBounds();
-  const { scene, camera, controls } = useThree();
+  const { scene, camera, controls, size } = useThree();
 
   useEffect(() => {
     let attempts = 0;
-    
+
     const attemptFit = () => {
       let targetObject = scene;
-      
+
       // If we have a specific target, recursively try to fetch it to ensure R3F has mounted the graph
       if (focusTargetId) {
         const found = scene.getObjectByName(focusTargetId);
@@ -33,7 +33,7 @@ export const PresetCameraFitter = ({ preset, focusTargetId, zoomMultiplier = 1, 
         } else {
           attempts++;
           if (attempts < 20) {
-            setTimeout(attemptFit, 100);
+            setTimeout(attemptFit, 300);
             return;
           }
           console.warn(`[PresetCameraFitter] Could not find focusTargetId: ${focusTargetId}`);
@@ -44,7 +44,7 @@ export const PresetCameraFitter = ({ preset, focusTargetId, zoomMultiplier = 1, 
 
       const size = bounds.getSize();
       const center = size.center;
-      
+
       // Default upward axis
       camera.up.set(0, 1, 0);
 
@@ -63,27 +63,46 @@ export const PresetCameraFitter = ({ preset, focusTargetId, zoomMultiplier = 1, 
         camera.position.set(center.x + 100, center.y, center.z);
       } else if (preset === 'left') {
         camera.position.set(center.x - 100, center.y, center.z);
-      } else if (preset === 'isometric') {
+      } else if (preset === 'isometric' || preset === 'iso-tfr') {
         camera.position.set(center.x + 100, center.y + 100, center.z + 100);
+      } else if (preset === 'iso-tfl') {
+        camera.position.set(center.x - 100, center.y + 100, center.z + 100);
+      } else if (preset === 'iso-tbr') {
+        camera.position.set(center.x + 100, center.y + 100, center.z - 100);
+      } else if (preset === 'iso-tbl') {
+        camera.position.set(center.x - 100, center.y + 100, center.z - 100);
+      } else if (preset === 'iso-bfr') {
+        camera.position.set(center.x + 100, center.y - 100, center.z + 100);
+      } else if (preset === 'iso-bfl') {
+        camera.position.set(center.x - 100, center.y - 100, center.z + 100);
+      } else if (preset === 'iso-bbr') {
+        camera.position.set(center.x + 100, center.y - 100, center.z - 100);
+      } else if (preset === 'iso-bbl') {
+        camera.position.set(center.x - 100, center.y - 100, center.z - 100);
       }
-      
+
       camera.lookAt(center);
       if (controls) {
-          (controls as any).target.copy(center);
-          (controls as any).update();
+        (controls as any).target.copy(center);
+        (controls as any).update();
       }
-      
+
       bounds.refresh(targetObject).clip().fit();
       
-      if (zoomMultiplier !== 1) {
-        camera.zoom *= zoomMultiplier;
+      let finalZoomMult = zoomMultiplier;
+      if (preset.startsWith('iso') && !focusTargetId) {
+        finalZoomMult *= 1.35; // Compensate for oversized isometric bounding spheres
+      }
+
+      if (finalZoomMult !== 1) {
+        camera.zoom *= finalZoomMult;
         camera.updateProjectionMatrix();
       }
     };
 
     attemptFit();
-  }, [preset, focusTargetId, zoomMultiplier, bounds, scene, camera, controls, forceRenderRefreshCount]);
-  
+  }, [preset, focusTargetId, zoomMultiplier, bounds, scene, camera, controls, forceRenderRefreshCount, size.width, size.height]);
+
   return null;
 };
 
@@ -134,38 +153,38 @@ export const StoneForgeViewer = ({
     >
       <Canvas
         orthographic
-        camera={{ position: [200, 200, 200], zoom: 2 }}
-        gl={{ preserveDrawingBuffer: true }}
+      // camera={{ position: [200, 200, 200], zoom: 2 }}
+      // gl={{ preserveDrawingBuffer: true }}
       >
-        <color attach="background" args={[printMode ? "#ffffff" : "#f9fafb"]} />
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[100, 200, 100]} intensity={1} castShadow />
+        {/* <color attach="background" args={[printMode ? "#ffffff" : "#f9fafb"]} /> */}
+        {/* <ambientLight intensity={0.5} /> */}
+        {/* <directionalLight position={[100, 200, 100]} intensity={1} castShadow /> */}
 
         <React.Suspense fallback={null}>
-          <Environment preset="city" />
-          <Bounds fit clip observe margin={1.2}>
+          <Environment preset="warehouse" />
+          <Bounds clip observe>
             {fixedCameraView && fixedCameraView.preset && (
-              <PresetCameraFitter 
-                preset={fixedCameraView.preset} 
-                focusTargetId={fixedCameraView.focusTargetId} 
-                zoomMultiplier={fixedCameraView.zoomMultiplier} 
+              <PresetCameraFitter
+                preset={fixedCameraView.preset}
+                focusTargetId={fixedCameraView.focusTargetId}
+                zoomMultiplier={fixedCameraView.zoomMultiplier}
               />
             )}
-            <group position={[-100, 0, 50]}>
-              {components.map((comp) => (
-                <Slab3D
-                  key={comp.id}
-                  slab={comp}
-                  isSelected={false}
-                  onSelect={() => { }}
-                  selectedComponentId={null}
-                  onEdgeSelect={() => { }}
-                  selectedEdge={null}
-                  selectedDimensionLabelId={null}
-                  variables={variables}
-                />
-              ))}
-              {!printMode && (
+            {/* <group position={[-100, 0, 50]}> */}
+            {components.map((comp) => (
+              <Slab3D
+                key={comp.id}
+                slab={comp}
+                isSelected={false}
+                onSelect={() => { }}
+                selectedComponentId={null}
+                onEdgeSelect={() => { }}
+                selectedEdge={null}
+                selectedDimensionLabelId={null}
+                variables={variables}
+              />
+            ))}
+            {/* {!printMode && (
                 <Grid
                   position={[100, minY - 0.1, -50]}
                   args={[500, 500]}
@@ -178,8 +197,8 @@ export const StoneForgeViewer = ({
                   fadeDistance={400}
                   fadeStrength={1}
                 />
-              )}
-            </group>
+              )} */}
+            {/* </group> */}
           </Bounds>
         </React.Suspense>
 

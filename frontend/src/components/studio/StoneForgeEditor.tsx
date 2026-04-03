@@ -106,6 +106,17 @@ const calculateMinY = (
   return minY;
 };
 
+const ISOMETRIC_PRESETS = [
+  { id: 'iso-tfr', title: 'Top Front Right', icon: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="10" y="4" width="10" height="10" strokeOpacity={0.3} /><path d="M10 4l-6 6M20 4l-6 6M10 14l-6 6M20 14l-6 6" strokeOpacity={0.3} /><rect x="4" y="10" width="10" height="10" /><circle cx="14" cy="10" r="2.5" fill="#ef4444" stroke="none" /></svg> },
+  { id: 'iso-tfl', title: 'Top Front Left', icon: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="10" y="4" width="10" height="10" strokeOpacity={0.3} /><path d="M10 4l-6 6M20 4l-6 6M10 14l-6 6M20 14l-6 6" strokeOpacity={0.3} /><rect x="4" y="10" width="10" height="10" /><circle cx="4" cy="10" r="2.5" fill="#ef4444" stroke="none" /></svg> },
+  { id: 'iso-tbr', title: 'Top Back Right', icon: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="10" y="4" width="10" height="10" strokeOpacity={0.3} /><path d="M10 4l-6 6M20 4l-6 6M10 14l-6 6M20 14l-6 6" strokeOpacity={0.3} /><rect x="4" y="10" width="10" height="10" /><circle cx="20" cy="4" r="2.5" fill="#ef4444" stroke="none" /></svg> },
+  { id: 'iso-tbl', title: 'Top Back Left', icon: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="10" y="4" width="10" height="10" strokeOpacity={0.3} /><path d="M10 4l-6 6M20 4l-6 6M10 14l-6 6M20 14l-6 6" strokeOpacity={0.3} /><rect x="4" y="10" width="10" height="10" /><circle cx="10" cy="4" r="2.5" fill="#ef4444" stroke="none" /></svg> },
+  { id: 'iso-bfr', title: 'Bottom Front Right', icon: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="10" y="4" width="10" height="10" strokeOpacity={0.3} /><path d="M10 4l-6 6M20 4l-6 6M10 14l-6 6M20 14l-6 6" strokeOpacity={0.3} /><rect x="4" y="10" width="10" height="10" /><circle cx="14" cy="20" r="2.5" fill="#ef4444" stroke="none" /></svg> },
+  { id: 'iso-bfl', title: 'Bottom Front Left', icon: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="10" y="4" width="10" height="10" strokeOpacity={0.3} /><path d="M10 4l-6 6M20 4l-6 6M10 14l-6 6M20 14l-6 6" strokeOpacity={0.3} /><rect x="4" y="10" width="10" height="10" /><circle cx="4" cy="20" r="2.5" fill="#ef4444" stroke="none" /></svg> },
+  { id: 'iso-bbr', title: 'Bottom Back Right', icon: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="10" y="4" width="10" height="10" strokeOpacity={0.3} /><path d="M10 4l-6 6M20 4l-6 6M10 14l-6 6M20 14l-6 6" strokeOpacity={0.3} /><rect x="4" y="10" width="10" height="10" /><circle cx="20" cy="14" r="2.5" fill="#ef4444" stroke="none" /></svg> },
+  { id: 'iso-bbl', title: 'Bottom Back Left', icon: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="10" y="4" width="10" height="10" strokeOpacity={0.3} /><path d="M10 4l-6 6M20 4l-6 6M10 14l-6 6M20 14l-6 6" strokeOpacity={0.3} /><rect x="4" y="10" width="10" height="10" /><circle cx="10" cy="14" r="2.5" fill="#ef4444" stroke="none" /></svg> },
+];
+
 export const StoneForgeEditor = () => {
   const searchParams = useSearchParams();
   const journalId = searchParams.get("jid");
@@ -711,7 +722,7 @@ export const StoneForgeEditor = () => {
         {
           id: `cam_${Date.now()}`,
           name: `View ${existingViews.length + 1}`,
-          preset: 'isometric',
+          preset: 'iso-tfr',
           isDefault: existingViews.length === 0,
         },
       ],
@@ -1177,7 +1188,7 @@ export const StoneForgeEditor = () => {
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] uppercase font-bold text-gray-500 w-16 shrink-0">Preset</span>
                             <select
-                              value={view.preset || 'isometric'}
+                              value={view.preset || 'iso-tfr'}
                               onChange={(e) => {
                                 setTemplate((prev) => ({
                                   ...prev,
@@ -1188,14 +1199,55 @@ export const StoneForgeEditor = () => {
                               }}
                               className="text-xs flex-1 p-1 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 bg-white"
                             >
-                              <option value="isometric">Isometric</option>
-                              <option value="front">Front</option>
-                              <option value="back">Back</option>
-                              <option value="left">Left</option>
-                              <option value="right">Right</option>
-                              <option value="top">Top</option>
-                              <option value="bottom">Bottom</option>
+                              <optgroup label="Standard">
+                                <option value="front">Front</option>
+                                <option value="back">Back</option>
+                                <option value="left">Left</option>
+                                <option value="right">Right</option>
+                                <option value="top">Top</option>
+                                <option value="bottom">Bottom</option>
+                              </optgroup>
+                              <optgroup label="Isometric">
+                                <option value="iso-tfr">Top Front Right (TFR)</option>
+                                <option value="iso-tfl">Top Front Left (TFL)</option>
+                                <option value="iso-tbr">Top Back Right (TBR)</option>
+                                <option value="iso-tbl">Top Back Left (TBL)</option>
+                                <option value="iso-bfr">Bottom Front Right (BFR)</option>
+                                <option value="iso-bfl">Bottom Front Left (BFL)</option>
+                                <option value="iso-bbr">Bottom Back Right (BBR)</option>
+                                <option value="iso-bbl">Bottom Back Left (BBL)</option>
+                                <option value="isometric" className="hidden">Isometric (Legacy)</option>
+                              </optgroup>
                             </select>
+                          </div>
+                          
+                          <div className="grid grid-cols-4 gap-1 mt-1 pl-18">
+                              {ISOMETRIC_PRESETS.map(preset => {
+                                const isActive = view.preset === preset.id || (view.preset === 'isometric' && preset.id === 'iso-tfr');
+                                return (
+                                  <button
+                                    key={preset.id}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setTemplate((prev) => ({
+                                        ...prev,
+                                        cameraViews: prev.cameraViews?.map((v) =>
+                                          v.id === view.id ? { ...v, preset: preset.id as any } : v,
+                                        ),
+                                      }));
+                                    }}
+                                    className={`p-1.5 border rounded flex items-center justify-center transition-colors ${
+                                      isActive 
+                                        ? "bg-indigo-50 border-indigo-400 text-indigo-700" 
+                                        : "bg-white hover:bg-gray-50 text-gray-400 hover:text-gray-600 border-gray-200"
+                                    }`}
+                                    title={preset.title}
+                                  >
+                                    {preset.icon}
+                                  </button>
+                                );
+                              })}
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] uppercase font-bold text-gray-500 w-16 shrink-0">Target</span>
