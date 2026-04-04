@@ -3,9 +3,9 @@ import { EstimateHeader } from "@/app/(auth)/journal/journal-types/estimate/subc
 import { StoneForgeViewer } from "@/components/studio/StoneForgeViewer";
 import { AssemblyTemplate } from "@backend/common/schemas/studio";
 import { contactInfoSchemaType } from "@backend/common/schemas/common_schemas";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Printer } from "lucide-react";
 import { useTranslations } from "next-intl";
-
+import { Button } from "@/components/ui/button";
 export interface PrintableItem {
   id: string;
   description: string;
@@ -40,7 +40,7 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
   if (items.length === 0) return null;
 
   return (
-    <div className="min-h-screen bg-gray-200 text-black font-sans flex flex-col items-center overflow-x-auto print:block print:bg-white print:overflow-visible">
+    <div className="min-h-screen bg-gray-200 text-black font-sans flex flex-col overflow-x-auto print:block print:bg-white print:overflow-visible">
       <style
         dangerouslySetInnerHTML={{
           __html: `
@@ -60,11 +60,17 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
       />
 
       <div className="td-no-print print:hidden w-full max-w-[285mm] bg-blue-50 border-l-4 border-blue-400 p-2 my-4 mx-auto rounded text-xs text-blue-700 shadow-sm">
-        <AlertCircle className="h-3 w-3 inline mr-1" />
-        <strong>{t("quickPrintTip") || "Tip:"}</strong> {t("quickPrintTipDescription") || 'Enable "Background graphics" in print settings.'}
+        {/* <Printer className="h-3 w-3 inline mr-1" /> */}
+        <Button variant="outline" size="sm" className="flex items-center gap-2 h-9" title={t("quickPrint") || "Quick Print"}
+          onClick={() => window.print()}
+        >
+          <Printer className="h-3 w-3" />
+          {t("quickPrint") || "Quick Print"}
+        </Button>
+        {/* <strong>{t("quickPrintTip") || "Tip:"}</strong> {t("quickPrintTipDescription") || 'Enable "Background graphics" in print settings.'} */}
       </div>
 
-      <div className="bg-white shadow-xl print:shadow-none mb-8 print:m-0 print:p-0 flex-shrink-0" style={{ width: '285mm' }}>
+      <div className="bg-white shadow-xl print:shadow-none mb-8 print:m-0 print:p-0 flex-shrink-0 mx-auto" style={{ width: '285mm' }}>
         <div className="pt-1">
           {items.map((item, index) => {
             const template = item.template;
@@ -123,99 +129,87 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
 
                   {/* Camera views */}
                   {cameraViews.length > 0 ? (
-                    <div className="bg-white p-0 flex flex-col gap-0 flex-1">
+                    <div className="bg-white p-0 flex flex-col gap-0 flex-1 min-h-0">
                       {/* Default View — Gets the most space, full width */}
                       {defaultView && (() => {
-                        const hasCropBox = (defaultView as any).cropBox && (defaultView as any).cropBox.width > 0 && (defaultView as any).cropBox.height > 0;
+                        const hasOtherViews = otherMainViews.length > 0 || detailViews.length > 0;
                         return (
                           <div
                             key={defaultView.id}
-                            className="td-view-card relative w-full overflow-hidden"
-                            style={{
-                              height: hasCropBox ? 'auto' : '300px',
-                              minHeight: hasCropBox ? undefined : '220px',
-                              aspectRatio: hasCropBox
-                                ? `${(defaultView as any).cropBox.width} / ${(defaultView as any).cropBox.height}`
-                                : undefined
-                            }}
+                            className="td-view-card relative w-full overflow-hidden min-h-0"
+                            style={{ flex: hasOtherViews ? 2 : 1 }}
                           >
                             <div className="absolute top-0.5 left-0.5 z-10 bg-white/90 px-1 py-0 text-[9px] font-bold text-gray-500">
                               {defaultView.name}
                             </div>
-                            <StoneForgeViewer
-                              components={template.components}
-                              variables={mergedVariables}
-                              printMode={true}
-                              fixedCameraView={defaultView}
-                            />
+                            <div className="absolute inset-0">
+                              <StoneForgeViewer
+                                components={template.components}
+                                variables={mergedVariables}
+                                printMode={true}
+                                fixedCameraView={defaultView}
+                              />
+                            </div>
                           </div>
                         );
                       })()}
 
                       {/* Secondary Views Row — Side by side to save space and make them smaller */}
                       {(otherMainViews.length > 0 || detailViews.length > 0) && (
-                        <div className="grid grid-cols-4 gap-1.5 w-full items-start">
+                        <div className="min-h-0 w-full grid grid-cols-4 gap-1.5 p-1.5 border-t border-gray-200 items-stretch overflow-hidden" style={{ flex: 1 }}>
                           {/* Other main views — smaller width, col-span-3 */}
                           {otherMainViews.length > 0 && (
-                            <div className={`flex flex-col gap-1.5 min-w-0 ${detailViews.length > 0 ? 'col-span-3' : 'col-span-4'}`}>
-                              {otherMainViews.map((view: any) => {
-                                const hasCropBox = view.cropBox && view.cropBox.width > 0 && view.cropBox.height > 0;
-                                return (
-                                  <div
-                                    key={view.id}
-                                    className="td-view-card relative border border-gray-200 rounded w-full overflow-hidden"
-                                    style={{
-                                      height: hasCropBox ? 'auto' : '200px',
-                                      minHeight: hasCropBox ? undefined : '140px',
-                                      aspectRatio: hasCropBox
-                                        ? `${view.cropBox.width} / ${view.cropBox.height}`
-                                        : undefined
-                                    }}
-                                  >
-                                    <div className="absolute top-0.5 left-0.5 z-10 bg-white/90 px-1 py-px rounded text-[9px] font-bold text-gray-500 border border-gray-200">
-                                      {view.name}
+                            <div className={`relative min-w-0 ${detailViews.length > 0 ? 'col-span-3' : 'col-span-4'}`}>
+                              <div className="absolute inset-0 flex flex-col gap-1.5">
+                                {otherMainViews.map((view: any) => {
+                                  return (
+                                    <div
+                                      key={view.id}
+                                      className="td-view-card relative border border-gray-200 rounded w-full overflow-hidden flex-1 bg-white min-h-0"
+                                    >
+                                      <div className="absolute top-0.5 left-0.5 z-10 bg-white/90 px-1 py-px rounded text-[9px] font-bold text-gray-500 border border-gray-200">
+                                        {view.name}
+                                      </div>
+                                      <div className="absolute inset-0">
+                                        <StoneForgeViewer
+                                          components={template.components}
+                                          variables={mergedVariables}
+                                          printMode={true}
+                                          fixedCameraView={view}
+                                        />
+                                      </div>
                                     </div>
-                                    <StoneForgeViewer
-                                      components={template.components}
-                                      variables={mergedVariables}
-                                      printMode={true}
-                                      fixedCameraView={view}
-                                    />
-                                  </div>
-                                );
-                              })}
+                                  );
+                                })}
+                              </div>
                             </div>
                           )}
 
                           {/* Detail views — smallest width, col-span-1 */}
                           {detailViews.length > 0 && (
-                            <div className={`flex flex-row flex-wrap gap-1.5 min-w-0 ${otherMainViews.length > 0 ? 'col-span-1' : 'col-span-4 justify-center mx-auto w-full'}`}>
-                              {detailViews.map((view: any) => {
-                                const hasCropBox = view.cropBox && view.cropBox.width > 0 && view.cropBox.height > 0;
-                                return (
-                                  <div
-                                    key={view.id}
-                                    className="td-view-card relative border border-gray-200 rounded flex-1 min-w-[120px] overflow-hidden"
-                                    style={{
-                                      height: hasCropBox ? 'auto' : '150px',
-                                      minHeight: hasCropBox ? undefined : '100px',
-                                      aspectRatio: hasCropBox
-                                        ? `${view.cropBox.width} / ${view.cropBox.height}`
-                                        : '4/3'
-                                    }}
-                                  >
-                                    <div className="absolute top-0.5 left-0.5 z-10 bg-white/90 px-1 py-px rounded text-[9px] font-bold text-gray-500 border border-gray-200">
-                                      {view.name}
+                            <div className={`relative min-w-0 ${otherMainViews.length > 0 ? 'col-span-1' : 'col-span-4'}`}>
+                              <div className={`absolute inset-0 flex gap-1.5 items-stretch content-stretch ${otherMainViews.length > 0 ? 'flex-col' : 'flex-row flex-wrap justify-center'}`}>
+                                {detailViews.map((view: any) => {
+                                  return (
+                                    <div
+                                      key={view.id}
+                                      className="td-view-card relative border border-gray-200 rounded flex-1 min-w-[120px] overflow-hidden bg-white min-h-0"
+                                    >
+                                      <div className="absolute top-0.5 left-0.5 z-10 bg-white/90 px-1 py-px rounded text-[9px] font-bold text-gray-500 border border-gray-200">
+                                        {view.name}
+                                      </div>
+                                      <div className="absolute inset-0">
+                                        <StoneForgeViewer
+                                          components={template.components}
+                                          variables={mergedVariables}
+                                          printMode={true}
+                                          fixedCameraView={view}
+                                        />
+                                      </div>
                                     </div>
-                                    <StoneForgeViewer
-                                      components={template.components}
-                                      variables={mergedVariables}
-                                      printMode={true}
-                                      fixedCameraView={view}
-                                    />
-                                  </div>
-                                );
-                              })}
+                                  );
+                                })}
+                              </div>
                             </div>
                           )}
                         </div>
