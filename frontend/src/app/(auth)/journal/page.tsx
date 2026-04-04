@@ -6,7 +6,7 @@ import { useToolbar } from "../nav_tool_handler";
 import { ChatBox } from "./comp/chat";
 import { DatePickerWithRange } from "./actions/date-pick-with-range";
 import { format } from "date-fns";
-import { X, Box } from "lucide-react";
+import { X, Box, Printer } from "lucide-react";
 import Link from "next/link";
 import ExportToCSV from "./actions/export-to-csv";
 import { useTranslations } from "next-intl";
@@ -75,7 +75,7 @@ export default function ListJournalPage() {
   const journalId = params.get("jid");
   const jtypeParam = params.get("jtype");
   const displayEntryType: EntryType = (jtypeParam === "template" || jtypeParam === "estimate") ? jtypeParam as EntryType : "estimate";
-  const t = useTranslations("journal");
+  const t = useTranslations("estimate");
   const t_c = useTranslations("contributors");
 
   useEffect(() => {
@@ -97,16 +97,16 @@ export default function ListJournalPage() {
               {journal.title}
             </p>
             {jtypeParam === "template" && (
-              <Badge 
-                variant="outline" 
+              <Badge
+                variant="outline"
                 className="bg-primary/10 text-primary border-primary/20 text-[10px] uppercase tracking-wider font-bold h-5 px-1.5"
               >
                 Studio
               </Badge>
             )}
             {jtypeParam === "estimate" && (
-              <Badge 
-                variant="outline" 
+              <Badge
+                variant="outline"
                 className="bg-blue-500/10 text-blue-600 border-blue-200 text-[10px] uppercase tracking-wider font-bold h-5 px-1.5"
               >
                 Estimate
@@ -118,12 +118,18 @@ export default function ListJournalPage() {
               daterange={dateRange}
               setDate={setDateRange}
             />
-            { displayEntryType !== "template" && <Link href={`/journal?jid=${journal.id}&jtype=template`}>
+            {displayEntryType !== "template" && <Link href={`/journal?jid=${journal.id}&jtype=template`}>
               <Button variant="outline" size="sm" className="flex items-center gap-2 h-9" title="Open 3D Studio">
                 <Box size={16} />
                 <span className="hidden sm:inline-block">Studio</span>
               </Button>
-            </Link> }
+            </Link>}
+            {displayEntryType === "estimate" && <Link href={`/journal/quick-print?jid=${journal.id}`} target="_blank">
+              <Button variant="outline" size="sm" className="flex items-center gap-2 h-9" title={t("quickPrint") || "Quick Print"}>
+                <Printer size={16} />
+                <span className="hidden sm:inline-block">{t("quickPrint") || "Quick Print"}</span>
+              </Button>
+            </Link>}
             {journal.access &&
               authUser?.uid &&
               journal.access[authUser?.uid]?.role === "admin" && (

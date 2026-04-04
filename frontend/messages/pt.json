@@ -164,6 +164,13 @@
     }
   },
   "estimate": {
+    "quickPrint": "Impressão Rápida",
+    "quickPrintSandbox": "Sandbox de Impressão Rápida",
+    "quickPrintSandboxDescription": "Selecione um template da sua galeria para configurar e imprimir imediatamente sem criar um orçamento.",
+    "printDrawing": "Imprimir Desenho",
+    "quickPrintTip": "Dica:",
+    "quickPrintTipDescription": "Ative \"Gráficos de fundo\" nas configurações de impressão.",
+    "quickPrintDimensions": "Dimensões:",
     "companyLogo": "Empresa",
     "logo": "logo",
     "defaultCompanyName": "Acme Industries",

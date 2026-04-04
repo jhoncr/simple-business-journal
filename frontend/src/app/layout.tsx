@@ -33,7 +33,7 @@ export default async function RootLayout({
             disableTransitionOnChange
           >
             <AuthUserProvider>
-              <main className="container mx-auto px-1 sm:px-6 lg:px-8 py-2">
+              <main className="mx-auto px-1 sm:px-6 lg:px-8 py-2">
                 {children}
               </main>
             </AuthUserProvider>
