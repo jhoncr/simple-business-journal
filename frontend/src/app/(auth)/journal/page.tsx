@@ -6,7 +6,7 @@ import { useToolbar } from "../nav_tool_handler";
 import { ChatBox } from "./comp/chat";
 import { DatePickerWithRange } from "./actions/date-pick-with-range";
 import { format } from "date-fns";
-import { X, Box } from "lucide-react";
+import { X, Box, Printer } from "lucide-react";
 import Link from "next/link";
 import ExportToCSV from "./actions/export-to-csv";
 import { useTranslations } from "next-intl";
@@ -122,6 +122,12 @@ export default function ListJournalPage() {
               <Button variant="outline" size="sm" className="flex items-center gap-2 h-9" title="Open 3D Studio">
                 <Box size={16} />
                 <span className="hidden sm:inline-block">Studio</span>
+              </Button>
+            </Link> }
+            { displayEntryType === "estimate" && <Link href={`/journal/quick-print?jid=${journal.id}`} target="_blank">
+              <Button variant="outline" size="sm" className="flex items-center gap-2 h-9" title={t("quickPrint") || "Quick Print"}>
+                <Printer size={16} />
+                <span className="hidden sm:inline-block">{t("quickPrint") || "Quick Print"}</span>
               </Button>
             </Link> }
             {journal.access &&
