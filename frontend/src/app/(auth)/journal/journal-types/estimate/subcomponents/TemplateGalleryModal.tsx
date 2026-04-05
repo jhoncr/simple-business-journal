@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Button } from "@/components/ui/button";
 import { Box, Loader2 } from "lucide-react";
 import { useFetchEntries } from "../../../comp/useFetch";
+import Image from "next/image";
 import { AssemblyTemplate } from "@backend/common/schemas/studio";
 import { DBentry } from "@/lib/custom_types";
 
@@ -63,9 +64,18 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled }: 
                     className="border rounded-lg p-4 cursor-pointer hover:border-primary hover:bg-accent/50 transition-colors flex flex-col group"
                     onClick={() => handleSelect(templateEntry)}
                   >
-                    <div className="bg-secondary/30 rounded-md h-32 mb-3 flex items-center justify-center">
-                       {/* Placeholder for a potential 3D preview thumbnail */}
-                       <Box className="h-10 w-10 text-muted-foreground/40 group-hover:text-primary/40 transition-colors" />
+                    <div className="bg-secondary/30 rounded-md h-32 w-full mb-3 flex items-center justify-center relative overflow-hidden">
+                       {template.thumbnailUrl ? (
+                         <Image
+                           src={template.thumbnailUrl}
+                           alt={template.name || templateEntry.name || "Template thumbnail"}
+                           fill
+                           className="object-cover"
+                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                         />
+                       ) : (
+                         <Box className="h-10 w-10 text-muted-foreground/40 group-hover:text-primary/40 transition-colors z-10" />
+                       )}
                     </div>
                     <h3 className="font-semibold text-sm truncate" title={template.name || templateEntry.name}>
                       {template.name || templateEntry.name || "Untitled Template"}

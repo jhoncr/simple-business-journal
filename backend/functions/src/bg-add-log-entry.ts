@@ -3,6 +3,8 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp, getApps } from 'firebase-admin/app';
+import { getStorage } from 'firebase-admin/storage';
+import { v4 as uuidv4 } from 'uuid';
 import * as z from 'zod';
 import { JOURNAL_COLLECTION } from './common/const';
 import {
@@ -34,8 +36,9 @@ export const addLogFn = createAuditedCallable(
         name,
         details: rawDetails,
         entryId,
+        thumbnailBase64,
       } = request.data as z.infer<typeof entrySchema>;
-      
+
       const uid = request.auth!.uid;
 
       // Get the main journal document to check access and journalType
@@ -80,6 +83,41 @@ export const addLogFn = createAuditedCallable(
 
       logger.info(`Entry details for ${entryType} validated successfully.`);
 
+      const entriesColRef = journalDocRef.collection(targetSubcollectionName);
+      const actualEntryId = entryId || entriesColRef.doc().id;
+
+      if (thumbnailBase64 && entryType === 'template') {
+        try {
+          const bucket = getStorage().bucket();
+          const filePath = `journals/${journalId}/templates/${actualEntryId}/thumbnail.png`;
+          const file = bucket.file(filePath);
+
+          // Remove the data:image/png;base64, part if present
+          const base64Data = thumbnailBase64.replace(/^data:image\/\w+;base64,/, '');
+          const buffer = Buffer.from(base64Data, 'base64');
+
+          const token = uuidv4();
+
+          await file.save(buffer, {
+            metadata: {
+              contentType: 'image/png',
+              metadata: {
+                firebaseStorageDownloadTokens: token,
+              },
+            },
+          });
+
+          const encodedFilePath = encodeURIComponent(filePath);
+          const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodedFilePath}?alt=media&token=${token}`;
+
+          (validatedDetails as any).thumbnailUrl = downloadUrl;
+          logger.info(`Thumbnail uploaded successfully for template ${actualEntryId}`);
+        } catch (uploadError) {
+          logger.error('Error uploading thumbnail:', uploadError);
+          // We don't fail the entire request if thumbnail upload fails
+        }
+      }
+
       // Construct the base entry object (timestamps and details added below)
       const baseEntry: Omit<
         EntryItf,
@@ -90,21 +128,20 @@ export const addLogFn = createAuditedCallable(
         // createdBy will be set based on context (add vs update)
       };
 
-      const entriesColRef = journalDocRef.collection(targetSubcollectionName);
-
       if (entryId) {
         const res = await _updateEntry(
           db,
           entriesColRef,
-          entryId,
+          actualEntryId,
           baseEntry,
           validatedDetails,
           targetSubcollectionName,
         );
         return { id: journalId, response: res };
       } else {
+        const docRef = entriesColRef.doc(actualEntryId);
         const res = await _addEntry(
-          entriesColRef,
+          docRef,
           baseEntry,
           validatedDetails,
           uid,
@@ -130,7 +167,7 @@ export const addLogFn = createAuditedCallable(
 // --- Helper function to add a new entry ---
 /**
  * Adds a new entry to the specified journal.
- * @param entriesColRef - The Firestore collection reference for the journal's entries.
+ * @param docRef - The Firestore document reference for the new entry.
  * @param baseEntry - The base entry data (excluding timestamps and details).
  * @param validatedDetails - The validated details for the entry.
  * @param uid - The user ID of the entry creator.
@@ -140,7 +177,7 @@ export const addLogFn = createAuditedCallable(
  * @returns A promise that resolves with the result of the add operation.
  */
 async function _addEntry(
-  entriesColRef: FirebaseFirestore.CollectionReference,
+  docRef: FirebaseFirestore.DocumentReference,
   baseEntry: Omit<
     EntryItf,
     'createdAt' | 'updatedAt' | 'details' | 'createdBy'
@@ -152,7 +189,7 @@ async function _addEntry(
   targetSubcollectionName: string, // For logging
 ) {
   try {
-    const docRef = await entriesColRef.add({
+    await docRef.set({
       ...baseEntry,
       createdBy: uid, // Set creator on add
       details: validatedDetails,

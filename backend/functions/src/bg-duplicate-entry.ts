@@ -77,8 +77,8 @@ export const duplicateEntry = createAuditedCallable(
       const originalEntry = originalEntryDoc.data() as EntryItf;
 
       // Prepare details (clear specific fields based on type)
-      let duplicateDetails = { ...originalEntry.details };
-      
+      const duplicateDetails = { ...originalEntry.details };
+
       if (entryType === 'estimate') {
         // Clear payments for estimates
         duplicateDetails.payments = [];
@@ -119,7 +119,7 @@ export const duplicateEntry = createAuditedCallable(
           message: `${entryType} duplicated successfully`,
           id: docRef.id,
           originalId: entryId,
-        }
+        },
       };
     } catch (error) {
       logger.error('Error in duplicateEntry: ', error);

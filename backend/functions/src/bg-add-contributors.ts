@@ -61,7 +61,7 @@ export const addContributor = createAuditedCallable(
 
       return {
         id: journalId,
-        response: { result: 'ok', message: 'operation completed successfully' }
+        response: { result: 'ok', message: 'operation completed successfully' },
       };
     } catch (error) {
       logger.log('Error adding contributors', error);
@@ -73,7 +73,7 @@ export const addContributor = createAuditedCallable(
         'Error adding contributors. Please try again later.',
       );
     }
-  }
+  },
 );
 
 const handleAddOperation = async (

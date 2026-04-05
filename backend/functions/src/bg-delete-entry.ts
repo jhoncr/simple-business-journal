@@ -68,7 +68,7 @@ export const deleteJournal = createAuditedCallable(
 
       return {
         id: journalId,
-        response: { message: 'Journal deleted successfully.' }
+        response: { message: 'Journal deleted successfully.' },
       };
     } catch (error) {
       logger.error('deleteJournal error:', error);
@@ -163,7 +163,7 @@ export const deleteEntry = createAuditedCallable(
       );
       return {
         id: journalId,
-        response: { message: 'Entry deleted successfully.' }
+        response: { message: 'Entry deleted successfully.' },
       };
     } catch (error) {
       logger.error('deleteEntry error:', error);
