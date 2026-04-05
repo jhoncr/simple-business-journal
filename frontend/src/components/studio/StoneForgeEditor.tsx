@@ -1279,24 +1279,6 @@ export const StoneForgeEditor = () => {
                               })()}
                             </select>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] uppercase font-bold text-gray-500 w-16 shrink-0">Zoom</span>
-                            <input
-                              type="number"
-                              step="0.1"
-                              value={view.zoomMultiplier || 1}
-                              onChange={(e) => {
-                                setTemplate((prev) => ({
-                                  ...prev,
-                                  cameraViews: prev.cameraViews?.map((v) =>
-                                    v.id === view.id ? { ...v, zoomMultiplier: parseFloat(e.target.value) || 1 } : v,
-                                  ),
-                                }));
-                              }}
-                              className="text-xs flex-1 p-1 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 bg-white"
-                            />
-                          </div>
-
                           <div className="mt-1 pt-2 border-t border-gray-200">
                             {view.isDefault ? (
                               <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded w-max">
@@ -1395,7 +1377,7 @@ export const StoneForgeEditor = () => {
 
               <Canvas
                 orthographic
-                camera={{ position: [200, 200, 200], zoom: 2 }}
+                camera={{ position: [200, 200, 200] }}
                 gl={{ preserveDrawingBuffer: true }}
               >
                 <color attach="background" args={["#f9fafb"]} />

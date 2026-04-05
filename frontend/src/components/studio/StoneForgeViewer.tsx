@@ -13,7 +13,31 @@ interface StoneForgeViewerProps {
   variables: Record<string, number>;
   printMode?: boolean;
   fixedCameraView?: CameraView;
+  focusTargetName?: string;
 }
+
+const CameraController = ({ focusTargetName, variables, components }: { focusTargetName?: string, variables: any, components: any }) => {
+  const bounds = useBounds();
+  const { scene } = useThree();
+
+  useEffect(() => {
+    // Wait a brief moment for R3F to update the 3D meshes based on the new variables
+    const timeoutId = setTimeout(() => {
+      let target: THREE.Object3D = scene;
+      if (focusTargetName) {
+        const found = scene.getObjectByName(focusTargetName);
+        if (found) {
+          target = found;
+        }
+      }
+      bounds.refresh(target).fit().clip();
+    }, 50);
+
+    return () => clearTimeout(timeoutId);
+  }, [bounds, scene, focusTargetName, variables, components]);
+
+  return null;
+};
 
 export const PresetCameraFitter = ({ preset, focusTargetId, zoomMultiplier = 1, forceRenderRefreshCount = 0 }: { preset: string, focusTargetId?: string, zoomMultiplier?: number, forceRenderRefreshCount?: number }) => {
   const bounds = useBounds();
@@ -88,10 +112,10 @@ export const PresetCameraFitter = ({ preset, focusTargetId, zoomMultiplier = 1, 
       }
 
       bounds.refresh(targetObject).clip().fit();
-      
+
       let finalZoomMult = zoomMultiplier;
       if (preset.startsWith('iso') && !focusTargetId) {
-        finalZoomMult *= 1.35; // Compensate for oversized isometric bounding spheres
+        finalZoomMult *= 1.5; // Compensate for oversized isometric bounding spheres
       }
 
       if (finalZoomMult !== 1) {
@@ -134,6 +158,7 @@ export const StoneForgeViewer = ({
   variables,
   printMode = false,
   fixedCameraView,
+  focusTargetName,
 }: StoneForgeViewerProps) => {
   const minY = useMemo(() => {
     return calculateMinY(components, variables);
@@ -161,8 +186,9 @@ export const StoneForgeViewer = ({
         {/* <directionalLight position={[100, 200, 100]} intensity={1} castShadow /> */}
 
         <React.Suspense fallback={null}>
-          <Environment preset="warehouse" />
-          <Bounds clip observe>
+          <Environment preset="city" />
+          <Bounds margin={1}>
+            <CameraController focusTargetName={focusTargetName || fixedCameraView?.focusTargetId} variables={variables} components={components} />
             {fixedCameraView && fixedCameraView.preset && (
               <PresetCameraFitter
                 preset={fixedCameraView.preset}
