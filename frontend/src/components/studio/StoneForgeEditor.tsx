@@ -173,6 +173,7 @@ export const StoneForgeEditor = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const { setToolBar } = useToolbar();
 
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const canvasContainerRef = React.useRef<HTMLDivElement>(null);
 
 
@@ -226,6 +227,16 @@ export const StoneForgeEditor = () => {
     try {
       let finalTemplate = { ...template };
 
+      // Auto-capture 3D preview thumbnail before saving
+      let thumbnailBase64 = undefined;
+      if (canvasRef.current) {
+        try {
+          thumbnailBase64 = canvasRef.current.toDataURL("image/png");
+        } catch (err) {
+          console.warn("Failed to capture canvas thumbnail:", err);
+        }
+      }
+
       const auth = getAuth(app);
       if (!auth.currentUser) {
         const provider = new GoogleAuthProvider();
@@ -247,6 +258,7 @@ export const StoneForgeEditor = () => {
             entryType: "template",
             name: finalTemplate.name,
             details: finalTemplate,
+            ...(thumbnailBase64 && { thumbnailBase64 }),
           };
           const response = await addLogFunction(payload);
           const newTemplateId = (response.data as any).id;
@@ -263,6 +275,7 @@ export const StoneForgeEditor = () => {
             entryId: finalTemplate.id,
             name: finalTemplate.name,
             details: finalTemplate,
+            ...(thumbnailBase64 && { thumbnailBase64 }),
           };
           await addLogFunction(payload);
           showToast("Template updated successfully!");
@@ -1036,6 +1049,7 @@ export const StoneForgeEditor = () => {
             {/* Full-width 3D Canvas */}
             <div className="flex-1 relative bg-gray-50">
               <Canvas
+                ref={canvasRef}
                 orthographic
                 camera={{ position: [200, 200, 200], zoom: 2 }}
                 gl={{ preserveDrawingBuffer: true }}
@@ -1376,6 +1390,7 @@ export const StoneForgeEditor = () => {
             <div className="flex-1 relative bg-gray-50" ref={canvasContainerRef}>
 
               <Canvas
+                ref={canvasRef}
                 orthographic
                 camera={{ position: [200, 200, 200] }}
                 gl={{ preserveDrawingBuffer: true }}

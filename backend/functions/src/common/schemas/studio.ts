@@ -65,7 +65,7 @@ export const CameraViewSchema = z.object({
   preset: z.enum([
     'front', 'back', 'left', 'right', 'top', 'bottom',
     'isometric', 'iso-tfr', 'iso-tfl', 'iso-tbr', 'iso-tbl',
-    'iso-bfr', 'iso-bfl', 'iso-bbr', 'iso-bbl'
+    'iso-bfr', 'iso-bfl', 'iso-bbr', 'iso-bbl',
   ]).default('iso-tfr'),
   focusTargetId: z.string().optional(),
   zoomMultiplier: z.number().optional().default(1),
@@ -79,5 +79,6 @@ export const AssemblyTemplateSchema = z.object({
   variables: z.array(AssemblyVariableSchema),
   components: z.array(SlabComponentSchema),
   cameraViews: z.array(CameraViewSchema).optional(),
+  thumbnailUrl: z.string().optional(),
 });
 export type AssemblyTemplate = z.infer<typeof AssemblyTemplateSchema>;

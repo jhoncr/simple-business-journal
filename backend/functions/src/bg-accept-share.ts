@@ -43,7 +43,7 @@ export const acceptShare = createAuditedCallable(
         );
         return {
           id: businessId,
-          response: { result: 'ok', message: 'Ignored grant to access log' }
+          response: { result: 'ok', message: 'Ignored grant to access log' },
         };
       }
 
@@ -89,7 +89,7 @@ export const acceptShare = createAuditedCallable(
               response: {
                 result: 'ok',
                 message: `You have a pending invitation as a ${role}.`,
-              }
+              },
             };
           } else {
             logger.warn(
@@ -162,7 +162,7 @@ export const acceptShare = createAuditedCallable(
       // that object will be returned by the onCall function.
       // If the transaction promise resolves to undefined (normal successful transaction for "accept"),
       // then the specific message for "accept" is returned.
-      return {  id: businessId, response: { result: 'ok', message: 'Accepted grant to access business' } };
+      return { id: businessId, response: { result: 'ok', message: 'Accepted grant to access business' } };
     } catch (error) {
       // If HttpsError was thrown from within the transaction for "check" (e.g. "not-found"),
       // it will be caught here and re-thrown.

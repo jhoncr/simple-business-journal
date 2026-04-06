@@ -90,4 +90,5 @@ export const entrySchema = z.object({
     .min(3, { message: 'Name must be at least 3 characters.' })
     .max(254, { message: 'Name cannot exceed 254 characters.' }),
   details: z.unknown(), // Will be validated based on entryType
+  thumbnailBase64: z.string().optional(), // Top-level field for the upload
 });

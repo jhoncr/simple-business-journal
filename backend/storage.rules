@@ -5,6 +5,19 @@ rules_version = '2';
 //    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
 service firebase.storage {
   match /b/{bucket}/o {
+    // Path structured by journal to match Firestore hierarchy
+    match /journals/{journalId}/templates/{templateId}/{fileName} {
+      // Strictly forbid all direct client writes.
+      // The Firebase Admin SDK in the backend function will bypass this to save the file.
+      allow write: if false;
+
+      // Mirror Firestore logic: check access_array and isActive state
+      allow read: if request.auth != null &&
+                  request.auth.uid in firestore.get(/databases/(default)/documents/journals/$(journalId)).data.access_array &&
+                  (firestore.get(/databases/(default)/documents/journals/$(journalId)).data.isActive == true ||
+                   firestore.get(/databases/(default)/documents/journals/$(journalId)).data.isActive == null);
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

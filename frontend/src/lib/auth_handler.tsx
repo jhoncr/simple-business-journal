@@ -16,6 +16,7 @@ import {
   ReCaptchaEnterpriseProvider,
 } from "firebase/app-check";
 import { getFunctions, connectFunctionsEmulator } from "firebase/functions";
+import { getStorage, connectStorageEmulator } from "firebase/storage";
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -43,6 +44,9 @@ if (process.env.NODE_ENV === "development") {
   });
 
   connectFunctionsEmulator(functions, emulatorIP, 5001);
+
+  // connect to firebase storage emulator
+  connectStorageEmulator(getStorage(app), emulatorIP, 9199);
 }
 
 // Initialize App Check directly after Firebase app setup and emulator connections,
@@ -118,8 +122,8 @@ export const useFirebaseAuth = () => {
 const authUserContext = createContext({
   authUser: null as User | null,
   loading: true,
-  signOut: () => {},
-  signInWithGoogle: () => {},
+  signOut: () => { },
+  signInWithGoogle: () => { },
 });
 
 // create and export a provider

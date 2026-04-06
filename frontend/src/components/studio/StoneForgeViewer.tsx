@@ -179,7 +179,7 @@ export const StoneForgeViewer = ({
       <Canvas
         orthographic
       // camera={{ position: [200, 200, 200], zoom: 2 }}
-      // gl={{ preserveDrawingBuffer: true }}
+        gl={{ preserveDrawingBuffer: true }}
       >
         {/* <color attach="background" args={[printMode ? "#ffffff" : "#f9fafb"]} /> */}
         {/* <ambientLight intensity={0.5} /> */}
