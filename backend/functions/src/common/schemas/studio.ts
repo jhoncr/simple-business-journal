@@ -79,6 +79,6 @@ export const AssemblyTemplateSchema = z.object({
   variables: z.array(AssemblyVariableSchema),
   components: z.array(SlabComponentSchema),
   cameraViews: z.array(CameraViewSchema).optional(),
-  thumbnailUrl: z.string().url().optional(),
+  thumbnailUrl: z.string().optional(),
 });
 export type AssemblyTemplate = z.infer<typeof AssemblyTemplateSchema>;

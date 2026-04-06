@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Box, Loader2 } from "lucide-react";
@@ -6,6 +6,8 @@ import { useFetchEntries } from "../../../comp/useFetch";
 import Image from "next/image";
 import { AssemblyTemplate } from "@backend/common/schemas/studio";
 import { DBentry } from "@/lib/custom_types";
+import { getStorage, ref, getDownloadURL } from "firebase/storage";
+import { app } from "@/lib/auth_handler";
 
 interface TemplateGalleryModalProps {
   journalId: string;
@@ -16,6 +18,37 @@ interface TemplateGalleryModalProps {
 export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled }: TemplateGalleryModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { list: templates, loading, error } = useFetchEntries(journalId, "template");
+  const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchUrls = async () => {
+      const storage = getStorage(app);
+      const newUrls: Record<string, string> = {};
+      for (const entry of templates) {
+        const template = entry.details as AssemblyTemplate;
+        if (template.thumbnailUrl) {
+          if (template.thumbnailUrl.startsWith("http")) {
+            newUrls[entry.id] = template.thumbnailUrl;
+          } else {
+            try {
+              const url = await getDownloadURL(ref(storage, template.thumbnailUrl));
+              newUrls[entry.id] = url;
+            } catch (e) {
+              console.error("Failed to fetch image url for", entry.id, e);
+            }
+          }
+        }
+      }
+      if (isMounted) {
+        setImageUrls(newUrls);
+      }
+    };
+    if (templates.length > 0) {
+      fetchUrls();
+    }
+    return () => { isMounted = false; };
+  }, [templates]);
 
   const handleSelect = (templateEntry: DBentry) => {
     onSelectTemplate(templateEntry);
@@ -66,13 +99,17 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled }: 
                   >
                     <div className="bg-secondary/30 rounded-md h-32 w-full mb-3 flex items-center justify-center relative overflow-hidden">
                        {template.thumbnailUrl ? (
-                         <Image
-                           src={template.thumbnailUrl}
-                           alt={template.name || templateEntry.name || "Template thumbnail"}
-                           fill
-                           className="object-cover"
-                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                         />
+                         imageUrls[templateEntry.id] ? (
+                           <Image
+                             src={imageUrls[templateEntry.id]}
+                             alt={template.name || templateEntry.name || "Template thumbnail"}
+                             fill
+                             className="object-cover"
+                             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                           />
+                         ) : (
+                           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground z-10" />
+                         )
                        ) : (
                          <Box className="h-10 w-10 text-muted-foreground/40 group-hover:text-primary/40 transition-colors z-10" />
                        )}

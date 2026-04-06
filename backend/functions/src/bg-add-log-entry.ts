@@ -4,7 +4,7 @@ import * as logger from 'firebase-functions/logger';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { getStorage } from 'firebase-admin/storage';
-import { v4 as uuidv4 } from 'uuid';
+
 import * as z from 'zod';
 import { JOURNAL_COLLECTION } from './common/const';
 import {
@@ -72,7 +72,7 @@ export const addLogFn = createAuditedCallable(
 
       logger.info(
         `Processing entryType '${entryType}' for journal ${journalId} (type: ${journalType}).` +
-          ` Target subcollection: ${targetSubcollectionName}`,
+        ` Target subcollection: ${targetSubcollectionName}`,
       );
       const detailsResult = detailsSchema.safeParse(rawDetails);
       if (!detailsResult.success) {
@@ -96,21 +96,13 @@ export const addLogFn = createAuditedCallable(
           const base64Data = thumbnailBase64.replace(/^data:image\/\w+;base64,/, '');
           const buffer = Buffer.from(base64Data, 'base64');
 
-          const token = uuidv4();
-
           await file.save(buffer, {
             metadata: {
               contentType: 'image/png',
-              metadata: {
-                firebaseStorageDownloadTokens: token,
-              },
             },
           });
 
-          const encodedFilePath = encodeURIComponent(filePath);
-          const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodedFilePath}?alt=media&token=${token}`;
-
-          (validatedDetails as any).thumbnailUrl = downloadUrl;
+          (validatedDetails as any).thumbnailUrl = `/${filePath}`;
           logger.info(`Thumbnail uploaded successfully for template ${actualEntryId}`);
         } catch (uploadError) {
           logger.error('Error uploading thumbnail:', uploadError);
