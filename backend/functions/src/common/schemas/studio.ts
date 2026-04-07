@@ -76,6 +76,7 @@ export type CameraView = z.infer<typeof CameraViewSchema>;
 export const AssemblyTemplateSchema = z.object({
   id: z.string(),
   name: z.string(),
+  description: z.string().max(200).optional(),
   variables: z.array(AssemblyVariableSchema),
   components: z.array(SlabComponentSchema),
   cameraViews: z.array(CameraViewSchema).optional(),

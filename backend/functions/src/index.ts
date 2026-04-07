@@ -21,3 +21,4 @@ exports.deleteEntry = deleteEntry; // Export new function
 exports.duplicateEntry = duplicateEntry; // Export generic duplicate function
 // exports.saveTemplate = saveTemplate; // Replaced by addLogFn
 // exports.saveDesign = saveDesign; // Deleted legacy design tool
+export * from './bg-template-cache';
