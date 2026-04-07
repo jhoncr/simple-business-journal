@@ -2,7 +2,7 @@
 
 import React, { useMemo, useEffect } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
-import { OrbitControls, Environment, Grid, Bounds, useBounds } from "@react-three/drei";
+import { OrbitControls, Environment, Grid, Bounds, useBounds, Center } from "@react-three/drei";
 import * as THREE from "three";
 import { SlabComponent, CameraView } from "@backend/common/schemas/studio";
 import { evaluateExpression } from "../../lib/evaluator";
@@ -178,8 +178,8 @@ export const StoneForgeViewer = ({
     >
       <Canvas
         orthographic
-      // camera={{ position: [200, 200, 200], zoom: 2 }}
-        gl={{ preserveDrawingBuffer: true }}
+        gl={{ antialias: true, preserveDrawingBuffer: true }}
+        dpr={printMode ? [2, 4] : [1, 2]}
       >
         {/* <color attach="background" args={[printMode ? "#ffffff" : "#f9fafb"]} /> */}
         {/* <ambientLight intensity={0.5} /> */}
@@ -187,7 +187,7 @@ export const StoneForgeViewer = ({
 
         <React.Suspense fallback={null}>
           <Environment preset="city" />
-          <Bounds margin={1}>
+          <Bounds fit={!focusTargetName} observe={!focusTargetName} margin={1.2}>
             <CameraController focusTargetName={focusTargetName || fixedCameraView?.focusTargetId} variables={variables} components={components} />
             {fixedCameraView && fixedCameraView.preset && (
               <PresetCameraFitter
@@ -197,19 +197,21 @@ export const StoneForgeViewer = ({
               />
             )}
             {/* <group position={[-100, 0, 50]}> */}
-            {components.map((comp) => (
-              <Slab3D
-                key={comp.id}
-                slab={comp}
-                isSelected={false}
-                onSelect={() => { }}
-                selectedComponentId={null}
-                onEdgeSelect={() => { }}
-                selectedEdge={null}
-                selectedDimensionLabelId={null}
-                variables={variables}
-              />
-            ))}
+            <Center>
+              {components.map((comp) => (
+                <Slab3D
+                  key={comp.id}
+                  slab={comp}
+                  isSelected={false}
+                  onSelect={() => { }}
+                  selectedComponentId={null}
+                  onEdgeSelect={() => { }}
+                  selectedEdge={null}
+                  selectedDimensionLabelId={null}
+                  variables={variables}
+                />
+              ))}
+            </Center>
             {/* {!printMode && (
                 <Grid
                   position={[100, minY - 0.1, -50]}
@@ -230,8 +232,9 @@ export const StoneForgeViewer = ({
 
         <OrbitControls
           makeDefault
-          minDistance={10}
-          maxDistance={1000}
+          enableZoom={false} // Prevents mouse-wheel from zooming the camera
+          minPolarAngle={0}
+          maxPolarAngle={Math.PI / 1.75}
           enabled={!printMode}
         />
       </Canvas>
