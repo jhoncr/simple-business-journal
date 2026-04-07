@@ -48,9 +48,11 @@ export const onTemplateWritten = onDocumentWritten(
     }
     const thumbnailUrl = details.thumbnailUrl || "";
 
-    const cacheEntry: Record<string, string> = { n: name };
-    if (description) cacheEntry.d = description;
-    if (thumbnailUrl) cacheEntry.t = thumbnailUrl;
+    const cacheEntry: any = {
+      n: name,
+      d: description || FieldValue.delete(),
+      t: thumbnailUrl || FieldValue.delete(),
+    };
 
     logger.info(`Updating cache for template ${templateId}`);
 

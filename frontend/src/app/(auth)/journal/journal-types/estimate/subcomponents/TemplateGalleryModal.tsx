@@ -9,6 +9,7 @@ import { DBentry } from "@/lib/custom_types";
 import { getStorage, ref, getDownloadURL } from "firebase/storage";
 import { app } from "@/lib/auth_handler";
 import { getFirestore, doc, getDoc } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 
 interface TemplateGalleryModalProps {
   journalId: string;
@@ -26,9 +27,11 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled }: 
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectingId, setSelectingId] = useState<string | null>(null);
   const [cacheMap, setCacheMap] = useState<Record<string, CacheEntry>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
+  const { toast } = useToast();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -61,6 +64,7 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled }: 
       const storage = getStorage(app);
       const newUrls: Record<string, string> = {};
       for (const [id, entry] of Object.entries(cacheMap)) {
+        if (!isMounted) break;
         if (entry.t) {
           if (entry.t.startsWith("http") || entry.t.startsWith("data:")) {
             newUrls[id] = entry.t;
@@ -85,7 +89,8 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled }: 
   }, [cacheMap]);
 
   const handleSelect = async (templateId: string) => {
-    setLoading(true);
+    if (selectingId) return;
+    setSelectingId(templateId);
     try {
       const db = getFirestore(app);
       const templateDocRef = doc(db, `journals/${journalId}/templates`, templateId);
@@ -104,13 +109,21 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled }: 
         onSelectTemplate(templateEntry);
         setIsOpen(false);
       } else {
-        setError("Template no longer exists.");
+        toast({
+          title: "Error",
+          description: "Template no longer exists.",
+          variant: "destructive",
+        });
       }
     } catch (err: any) {
       console.error("Failed to fetch full template:", err);
-      setError(err.message);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to fetch full template.",
+        variant: "destructive",
+      });
     } finally {
-      setLoading(false);
+      setSelectingId(null);
     }
   };
 
@@ -175,7 +188,9 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled }: 
               {filteredTemplates.map(([id, entry]) => (
                 <div
                   key={id}
-                  className="border rounded-lg p-4 cursor-pointer hover:border-primary hover:bg-accent/50 transition-colors flex flex-col group"
+                  className={`border rounded-lg p-4 cursor-pointer transition-colors flex flex-col group ${
+                    selectingId ? "opacity-50 pointer-events-none" : "hover:border-primary hover:bg-accent/50"
+                  }`}
                   onClick={() => handleSelect(id)}
                 >
                   <div className="bg-secondary/30 rounded-md h-32 w-full mb-3 flex items-center justify-center relative overflow-hidden">
@@ -204,7 +219,8 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled }: 
                     </p>
                   )}
                   <div className="flex justify-end items-center mt-auto pt-2">
-                    <Button size="sm" variant="secondary" className="h-7 text-xs">
+                    <Button size="sm" variant="secondary" className="h-7 text-xs" disabled={selectingId !== null}>
+                      {selectingId === id && <Loader2 className="h-3 w-3 animate-spin mr-2" />}
                       Select
                     </Button>
                   </div>
