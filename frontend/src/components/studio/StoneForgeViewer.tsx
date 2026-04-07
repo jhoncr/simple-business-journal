@@ -164,6 +164,8 @@ export const StoneForgeViewer = ({
     return calculateMinY(components, variables);
   }, [components, variables]);
 
+  const hasFocusTarget = Boolean(focusTargetName || fixedCameraView?.focusTargetId);
+
   if (!components || components.length === 0) {
     return (
       <div className="flex items-center justify-center h-full w-full bg-gray-50 text-gray-400 text-sm">
@@ -187,7 +189,7 @@ export const StoneForgeViewer = ({
 
         <React.Suspense fallback={null}>
           <Environment preset="city" />
-          <Bounds fit={!focusTargetName} observe={!focusTargetName} margin={1.2}>
+          <Bounds fit={!hasFocusTarget} observe={!hasFocusTarget} margin={1.05}>
             <CameraController focusTargetName={focusTargetName || fixedCameraView?.focusTargetId} variables={variables} components={components} />
             {fixedCameraView && fixedCameraView.preset && (
               <PresetCameraFitter

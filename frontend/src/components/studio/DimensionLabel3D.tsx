@@ -2,7 +2,7 @@
 
 import React, { useMemo } from 'react';
 import * as THREE from 'three';
-import { Billboard, Text, Line } from '@react-three/drei';
+import { Html, Line } from '@react-three/drei';
 import { DimensionLabel, Expression } from '@backend/common/schemas/studio';
 import { evaluateExpression } from '../../lib/evaluator';
 
@@ -182,7 +182,7 @@ export const DimensionLabel3D: React.FC<DimensionLabel3DProps> = ({
 
   const lineColor = isSelected ? '#f59e0b' : '#6366f1';
   const textColor = isSelected ? '#78350f' : '#1e1b4b';
-  const bgColor = isSelected ? '#fef3c7' : 'white';
+  const bgColor = isSelected ? 'bg-amber-500' : 'bg-white';
   const mainLineWidth = isSelected ? 3 : 1.5;
   const extLineWidth = isSelected ? 2 : 1;
 
@@ -206,26 +206,19 @@ export const DimensionLabel3D: React.FC<DimensionLabel3DProps> = ({
       <Line points={geometry.extensionA} color={lineColor} lineWidth={extLineWidth} />
       <Line points={geometry.extensionB} color={lineColor} lineWidth={extLineWidth} />
 
-      {/* Text label - always faces camera */}
-      <Billboard position={geometry.midpoint} follow={true} lockX={false} lockY={false} lockZ={false}>
-        {/* Push the background plane safely in front of the dimension line */}
-        <mesh position={[0, 0, 1]}>
-          <planeGeometry args={[evaluatedText.length * 3.2 + 6, 7]} />
-          <meshBasicMaterial color={bgColor} />
-        </mesh>
-        
-        {/* Push the text slightly in front of the background plane */}
-        <Text
-          position={[0, 0, 1.1]}
-          fontSize={4}
-          color={textColor}
-          anchorX="center"
-          anchorY="middle"
-          font={undefined}
+      {/* Text label - rendered as HTML overlaid on the canvas to maintain readable size */}
+      <Html position={geometry.midpoint} center zIndexRange={[100, 0]}>
+        <div
+          onClick={(e) => { e.stopPropagation(); onSelect(label.id); }}
+          className={`px-2 py-0 rounded shadow-sm border text-xs font-semibold select-none whitespace-nowrap cursor-pointer ${bgColor}`}
+          style={{
+            color: textColor,
+            borderColor: isSelected ? '#f59e0b' : '#d1d5db',
+          }}
         >
           {evaluatedText}
-        </Text>
-      </Billboard>
+        </div>
+      </Html>
     </group>
   );
 };
