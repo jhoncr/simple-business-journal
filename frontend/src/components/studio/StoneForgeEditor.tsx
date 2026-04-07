@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useToolbar } from "@/app/(auth)/nav_tool_handler";
 import * as THREE from "three";
 import { Canvas, useThree } from "@react-three/fiber";
-import { OrbitControls, Environment, Grid, Bounds } from "@react-three/drei";
+import { OrbitControls, Environment, Bounds } from "@react-three/drei";
 import { PresetCameraFitter } from "./StoneForgeViewer";
 import {
   SlabComponent,
@@ -80,30 +80,6 @@ const deleteComponentDeep = (
       }
       return c;
     });
-};
-
-const calculateMinY = (
-  components: SlabComponent[],
-  variables: Record<string, number>,
-  currentY = 0,
-): number => {
-  let minY = currentY;
-  for (const comp of components) {
-    const posY = evaluateExpression(comp.position[1], variables);
-    // The lowest point of this component in its parent's space
-    const compMinY = currentY + posY;
-    if (compMinY < minY) minY = compMinY;
-
-    if (comp.children && comp.children.length > 0) {
-      const childrenMinY = calculateMinY(
-        comp.children,
-        variables,
-        currentY + posY,
-      );
-      if (childrenMinY < minY) minY = childrenMinY;
-    }
-  }
-  return minY;
 };
 
 const ISOMETRIC_PRESETS = [
@@ -356,10 +332,6 @@ export const StoneForgeEditor = () => {
     });
     return map;
   }, [template.variables]);
-
-  const minY = useMemo(() => {
-    return calculateMinY(template.components, variablesMap);
-  }, [template.components, variablesMap]);
 
   const handleAddComponent = () => {
     const newId = `slab_${Date.now()}`;
@@ -1077,18 +1049,6 @@ export const StoneForgeEditor = () => {
                         variables={variablesMap}
                       />
                     ))}
-                    <Grid
-                      position={[100, minY - 0.1, -50]}
-                      args={[500, 500]}
-                      cellSize={10}
-                      cellThickness={1}
-                      cellColor="#e5e7eb"
-                      sectionSize={50}
-                      sectionThickness={1.5}
-                      sectionColor="#d1d5db"
-                      fadeDistance={400}
-                      fadeStrength={1}
-                    />
                   </group>
                 </React.Suspense>
                 <OrbitControls makeDefault minDistance={50} maxDistance={500} />
@@ -1437,19 +1397,6 @@ export const StoneForgeEditor = () => {
                         variables={variablesMap}
                       />
                     ))}
-
-                    <Grid
-                      position={[100, -0.1, -50]}
-                      args={[500, 500]}
-                      cellSize={10}
-                      cellThickness={1}
-                      cellColor="#e5e7eb"
-                      sectionSize={50}
-                      sectionThickness={1.5}
-                      sectionColor="#d1d5db"
-                      fadeDistance={400}
-                      fadeStrength={1}
-                    />
                     </group>
                   </Bounds>
                 </React.Suspense>

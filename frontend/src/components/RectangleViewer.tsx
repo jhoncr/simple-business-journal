@@ -28,7 +28,7 @@ export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles }) 
 
   useEffect(() => {
     if (!containerRef.current) return;
-    
+
     // Initial width
     setContainerWidth(containerRef.current.getBoundingClientRect().width);
 
@@ -44,7 +44,7 @@ export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles }) 
 
   const scale = useMemo(() => {
     if (!rectangles || rectangles.length === 0 || containerWidth === 0) return 1;
-    
+
     // Find the max dimension among all rectangles to ensure all fit proportionately
     const maxDimensionCM = rectangles.reduce((max, r) => {
       const currentMax = Math.max(r.length, r.width);
@@ -54,7 +54,7 @@ export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles }) 
     // Dynamic padding: use ~80% of container width to be visually appealing
     // We limit max base representation to 600px unless screen is small
     const availablePixels = Math.min(containerWidth * 0.8, 600);
-    
+
     return maxDimensionCM > 0 ? availablePixels / maxDimensionCM : 1;
   }, [rectangles, containerWidth]);
 
@@ -69,7 +69,7 @@ export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles }) 
   // Group by groupId to map rows if applicable; ungrouped ones go into their own arrays.
   const groupedRectangles = useMemo(() => {
     if (!rectangles) return [];
-    
+
     // Maintain insertion order by detecting group changes. Wait, better to just map by unique IDs
     // but the input is already ordered. We can group adjacent items together by groupId.
     const groups: RectangleData[][] = [];
@@ -87,7 +87,7 @@ export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles }) 
         currentGroupId = rect.groupId || null;
       }
     }
-    
+
     if (currentGroup.length > 0) {
       groups.push(currentGroup);
     }
@@ -106,7 +106,7 @@ export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles }) 
         // Compare by the long side descending (long rectangles first for the same width)
         const aLongSide = Math.max(a.width, a.length);
         const bLongSide = Math.max(b.width, b.length);
-        
+
         return bLongSide - aLongSide;
       });
     });
@@ -116,10 +116,10 @@ export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles }) 
     <div ref={containerRef} className="w-full flex flex-col items-center gap-16 py-8 overflow-hidden print:overflow-visible print:flex print:gap-8 print:p-0 print:[--print-scale:0.55]">
       {groupedRectangles.map((group, index) => {
         const groupLabel = group.find(r => r.label)?.label;
-        
+
         return (
-          <div 
-            key={index} 
+          <div
+            key={index}
             className={`flex flex-col items-center w-full gap-8 ${index < groupedRectangles.length - 1 ? "border-b pb-12 border-border" : ""} print:flex print:flex-col print:gap-6 print:p-0 print:border-none print:break-inside-avoid print:mb-8`}
           >
             {groupLabel && (
@@ -147,10 +147,10 @@ interface DynamicRectangleProps {
 }
 
 const DynamicRectangle: React.FC<DynamicRectangleProps> = ({ rect, scale }) => {
-  const { 
-    length, 
-    width, 
-    fillColor = "lightgray", 
+  const {
+    length,
+    width,
+    fillColor = "lightgray",
     strokeColor = "black",
     label,
     hasCrossTop,
@@ -160,7 +160,7 @@ const DynamicRectangle: React.FC<DynamicRectangleProps> = ({ rect, scale }) => {
     hasLeftCornerCrosses,
     hasStroke = true
   } = rect;
-  
+
   const isRotated = length > width;
   const renderWidth = isRotated ? length : width;
   const renderHeight = isRotated ? width : length;
@@ -171,13 +171,13 @@ const DynamicRectangle: React.FC<DynamicRectangleProps> = ({ rect, scale }) => {
   return (
     <div className="flex flex-col items-start gap-3 print:flex print:p-0">
       <div className="relative mt-2 mb-8 mr-2 ml-10 print:m-4 print:p-0 print:overflow-visible">
-        <DimensionLabel 
-          value={renderHeight} 
-          positionClass="top-1/2 -left-4 -translate-x-full -translate-y-1/2" 
+        <DimensionLabel
+          value={renderHeight}
+          positionClass="top-1/2 -left-4 -translate-x-full -translate-y-1/2"
         />
-        <DimensionLabel 
-          value={renderWidth} 
-          positionClass="left-1/2 -bottom-2 -translate-x-1/2 translate-y-full" 
+        <DimensionLabel
+          value={renderWidth}
+          positionClass="left-1/2 -bottom-2 -translate-x-1/2 translate-y-full"
         />
 
         {/* Optional Cross Markers */}
@@ -225,7 +225,7 @@ const DynamicRectangle: React.FC<DynamicRectangleProps> = ({ rect, scale }) => {
           )
         )}
 
-        <svg 
+        <svg
           style={{
             width: `calc(${displayWidth}px * var(--print-scale, 1))`,
             height: `calc(${displayHeight}px * var(--print-scale, 1))`
@@ -234,42 +234,42 @@ const DynamicRectangle: React.FC<DynamicRectangleProps> = ({ rect, scale }) => {
           xmlns="http://www.w3.org/2000/svg"
           className="transition-all duration-300 ease-in-out print:overflow-visible"
         >
-        {/* Background Rectangle */}
-        <rect 
-          width="100%" 
-          height="100%" 
-          fill={fillColor} 
-          stroke={strokeColor} 
-          strokeWidth="2" 
-        />
-        
-        {/* Vertical Dotted Line */}
-        {hasStroke && (
-          isRotated ? (
-            <line 
-              x1="0%"
-              x2="100%"
-              y1={Math.max(displayHeight * 0.1, 8)}
-              y2={Math.max(displayHeight * 0.1, 8)}
-              stroke={strokeColor}
-              strokeOpacity={0.6}
-              strokeWidth="2"
-              strokeDasharray="4 4" 
-            />
-          ) : (
-            <line 
-              x1={Math.max(displayWidth * 0.1, 8)}
-              x2={Math.max(displayWidth * 0.1, 8)}
-              y1="0%"
-              y2="100%"
-              stroke={strokeColor}
-              strokeOpacity={0.6}
-              strokeWidth="2"
-              strokeDasharray="4 4" 
-            />
-          )
-        )}
-      </svg>
+          {/* Background Rectangle */}
+          <rect
+            width="100%"
+            height="100%"
+            fill={fillColor}
+            stroke={strokeColor}
+            strokeWidth="2"
+          />
+
+          {/* Vertical Dotted Line */}
+          {hasStroke && (
+            isRotated ? (
+              <line
+                x1="0%"
+                x2="100%"
+                y1={Math.max(displayHeight * 0.1, 8)}
+                y2={Math.max(displayHeight * 0.1, 8)}
+                stroke={strokeColor}
+                strokeOpacity={0.6}
+                strokeWidth="2"
+                strokeDasharray="4 4"
+              />
+            ) : (
+              <line
+                x1={Math.max(displayWidth * 0.1, 8)}
+                x2={Math.max(displayWidth * 0.1, 8)}
+                y1="0%"
+                y2="100%"
+                stroke={strokeColor}
+                strokeOpacity={0.6}
+                strokeWidth="2"
+                strokeDasharray="4 4"
+              />
+            )
+          )}
+        </svg>
       </div>
     </div>
   );

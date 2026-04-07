@@ -15,11 +15,12 @@ import {
   Circle,
   BookOpen,
   CalendarDays,
+  Loader2,
 } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/lib/auth_handler";
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 
 // --- AI TESTING BACKDOOR ---
@@ -65,15 +66,26 @@ export default function LandingPage() {
   useAiAutoLogin();
   const { authUser, signInWithGoogle } = useAuth();
   const t = useTranslations("LandingPage");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const handleLoginClick = () => {
+    setIsLoggingIn(true);
+    signInWithGoogle();
+  };
 
   const SignInButton = () => (
     <Button
       variant="outline"
       className="bg-primary text-primary-foreground hover:bg-primary-foreground hover:text-primary"
       size="lg"
-      onClick={() => signInWithGoogle()}
+      onClick={handleLoginClick}
+      disabled={isLoggingIn}
     >
-      <GoogleIcon />
+      {isLoggingIn ? (
+        <Loader2 className="h-6 w-6 animate-spin" />
+      ) : (
+        <GoogleIcon />
+      )}
       <span className="ml-2">{t("hero.signInWithGoogle")}</span>
     </Button>
   );

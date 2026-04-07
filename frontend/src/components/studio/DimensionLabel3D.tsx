@@ -208,17 +208,20 @@ export const DimensionLabel3D: React.FC<DimensionLabel3DProps> = ({
 
       {/* Text label - always faces camera */}
       <Billboard position={geometry.midpoint} follow={true} lockX={false} lockY={false} lockZ={false}>
-        <mesh position={[0, 0, 0.1]}>
+        {/* Push the background plane safely in front of the dimension line */}
+        <mesh position={[0, 0, 1]}>
           <planeGeometry args={[evaluatedText.length * 3.2 + 6, 7]} />
-          <meshBasicMaterial color={'white'} depthTest={false} />
+          <meshBasicMaterial color={bgColor} />
         </mesh>
+        
+        {/* Push the text slightly in front of the background plane */}
         <Text
+          position={[0, 0, 1.1]}
           fontSize={4}
           color={textColor}
           anchorX="center"
           anchorY="middle"
           font={undefined}
-          depthOffset={-1}
         >
           {evaluatedText}
         </Text>

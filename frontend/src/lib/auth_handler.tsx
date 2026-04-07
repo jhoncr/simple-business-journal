@@ -4,7 +4,6 @@ import { initializeApp } from "firebase/app";
 import {
   getAuth,
   GoogleAuthProvider,
-  signInWithPopup,
   connectAuthEmulator,
   signInWithRedirect,
   User,
@@ -93,8 +92,7 @@ export const useFirebaseAuth = () => {
 
   const signInWithGoogle = () => {
     const provider = new GoogleAuthProvider();
-    signInWithPopup(auth, provider);
-    // signInWithRedirect(auth, provider);
+    signInWithRedirect(auth, provider);
   };
 
   const handleAuthStateChanged = (user: User | null) => {
