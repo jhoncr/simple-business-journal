@@ -20,7 +20,7 @@ export const onTemplateWritten = onDocumentWritten(
       logger.info(`Template ${templateId} deleted. Removing from cache...`);
       await cacheDocRef.set(
         { [templateId]: FieldValue.delete() },
-        { merge: true }
+        { merge: true },
       );
       return;
     }
@@ -34,19 +34,19 @@ export const onTemplateWritten = onDocumentWritten(
       logger.info(`Template ${templateId} is inactive. Removing from cache...`);
       await cacheDocRef.set(
         { [templateId]: FieldValue.delete() },
-        { merge: true }
+        { merge: true },
       );
       return;
     }
 
     // Extract relevant fields
-    const name = data.name || "Untitled Template";
+    const name = data.name || 'Untitled Template';
     const details = data.details || {};
-    let description = details.description || "";
+    let description = details.description || '';
     if (description.length > 200) {
       description = description.substring(0, 200);
     }
-    const thumbnailUrl = details.thumbnailUrl || "";
+    const thumbnailUrl = details.thumbnailUrl || '';
 
     const cacheEntry: any = {
       n: name,
@@ -59,7 +59,7 @@ export const onTemplateWritten = onDocumentWritten(
     // Ensure the fast-cache document and templates map exists
     await cacheDocRef.set(
       { [templateId]: cacheEntry },
-      { merge: true }
+      { merge: true },
     );
-  }
+  },
 );

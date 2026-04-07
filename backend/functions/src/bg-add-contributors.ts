@@ -85,7 +85,7 @@ const handleAddOperation = async (
   // check if the email is already in the access map, if so, only update the role
   const access = logData?.access ?? {};
 
-  const cur = Object.entries(access).find(([key, value]) => {
+  const cur = Object.entries(access).find(([, value]) => {
     return value.email === data.email;
   });
   if (cur) {
@@ -111,7 +111,7 @@ const handleAddOperation = async (
   const pendingAccess = logData?.pendingAccess ?? {};
   // Avoid overwriting if email already in pendingAccess, update role instead
   if (pendingAccess[escapedEmail] && pendingAccess[escapedEmail] !== data.role) {
-     logger.info(`Updating role for ${data.email} in pendingAccess to ${data.role}.`);
+    logger.info(`Updating role for ${data.email} in pendingAccess to ${data.role}.`);
   } else if (!pendingAccess[escapedEmail]) {
     logger.info(`Adding ${data.email} to pendingAccess with role ${data.role}.`);
   }
@@ -129,7 +129,7 @@ const handleRemoveOperation = async (
   // Check if the email is in the access map (active contributor)
   const access = logData?.access ?? {};
   const contributorEntry = Object.entries(access).find(
-    ([_, value]) => value.email === data.email,
+    ([, value]) => value.email === data.email,
   );
 
   if (contributorEntry) {

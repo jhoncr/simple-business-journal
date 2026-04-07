@@ -1,6 +1,5 @@
-import { AccessMap } from './schemas/common_schemas';
+import { AccessMap, ROLES } from './schemas/common_schemas';
 import { Timestamp } from 'firebase-admin/firestore';
-import { ROLES } from './schemas/common_schemas'; // Import ROLES
 
 export enum WorkStatus {
   DRAFT = 'DRAFT',

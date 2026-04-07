@@ -56,7 +56,7 @@ export const ENTRY_CONFIG = {
 // Helper functions to filter entries by category
 export const getBusinessEntries = () =>
   Object.entries(ENTRY_CONFIG)
-    .filter(([_, config]) => config.category === 'business')
+    .filter(([, config]) => config.category === 'business')
     .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
 
 // TODO: Uncomment or adjust getBabyEntries when baby entry types are re-enabled.
