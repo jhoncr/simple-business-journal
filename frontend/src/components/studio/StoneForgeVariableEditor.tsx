@@ -3,6 +3,7 @@
 import React from 'react';
 import { AssemblyTemplate } from '@backend/common/schemas/studio';
 import { Ruler, Info } from 'lucide-react';
+import { evaluateExpression } from '../../lib/evaluator';
 
 interface StoneForgeVariableEditorProps {
   template: AssemblyTemplate;
@@ -26,6 +27,14 @@ export const StoneForgeVariableEditor = ({
   scrollable = true,
 }: StoneForgeVariableEditorProps) => {
   const variables = template.variables;
+
+  const currentVariables = React.useMemo(() => {
+    const vars: Record<string, number> = {};
+    variables.forEach(v => {
+      vars[v.label] = overrides[v.id] !== undefined ? overrides[v.id] : v.default;
+    });
+    return vars;
+  }, [variables, overrides]);
 
   if (variables.length === 0) {
     return (
@@ -56,36 +65,80 @@ export const StoneForgeVariableEditor = ({
 
       {/* Variable List */}
       <div className={`${scrollable ? 'flex-1 overflow-y-auto' : ''} p-4 space-y-4`}>
-        {variables.map((v) => (
-          <div key={v.id} className="group">
-            <label
-              htmlFor={`var-${v.id}`}
-              className="block text-xs font-semibold text-gray-700 mb-1.5"
-            >
-              {humanizeLabel(v.label)}
-            </label>
-            <div className="relative flex items-center">
-              <input
-                id={`var-${v.id}`}
-                type="number"
-                value={overrides[v.id] !== undefined ? overrides[v.id] : v.default}
-                step="0.1"
-                onChange={(e) =>
-                  onVariableChange(v.id, parseFloat(e.target.value) || 0)
-                }
-                className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 pr-12 
-                           focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-                           hover:border-gray-400 transition-colors"
-              />
-              <span className="absolute right-3 text-xs text-gray-400 pointer-events-none font-medium select-none">
-                cm
-              </span>
+        {variables.map((v) => {
+          const minLimit = v.min !== undefined ? evaluateExpression(v.min, currentVariables) : undefined;
+          const maxLimit = v.max !== undefined ? evaluateExpression(v.max, currentVariables) : undefined;
+          const currentValue = overrides[v.id] !== undefined ? overrides[v.id] : v.default;
+
+          let isError = false;
+          let errorMessage = '';
+          if (minLimit !== undefined && currentValue < minLimit) {
+            isError = true;
+            errorMessage = `Minimum is ${minLimit}`;
+          }
+          if (maxLimit !== undefined && currentValue > maxLimit) {
+            isError = true;
+            errorMessage = `Maximum is ${maxLimit}`;
+          }
+
+          const handleBlur = () => {
+            let clamped = currentValue;
+            if (minLimit !== undefined && clamped < minLimit) clamped = minLimit;
+            if (maxLimit !== undefined && clamped > maxLimit) clamped = maxLimit;
+            if (clamped !== currentValue) {
+              onVariableChange(v.id, clamped);
+            }
+          };
+
+          return (
+            <div key={v.id} className="group">
+              <div className="flex justify-between items-end mb-1.5">
+                <label
+                  htmlFor={`var-${v.id}`}
+                  className="block text-xs font-semibold text-gray-700"
+                >
+                  {humanizeLabel(v.label)}
+                </label>
+                {(minLimit !== undefined || maxLimit !== undefined) && (
+                  <span className="text-[10px] text-gray-400 font-medium">
+                    {minLimit !== undefined && `Min: ${minLimit}`}
+                    {minLimit !== undefined && maxLimit !== undefined && ' • '}
+                    {maxLimit !== undefined && `Max: ${maxLimit}`}
+                  </span>
+                )}
+              </div>
+              <div className="relative flex items-center">
+                <input
+                  id={`var-${v.id}`}
+                  type="number"
+                  value={currentValue}
+                  step="0.1"
+                  min={minLimit}
+                  max={maxLimit}
+                  onChange={(e) =>
+                    onVariableChange(v.id, parseFloat(e.target.value) || 0)
+                  }
+                  onBlur={handleBlur}
+                  className={`w-full text-sm border rounded-md px-3 py-2 pr-12 focus:outline-none focus:ring-2 transition-colors ${isError
+                      ? 'border-red-500 ring-1 ring-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50'
+                      : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 hover:border-gray-400'
+                    }`}
+                />
+                <span className={`absolute right-3 text-xs pointer-events-none font-medium select-none ${isError ? 'text-red-400' : 'text-gray-400'}`}>
+                  cm
+                </span>
+              </div>
+              {isError && (
+                <p className="text-[10px] text-red-500 mt-1 font-medium">
+                  {errorMessage}
+                </p>
+              )}
+              <p className={`text-[10px] text-gray-400 mt-1 ${isError ? 'hidden' : 'hidden group-focus-within:block'}`}>
+                Variable: <code className="bg-gray-100 px-1 rounded">{v.label}</code>
+              </p>
             </div>
-            <p className="text-[10px] text-gray-400 mt-1 hidden group-focus-within:block">
-              Variable: <code className="bg-gray-100 px-1 rounded">{v.label}</code>
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Info footer */}

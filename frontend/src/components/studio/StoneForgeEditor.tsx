@@ -625,7 +625,7 @@ export const StoneForgeEditor = () => {
 
   const handleUpdateVariable = (
     id: string,
-    field: "label" | "default",
+    field: "label" | "default" | "min" | "max",
     value: any,
   ) => {
     setTemplate((prev) => ({
@@ -1337,6 +1337,34 @@ export const StoneForgeEditor = () => {
                             >
                               <Trash2 className="w-3.5 h-3.5 text-red-500" />
                             </button>
+                          </div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <input
+                              type="text"
+                              value={v.min !== undefined ? v.min : ""}
+                              onChange={(e) =>
+                                handleUpdateVariable(
+                                  v.id,
+                                  "min",
+                                  e.target.value === "" ? undefined : e.target.value,
+                                )
+                              }
+                              placeholder="Min (e.g. 10 or length/2)"
+                              className="text-[10px] flex-1 p-1 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 placeholder-gray-400 font-mono"
+                            />
+                            <input
+                              type="text"
+                              value={v.max !== undefined ? v.max : ""}
+                              onChange={(e) =>
+                                handleUpdateVariable(
+                                  v.id,
+                                  "max",
+                                  e.target.value === "" ? undefined : e.target.value,
+                                )
+                              }
+                              placeholder="Max limit"
+                              className="text-[10px] flex-1 p-1 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 placeholder-gray-400 font-mono"
+                            />
                           </div>
                         </div>
                       ))}

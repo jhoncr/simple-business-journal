@@ -193,6 +193,7 @@ export const DimensionLabel3D: React.FC<DimensionLabel3DProps> = ({
         points={[geometry.lineStart, geometry.lineEnd]}
         color={lineColor}
         lineWidth={mainLineWidth}
+        raycast={() => null}
       />
 
       {/* Arrow heads (small triangles at each end) */}
@@ -200,14 +201,15 @@ export const DimensionLabel3D: React.FC<DimensionLabel3DProps> = ({
         points={[geometry.lineStart, geometry.lineEnd]}
         color={lineColor}
         lineWidth={mainLineWidth}
+        raycast={() => null}
       />
 
       {/* Extension lines */}
-      <Line points={geometry.extensionA} color={lineColor} lineWidth={extLineWidth} />
-      <Line points={geometry.extensionB} color={lineColor} lineWidth={extLineWidth} />
+      <Line points={geometry.extensionA} color={lineColor} lineWidth={extLineWidth} raycast={() => null} />
+      <Line points={geometry.extensionB} color={lineColor} lineWidth={extLineWidth} raycast={() => null} />
 
       {/* Text label - rendered as HTML overlaid on the canvas to maintain readable size */}
-      <Html position={geometry.midpoint} center zIndexRange={[100, 0]}>
+      <Html position={geometry.midpoint} center zIndexRange={[100, 0]} occlude>
         <div
           onClick={(e) => { e.stopPropagation(); onSelect(label.id); }}
           className={`px-2 py-0 rounded shadow-sm border text-xs font-semibold select-none whitespace-nowrap cursor-pointer ${bgColor}`}

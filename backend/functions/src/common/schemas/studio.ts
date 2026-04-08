@@ -57,6 +57,8 @@ export const AssemblyVariableSchema = z.object({
   id: z.string(),
   label: z.string(),
   default: z.number(),
+  min: ExpressionSchema.optional(),
+  max: ExpressionSchema.optional(),
 });
 
 export const CameraViewSchema = z.object({
