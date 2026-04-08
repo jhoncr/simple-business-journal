@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
-    "deploy": "firebase deploy --only hosting"
+    "deploy": "npm run build && firebase deploy --only hosting"
   },
   "dependencies": {
     "@google/genai": "^1.17.0",
