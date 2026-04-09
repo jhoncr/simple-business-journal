@@ -68,6 +68,9 @@ export const lineItemSchema = z.object({
     }),
   material: materialSchema,
 
+  // Item category: determines drawing style at print time
+  itemCategory: z.enum(['none', 'gallery', 'window-sill', 'tile-edge']).optional(),
+
   // Optional attached template snapshot
   attachedTemplate: attachedTemplateSchema.optional().nullable(),
 });

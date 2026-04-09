@@ -4,7 +4,8 @@ import React, { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { fetchEntry, fetchJournal } from "@/lib/db_handler";
 import { estimateDetailsStateSchema } from "@backend/common/schemas/estimate_schema";
-import { TemplatePrintLayout, PrintableItem } from "@/components/studio/TemplatePrintLayout";
+import { TemplatePrintLayout, PrintableItem, DrawingItem } from "@/components/studio/TemplatePrintLayout";
+import { RectangleData } from "@/components/RectangleViewer";
 
 export default function TechnicalDrawingsPrintLayout() {
   const searchParams = useSearchParams();
@@ -73,6 +74,7 @@ export default function TechnicalDrawingsPrintLayout() {
     );
   }
 
+  // Section 1: 3D template items
   const printableItems: PrintableItem[] = estimateData.confirmedItems
     .filter((item: any) => item.attachedTemplate != null)
     .map((item: any) => ({
@@ -82,7 +84,35 @@ export default function TechnicalDrawingsPrintLayout() {
       variableOverrides: item.attachedTemplate.variableOverrides || {},
     }));
 
-  if (printableItems.length === 0) {
+  // Section 2: Window Sill / Tile Edge drawing items
+  const drawingItems: DrawingItem[] = estimateData.confirmedItems
+    .filter((item: any) =>
+      item.itemCategory === "window-sill" || item.itemCategory === "tile-edge"
+    )
+    .map((item: any) => {
+      const SCALER = 100; // TODO: remote this in the future, this is a workaround to the fact that NewItemForm is in meters
+      const width = Math.round((item.dimensions?.width ?? 0) * SCALER);
+      const length = Math.round((item.dimensions?.length ?? 0) * SCALER);
+      const isWindowSill = item.itemCategory === "window-sill";
+
+      const rect: RectangleData = {
+        id: item.id,
+        width,
+        length,
+        label: item.description,
+        hasCrossLeft: true,
+        hasLeftCornerCrosses: isWindowSill,
+        hasStroke: isWindowSill,
+      };
+
+      return {
+        id: item.id,
+        description: item.description,
+        rectangles: [rect],
+      };
+    });
+
+  if (printableItems.length === 0 && drawingItems.length === 0) {
     return (
       <div className="p-10 text-center">
         No items with technical drawings found in this estimate.
@@ -93,6 +123,7 @@ export default function TechnicalDrawingsPrintLayout() {
   return (
     <TemplatePrintLayout
       items={printableItems}
+      drawingItems={drawingItems}
       contactInfo={journalData.details?.contactInfo}
       logo={journalData.details?.logo}
       customerContext={estimateData.customer}

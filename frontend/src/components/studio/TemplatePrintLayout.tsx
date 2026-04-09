@@ -6,6 +6,8 @@ import { contactInfoSchemaType } from "@backend/common/schemas/common_schemas";
 import { AlertCircle, Printer } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { RectangleViewer, RectangleData } from "@/components/RectangleViewer";
+
 export interface PrintableItem {
   id: string;
   description: string;
@@ -13,8 +15,15 @@ export interface PrintableItem {
   variableOverrides: Record<string, number>;
 }
 
+export interface DrawingItem {
+  id: string;
+  description: string;
+  rectangles: RectangleData[];
+}
+
 interface TemplatePrintLayoutProps {
   items: PrintableItem[];
+  drawingItems?: DrawingItem[];
   contactInfo?: contactInfoSchemaType;
   logo?: string | null;
   customerContext?: {
@@ -28,16 +37,45 @@ interface TemplatePrintLayoutProps {
 /**
  * Pure presentation component for printing technical drawings.
  * Completely decoupled from the database or estimates.
+ * Renders 3D template items first, then 2D drawing items (sills/edges).
  */
 export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
   items,
+  drawingItems = [],
   contactInfo,
   logo,
   customerContext,
 }) => {
   const t = useTranslations("estimate");
 
-  if (items.length === 0) return null;
+  if (items.length === 0 && drawingItems.length === 0) return null;
+
+  const renderPageHeader = () => (
+    <div className="pt-2 pb-0 mb-0">
+      <div className="flex items-center justify-between">
+        <EstimateHeader logo={logo} contactInfo={contactInfo} />
+        {/* Inline compact client info — 2 lines max */}
+        <div className="text-right text-[11px] text-gray-600 leading-tight">
+          <div className="font-bold text-gray-800">
+            {customerContext?.name}
+            {customerContext?.address?.street && (
+              <span className="font-normal text-gray-500">
+                {" · "}{customerContext.address.street}
+                {customerContext.address.city && `, ${customerContext.address.city}`}
+                {customerContext.address.state && ` ${customerContext.address.state}`}
+                {customerContext.address.zipCode && ` ${customerContext.address.zipCode}`}
+              </span>
+            )}
+          </div>
+          {(customerContext?.phone || customerContext?.email) && (
+            <div className="text-gray-400 text-[10px]">
+              {customerContext.phone}{customerContext.phone && customerContext.email && " · "}{customerContext.email}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gray-200 text-black font-sans flex flex-col overflow-x-auto print:block print:bg-white print:overflow-visible">
@@ -54,6 +92,8 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
             .td-item-header { break-after: avoid; }
             .td-item-page { page-break-after: always; break-after: page; }
             .td-item-page:last-child { page-break-after: auto; break-after: auto; }
+            .td-drawing-page { page-break-before: always; break-before: page; }
+            .td-drawing-group { break-inside: avoid; }
           }
         `,
         }}
@@ -72,6 +112,7 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
 
       <div className="bg-white shadow-xl print:shadow-none mb-8 print:m-0 print:p-0 flex-shrink-0 mx-auto" style={{ width: '285mm' }}>
         <div className="pt-1">
+          {/* Section 1: 3D Template Items */}
           {items.map((item, index) => {
             const template = item.template;
 
@@ -95,30 +136,7 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
 
             return (
               <div key={item.id} className="td-item-page px-4 pb-4 flex flex-col" style={{ minHeight: '196mm' }}>
-                <div className="pt-2 pb-0 mb-0">
-                  <div className="flex items-center justify-between">
-                    <EstimateHeader logo={logo} contactInfo={contactInfo} />
-                    {/* Inline compact client info — 2 lines max */}
-                    <div className="text-right text-[11px] text-gray-600 leading-tight">
-                      <div className="font-bold text-gray-800">
-                        {customerContext?.name}
-                        {customerContext?.address?.street && (
-                          <span className="font-normal text-gray-500">
-                            {" · "}{customerContext.address.street}
-                            {customerContext.address.city && `, ${customerContext.address.city}`}
-                            {customerContext.address.state && ` ${customerContext.address.state}`}
-                            {customerContext.address.zipCode && ` ${customerContext.address.zipCode}`}
-                          </span>
-                        )}
-                      </div>
-                      {(customerContext?.phone || customerContext?.email) && (
-                        <div className="text-gray-400 text-[10px]">
-                          {customerContext.phone}{customerContext.phone && customerContext.email && " · "}{customerContext.email}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                {renderPageHeader()}
 
                 <div className="border rounded overflow-hidden border-gray-300 flex-1 flex flex-col mt-2">
                   <div className="td-item-header bg-gray-100 px-3 py-1 border-b border-gray-300">
@@ -245,6 +263,29 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
               </div>
             );
           })}
+
+          {/* Section 2: Window Sill / Tile Edge Drawing Items */}
+          {drawingItems.length > 0 && (
+            <div className={`td-drawing-page px-4 pb-4 flex flex-col`} style={{ minHeight: '196mm' }}>
+              {renderPageHeader()}
+
+              <div className="border rounded overflow-hidden border-gray-300 flex-1 flex flex-col mt-2">
+                <div className="td-item-header bg-gray-100 px-3 py-1 border-b border-gray-300">
+                  <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wide">
+                    {t("quickPrintDimensions") || "Technical Drawings"} — {drawingItems.length} item(s)
+                  </h3>
+                </div>
+
+                <div className="bg-white p-4 flex-1">
+                  {drawingItems.map((drawingItem) => (
+                    <div key={drawingItem.id} className="td-drawing-group mb-6">
+                      <RectangleViewer rectangles={drawingItem.rectangles} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

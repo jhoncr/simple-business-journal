@@ -196,7 +196,7 @@ export const EstimateDetails = React.memo(function EstimateDetails(
           </Link>
         </Button>
         <div className="flex items-center space-x-2">
-          {confirmedItems.some(item => !!item.attachedTemplate) && (
+          {confirmedItems.some(item => !!item.attachedTemplate || item.itemCategory === "window-sill" || item.itemCategory === "tile-edge") && (
             <Button variant="outline" asChild size="sm" disabled={isSaving}>
               <Link
                 href={`/journal/entry/technical-drawings?jid=${props.journalId}&eid=${entryId}`}

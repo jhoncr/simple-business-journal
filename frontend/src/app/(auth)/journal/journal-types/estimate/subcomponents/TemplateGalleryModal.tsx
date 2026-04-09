@@ -15,6 +15,9 @@ interface TemplateGalleryModalProps {
   journalId: string;
   onSelectTemplate: (templateEntry: DBentry) => void;
   disabled?: boolean;
+  /** Controlled open state — when provided, the modal won't render its own trigger button */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 interface CacheEntry {
@@ -23,8 +26,13 @@ interface CacheEntry {
   t?: string; // thumbnailUrl
 }
 
-export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled }: TemplateGalleryModalProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled, open: controlledOpen, onOpenChange: controlledOnOpenChange }: TemplateGalleryModalProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
+
+  // Use controlled props when provided, otherwise fall back to internal state
+  const isControlled = controlledOpen !== undefined;
+  const isOpen = isControlled ? controlledOpen : internalOpen;
+  const setIsOpen = isControlled ? (controlledOnOpenChange ?? (() => {})) : setInternalOpen;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectingId, setSelectingId] = useState<string | null>(null);
@@ -136,17 +144,20 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled }: 
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={disabled}
-          className="w-full gap-2"
-        >
-          <Box size={16} /> Add from Gallery
-        </Button>
-      </DialogTrigger>
+      {/* Only render the trigger button in uncontrolled mode */}
+      {!isControlled && (
+        <DialogTrigger asChild>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={disabled}
+            className="w-full gap-2"
+          >
+            <Box size={16} /> Add from Gallery
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent aria-describedby={undefined} className="max-w-4xl max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Template Gallery</DialogTitle>

@@ -1,5 +1,5 @@
 // frontend/src/app/(auth)/journal/journal-types/estimate/subcomponents/NewItemForm.tsx
-import { useState, useCallback, useMemo, useEffect, useId } from "react";
+import { useState, useCallback, useMemo, useEffect, useId, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +22,9 @@ import {
   Ban,
   GripHorizontal,
   RectangleHorizontal,
+  Image as ImageIcon,
+  Square,
+  Ruler,
 } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "next-intl";
@@ -68,6 +71,7 @@ const createItemFormSchema = (
 ) =>
   z
     .object({
+      itemCategory: z.enum(["none", "gallery", "window-sill", "tile-edge"]).default("none"),
       description: z
         .string()
         .min(1, t("validationErrors.descriptionRequired"))
@@ -86,7 +90,8 @@ const createItemFormSchema = (
     })
     .refine(
       (data) => {
-        if (data.dimensionType.startsWith("area")) {
+        const isCustomDrawing = ["window-sill", "tile-edge"].includes(data.itemCategory);
+        if (data.dimensionType.startsWith("area") || isCustomDrawing) {
           return data.length !== undefined && data.length > 0;
         }
         return true;
@@ -98,7 +103,8 @@ const createItemFormSchema = (
     )
     .refine(
       (data) => {
-        if (data.dimensionType.startsWith("area")) {
+        const isCustomDrawing = ["window-sill", "tile-edge"].includes(data.itemCategory);
+        if (data.dimensionType.startsWith("area") || isCustomDrawing) {
           return data.width !== undefined && data.width > 0;
         }
         return true;
@@ -124,6 +130,7 @@ const createItemFormSchema = (
 type ItemFormValues = z.infer<ReturnType<typeof createItemFormSchema>>;
 
 const defaultFormValues: ItemFormValues = {
+  itemCategory: "none",
   description: "",
   quantity: 1,
   unitPrice: 0,
@@ -149,6 +156,8 @@ export function NewItemForm({
   const t = useTranslations("newItemForm");
   const tCommon = useTranslations("common");
   const [isOpen, setIsOpen] = useState(false);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const templateJustSelectedRef = useRef(false);
   const isDesktop = useMediaQuery("(min-width: 1340px)");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const params = useParams();
@@ -210,13 +219,15 @@ export function NewItemForm({
       }
 
       return {
+        itemCategory: item.itemCategory || "none",
         description: item.description,
         inventoryMaterialName: material?.description || item.description,
         quantity: item.quantity,
         unitPrice: material?.unitPrice || 0,
         dimensionType,
-        length: dimensions?.length,
-        width: dimensions?.width,
+        // Convert meters (backend) → cm (form display)
+        length: dimensions?.length ? Number((dimensions.length * 100).toFixed(2)) : undefined,
+        width: dimensions?.width ? Number((dimensions.width * 100).toFixed(2)) : undefined,
         laborType,
         laborRate,
       };
@@ -277,16 +288,19 @@ export function NewItemForm({
     }
   }, [editingItem, form, populateFormFromLineItem]);
 
-  const calculateAreaQuantity = (length?: number, width?: number): number => {
+  // length and width are in cm; area is computed in m²
+  const calculateAreaQuantity = (lengthCm?: number, widthCm?: number): number => {
     if (
-      length === undefined ||
-      width === undefined ||
-      length <= 0 ||
-      width <= 0
+      lengthCm === undefined ||
+      widthCm === undefined ||
+      lengthCm <= 0 ||
+      widthCm <= 0
     ) {
       return 0;
     }
-    return Number((length * width).toFixed(2));
+    const lengthM = lengthCm / 100;
+    const widthM = widthCm / 100;
+    return Number((lengthM * widthM).toFixed(2));
   };
 
   const { watch } = form;
@@ -350,13 +364,17 @@ export function NewItemForm({
         throw new Error("Invalid unit label");
       }
 
+      // Convert cm (form) → meters (backend) for storage
+      const lengthM = values.length ? Number((values.length / 100).toFixed(4)) : undefined;
+      const widthM = values.width ? Number((values.width / 100).toFixed(4)) : undefined;
+
       return {
         id: editingItem?.id || crypto.randomUUID(), // Preserve ID when editing
         parentId: "root",
         quantity: Number(values.quantity.toFixed(2)),
         dimensions: {
-          length: values.length ? Number(values.length.toFixed(2)) : undefined,
-          width: values.width ? Number(values.width.toFixed(2)) : undefined,
+          length: lengthM,
+          width: widthM,
         },
         description: values.description.trim(),
         material: {
@@ -370,6 +388,7 @@ export function NewItemForm({
           currency: currency,
           labor: null,
         },
+        itemCategory: values.itemCategory !== "none" ? values.itemCategory : undefined,
         attachedTemplate: attachedTemplate,
       };
     },
@@ -487,9 +506,13 @@ export function NewItemForm({
       variableOverrides: {},
     };
 
+    // Signal that a template was selected so onOpenChange doesn't revert itemCategory
+    templateJustSelectedRef.current = true;
     setAttachedTemplate(newAttachedTemplate);
     form.setValue("description", `Custom ${templateDetails.name}`);
     form.setValue("quantity", 1);
+    form.setValue("itemCategory", "gallery");
+    setIsGalleryOpen(false);
     setIsOpen(true);
   };
 
@@ -533,6 +556,92 @@ export function NewItemForm({
           }`}
         id={formId}
       >
+        <FormField
+          control={form.control}
+          name="itemCategory"
+          render={({ field }) => (
+            <FormItem className="space-y-0 mt-2 mb-4">
+              <FormLabel>{t("itemType")}</FormLabel>
+              <FormControl>
+                <RadioGroup
+                  className="grid grid-cols-2 md:grid-cols-4 gap-2"
+                  value={field.value}
+                  onValueChange={(value: "none" | "gallery" | "window-sill" | "tile-edge") => {
+                    field.onChange(value);
+
+                    if (value === "window-sill" || value === "tile-edge") {
+                      form.setValue("dimensionType", "area-m²");
+                      const label = value === "window-sill" ? t("itemTypeWindowSill") : t("itemTypeTileEdge");
+                      form.setValue("description", label);
+                    } else if (value === "gallery") {
+                      form.setValue("dimensionType", "unit-unit");
+                      form.setValue("length", undefined);
+                      form.setValue("width", undefined);
+                      // Open gallery modal if no template already attached
+                      if (!attachedTemplate) {
+                        setIsGalleryOpen(true);
+                      }
+                    }
+                    // "none" → no side effects
+                  }}
+                  disabled={!canAdd}
+                >
+                  {[
+                    {
+                      value: "none",
+                      label: t("itemTypeNone"),
+                      icon: <Ban className="h-4 w-4" />,
+                    },
+                    {
+                      value: "gallery",
+                      label: t("itemTypeGallery"),
+                      icon: <ImageIcon className="h-4 w-4" />,
+                    },
+                    {
+                      value: "window-sill",
+                      label: t("itemTypeWindowSill"),
+                      icon: <Square className="h-4 w-4" />,
+                    },
+                    {
+                      value: "tile-edge",
+                      label: t("itemTypeTileEdge"),
+                      icon: <Ruler className="h-4 w-4" />,
+                    },
+                  ].map((item) => (
+                    <div
+                      key={item.value}
+                      className={`border-input hover:bg-accent/50 relative flex flex-col items-center justify-center rounded-md border p-2 shadow-xs outline-none ${
+                        field.value === item.value
+                          ? "border-primary border-4 bg-primary/10 shadow-md"
+                          : ""
+                      }`}
+                    >
+                      <RadioGroupItem
+                        value={item.value}
+                        id={`category-${item.value}`}
+                        className="peer sr-only"
+                        disabled={!canAdd}
+                      />
+                      <Label
+                        htmlFor={`category-${item.value}`}
+                        className={`flex h-full w-full cursor-pointer flex-col items-center justify-center gap-2 text-center text-xs ${
+                          field.value === item.value
+                            ? "font-semibold text-primary"
+                            : ""
+                        } ${!canAdd ? "cursor-not-allowed opacity-50" : ""}`}
+                      >
+                        {item.icon}
+                        {item.label}
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <FormField
           control={form.control}
           name="description"
@@ -606,72 +715,79 @@ export function NewItemForm({
         <FormField
           control={form.control}
           name="dimensionType"
-          render={({ field }) => (
-            <FormItem className="space-y-0 mt-2">
-              <FormLabel>{t("dimensionType")}</FormLabel>
-              <FormControl>
-                <RadioGroup
-                  className="grid grid-cols-2 gap-2"
-                  value={field.value}
-                  onValueChange={(value) => {
-                    field.onChange(value);
-                    if (value.startsWith("area")) {
-                      const length = form.getValues("length");
-                      const width = form.getValues("width");
-                      const quantity = calculateAreaQuantity(length, width);
-                      form.setValue("quantity", quantity);
-                    } else {
-                      form.setValue("length", undefined);
-                      form.setValue("width", undefined);
-                    }
-                  }}
-                  disabled={!canAdd}
-                >
-                  {[
-                    {
-                      value: "unit-unit",
-                      label: t("dimensionUnit"),
-                      icon: <GripHorizontal className="h-4 w-4" />,
-                    },
-                    {
-                      value: "area-m²",
-                      label: t("dimensionAreaM2"),
-                      icon: <RectangleHorizontal className="h-4 w-4" />,
-                    },
-                    // { value: "area-ft²", label: t("dimensionAreaFt2") },
-                  ].map((item) => (
-                    <div
-                      key={item.value}
-                      className={`border-input hover:bg-accent/50 relative flex flex-col items-center justify-center rounded-md border p-2 shadow-xs outline-none ${field.value === item.value
-                          ? "border-4 bg-primary/10 shadow-md border-primary"
-                          : ""
-                        }`}
-                    >
-                      <div className="flex items-center">
-                        <RadioGroupItem
-                          value={item.value}
-                          id={`dim-${item.value}`}
-                          className="peer sr-only"
-                          disabled={!canAdd}
-                        />
-                        <Label
-                          htmlFor={`dim-${item.value}`}
-                          className={`cursor-pointer flex h-full w-full items-center justify-center gap-2 ${field.value === item.value
-                              ? "font-semibold text-primary"
-                              : ""
-                            } ${!canAdd ? "cursor-not-allowed opacity-50" : ""}`}
-                        >
-                          {item.icon}
-                          {item.label}
-                        </Label>
+          render={({ field }) => {
+            const currentCategory = form.watch("itemCategory");
+            const isDrawing = ["window-sill", "tile-edge"].includes(currentCategory);
+
+            return (
+              <FormItem className="space-y-0 mt-2">
+                <FormLabel>{t("dimensionType")}</FormLabel>
+                <FormControl>
+                  <RadioGroup
+                    className="grid grid-cols-2 gap-2"
+                    value={field.value}
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      if (value.startsWith("area")) {
+                        const length = form.getValues("length");
+                        const width = form.getValues("width");
+                        const quantity = calculateAreaQuantity(length, width);
+                        form.setValue("quantity", quantity);
+                      } else {
+                        form.setValue("length", undefined);
+                        form.setValue("width", undefined);
+                      }
+                    }}
+                    disabled={!canAdd}
+                  >
+                    {[
+                      {
+                        value: "unit-unit",
+                        label: t("dimensionUnit"),
+                        icon: <GripHorizontal className="h-4 w-4" />,
+                        isDisabled: isDrawing || !canAdd,
+                      },
+                      {
+                        value: "area-m²",
+                        label: t("dimensionAreaM2"),
+                        icon: <RectangleHorizontal className="h-4 w-4" />,
+                        isDisabled: currentCategory === "gallery" || !canAdd,
+                      },
+                      // { value: "area-ft²", label: t("dimensionAreaFt2") },
+                    ].map((item) => (
+                      <div
+                        key={item.value}
+                        className={`border-input relative flex flex-col items-center justify-center rounded-md border p-2 shadow-xs outline-none ${field.value === item.value
+                            ? "border-4 bg-primary/10 shadow-md border-primary"
+                            : ""
+                          } ${item.isDisabled ? "opacity-50 bg-muted" : "hover:bg-accent/50"}`}
+                      >
+                        <div className="flex items-center">
+                          <RadioGroupItem
+                            value={item.value}
+                            id={`dim-${item.value}`}
+                            className="peer sr-only"
+                            disabled={item.isDisabled}
+                          />
+                          <Label
+                            htmlFor={`dim-${item.value}`}
+                            className={`flex h-full w-full items-center justify-center gap-2 ${field.value === item.value
+                                ? "font-semibold text-primary"
+                                : ""
+                              } ${item.isDisabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+                          >
+                            {item.icon}
+                            {item.label}
+                          </Label>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+                    ))}
+                  </RadioGroup>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
         />
 
         {form.watch("dimensionType").startsWith("area") && (
@@ -685,6 +801,7 @@ export function NewItemForm({
                   <FormControl>
                     <NumericInput
                       className="peer text-center"
+                      suffix="cm"
                       {...field}
                       value={field.value ?? ""}
                       onChange={(e) => {
@@ -713,6 +830,7 @@ export function NewItemForm({
                   <FormControl>
                     <NumericInput
                       className="peer text-center"
+                      suffix="cm"
                       {...field}
                       value={field.value ?? ""}
                       onChange={(e) => {
@@ -904,67 +1022,80 @@ export function NewItemForm({
 
   if (isDesktop) {
     return (
-      <div
-        id="estimate-add-item-form"
-        className={`print:hidden fixed bottom-4 right-4 z-50 bg-background border rounded-lg p-4 shadow-lg max-h-[calc(100vh-4rem)] flex flex-col ${attachedTemplate ? 'w-[95vw] max-w-7xl' : 'w-[400px]'}`}
-      >
-        <div className="mb-4 flex-shrink-0">
-          <h3 className="text-lg font-semibold">
-            {editingItem ? t("editItem") : t("title")}
-          </h3>
-        </div>
-        <div className="flex-grow overflow-y-auto pr-2">{combinedContent}</div>
-        <div className="flex justify-end gap-2 mt-4 flex-shrink-0">
-          {!editingItem && !attachedTemplate && (
-            <div className="mr-auto">
-              <TemplateGalleryModal journalId={journalId} onSelectTemplate={handleSelectTemplate} disabled={!canAdd} />
-            </div>
-          )}
-          {editingItem && onCancelEdit && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                form.reset(defaultFormValues);
-                setAttachedTemplate(null);
-                onCancelEdit();
-              }}
-            >
-              {t("cancel")}
-            </Button>
-          )}
-          {!editingItem && attachedTemplate && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                form.reset(defaultFormValues);
-                setAttachedTemplate(null);
-              }}
-            >
-              Clear Template
-            </Button>
-          )}
-          <Button
-            type="submit"
-            form={formId}
-            disabled={isSubmitting || !canAdd}
-            variant={"brutalist"}
-            title={!canAdd ? t("permissionDenied") : ""}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("saving")}
-              </>
-            ) : (
-              <>
-                <Plus className="mr-2" size={16} />
-                {editingItem ? t("updateItem") : t("addItem")}
-              </>
+      <>
+        <div
+          id="estimate-add-item-form"
+          className={`print:hidden fixed bottom-4 right-4 z-50 bg-background border rounded-lg p-4 shadow-lg max-h-[calc(100vh-4rem)] flex flex-col ${attachedTemplate ? 'w-[95vw] max-w-7xl' : 'w-[400px]'}`}
+        >
+          <div className="mb-4 flex-shrink-0">
+            <h3 className="text-lg font-semibold">
+              {editingItem ? t("editItem") : t("title")}
+            </h3>
+          </div>
+          <div className="flex-grow overflow-y-auto pr-2">{combinedContent}</div>
+          <div className="flex justify-end gap-2 mt-4 flex-shrink-0">
+            {editingItem && onCancelEdit && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  form.reset(defaultFormValues);
+                  setAttachedTemplate(null);
+                  onCancelEdit();
+                }}
+              >
+                {t("cancel")}
+              </Button>
             )}
-          </Button>
+            {!editingItem && attachedTemplate && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  form.reset(defaultFormValues);
+                  setAttachedTemplate(null);
+                }}
+              >
+                Clear Template
+              </Button>
+            )}
+            <Button
+              type="submit"
+              form={formId}
+              disabled={isSubmitting || !canAdd}
+              variant={"brutalist"}
+              title={!canAdd ? t("permissionDenied") : ""}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t("saving")}
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2" size={16} />
+                  {editingItem ? t("updateItem") : t("addItem")}
+                </>
+              )}
+            </Button>
+          </div>
         </div>
-      </div>
+
+        {/* Controlled gallery modal — opened when user clicks "Gallery" radio */}
+        <TemplateGalleryModal
+          journalId={journalId}
+          onSelectTemplate={handleSelectTemplate}
+          disabled={!canAdd}
+          open={isGalleryOpen}
+          onOpenChange={(open) => {
+            setIsGalleryOpen(open);
+          if (!open && templateJustSelectedRef.current) {
+              templateJustSelectedRef.current = false;
+            } else if (!open && !attachedTemplate) {
+              form.setValue("itemCategory", "none");
+            }
+          }}
+        />
+      </>
     );
   }
 
@@ -984,22 +1115,17 @@ export function NewItemForm({
         }}
       >
         {!editingItem && (
-          <div className="flex gap-2 w-full">
-            <DialogTrigger asChild>
-              <Button
-                size="sm"
-                className="w-full gap-2 print:hidden"
-                variant={"brutalist"}
-                disabled={!canAdd}
-                title={!canAdd ? t("permissionDenied") : ""}
-              >
-                <PackagePlus size={16} /> {t("title")}
-              </Button>
-            </DialogTrigger>
-            <div className="w-full">
-              <TemplateGalleryModal journalId={journalId} onSelectTemplate={handleSelectTemplate} disabled={!canAdd} />
-            </div>
-          </div>
+          <DialogTrigger asChild>
+            <Button
+              size="sm"
+              className="w-full gap-2 print:hidden"
+              variant={"brutalist"}
+              disabled={!canAdd}
+              title={!canAdd ? t("permissionDenied") : ""}
+            >
+              <PackagePlus size={16} /> {t("title")}
+            </Button>
+          </DialogTrigger>
         )}
         <DialogContent className={`${attachedTemplate ? 'max-w-[95vw] xl:max-w-7xl max-h-[90vh]' : 'max-w-md max-h-[90vh]'} flex flex-col overflow-hidden`}>
           <DialogHeader className="flex-shrink-0">
@@ -1054,6 +1180,23 @@ export function NewItemForm({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Controlled gallery modal — opened when user clicks "Gallery" radio */}
+      <TemplateGalleryModal
+        journalId={journalId}
+        onSelectTemplate={handleSelectTemplate}
+        disabled={!canAdd}
+        open={isGalleryOpen}
+        onOpenChange={(open) => {
+          setIsGalleryOpen(open);
+          // If user dismissed the gallery without selecting a template, revert to "none"
+          if (!open && templateJustSelectedRef.current) {
+            templateJustSelectedRef.current = false;
+          } else if (!open && !attachedTemplate) {
+            form.setValue("itemCategory", "none");
+          }
+        }}
+      />
     </div>
   );
 }
