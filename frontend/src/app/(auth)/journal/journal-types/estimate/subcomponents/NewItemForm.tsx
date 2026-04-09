@@ -388,7 +388,7 @@ export function NewItemForm({
           currency: currency,
           labor: null,
         },
-        itemCategory: values.itemCategory !== "none" ? values.itemCategory : undefined,
+        itemCategory: values.itemCategory,
         attachedTemplate: attachedTemplate,
       };
     },
