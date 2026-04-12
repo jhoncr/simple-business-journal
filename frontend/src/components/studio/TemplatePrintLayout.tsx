@@ -267,23 +267,46 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
           {/* Section 2: Window Sill / Tile Edge Drawing Items */}
           {drawingItems.length > 0 && (
             <div className={`td-drawing-page px-4 pb-4 flex flex-col`} style={{ minHeight: '196mm' }}>
-              {renderPageHeader()}
+              <table className="w-full">
+                <thead className="table-header-group">
+                  <tr>
+                    <th className="pt-2 pb-2 font-normal text-left bg-white">
+                      {renderPageHeader()}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    {/* Move Section 1 header here */}
+                  </tr>
+                  <tr>
+                    <td className="p-0 align-top">
+                      <div className="border rounded overflow-hidden border-gray-300 flex flex-col mt-2">
+                        <div className="td-item-header bg-gray-100 px-3 py-1 border-b border-gray-300">
+                          <div className="flex items-center gap-2 justify-between">
+                            <p className="text-xs font-bold text-gray-800 uppercase tracking-wide">
+                              {drawingItems.length} item(s)
+                            </p>
+                            <span className="text-[11px] text-gray-700">
+                              {t("quickPrintDimensions") || "Dimensions in centimeters (cm)"}
+                            </span>
+                          </div>
+                        </div>
 
-              <div className="border rounded overflow-hidden border-gray-300 flex-1 flex flex-col mt-2">
-                <div className="td-item-header bg-gray-100 px-3 py-1 border-b border-gray-300">
-                  <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wide">
-                    {t("quickPrintDimensions") || "Technical Drawings"} — {drawingItems.length} item(s)
-                  </h3>
-                </div>
-
-                <div className="bg-white p-4 flex-1">
-                  {drawingItems.map((drawingItem) => (
-                    <div key={drawingItem.id} className="td-drawing-group mb-6">
-                      <RectangleViewer rectangles={drawingItem.rectangles} />
-                    </div>
-                  ))}
-                </div>
-              </div>
+                        {/* <div className="bg-white p-4">
+                          {drawingItems.map((drawingItem) => (
+                            <div key={drawingItem.id} className="td-drawing-group mb-6">
+                              <RectangleViewer rectangles={drawingItem.rectangles} />
+                            </div>
+                          ))}
+                        </div> */}
+                        {/* add all rectables as group "test" */}
+                        <RectangleViewer rectangles={drawingItems.flatMap((item) => item.rectangles.map((rect) => ({ ...rect, groupId: null })))} />
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           )}
         </div>

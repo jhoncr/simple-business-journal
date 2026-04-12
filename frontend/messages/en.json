@@ -170,7 +170,7 @@
     "printDrawing": "Print Drawing",
     "quickPrintTip": "Tip:",
     "quickPrintTipDescription": "Enable \"Background graphics\" in print settings.",
-    "quickPrintDimensions": "Dimensions:",
+    "quickPrintDimensions": "Dimensions in centimeters (cm)",
     "companyLogo": "Company",
     "logo": "logo",
     "defaultCompanyName": "Acme Industries",

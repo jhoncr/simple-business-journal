@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState, useEffect } from "react";
+import React, { useMemo } from "react";
 
 export interface RectangleData {
   id: string | number;
@@ -22,42 +22,43 @@ interface RectangleViewerProps {
   rectangles: RectangleData[];
 }
 
-export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState<number>(0);
+function groupRectanglesIntoRows(
+  rectangles: RectangleData[],
+  maxRowCapacityCm: number = 400
+): RectangleData[][] {
+  const sortedRectangles = [...rectangles].sort((a, b) => {
+    const lengthA = Math.max(a.width, a.length);
+    const lengthB = Math.max(b.width, b.length);
+    return lengthB - lengthA;
+  });
 
-  useEffect(() => {
-    if (!containerRef.current) return;
+  const rows: RectangleData[][] = [];
+  const remainingSpacePerRow: number[] = [];
 
-    // Initial width
-    setContainerWidth(containerRef.current.getBoundingClientRect().width);
+  for (const rect of sortedRectangles) {
+    const rectLength = Math.max(rect.width, rect.length);
+    let placed = false;
 
-    const observer = new ResizeObserver((entries) => {
-      for (let entry of entries) {
-        setContainerWidth(entry.contentRect.width);
+    for (let i = 0; i < rows.length; i++) {
+      if (remainingSpacePerRow[i] >= rectLength) {
+        rows[i].push(rect);
+        remainingSpacePerRow[i] -= rectLength;
+        placed = true;
+        break;
       }
-    });
+    }
 
-    observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, []);
+    if (!placed) {
+      rows.push([rect]);
+      const spaceLeft = Math.max(0, maxRowCapacityCm - rectLength);
+      remainingSpacePerRow.push(spaceLeft);
+    }
+  }
 
-  const scale = useMemo(() => {
-    if (!rectangles || rectangles.length === 0 || containerWidth === 0) return 1;
+  return rows;
+}
 
-    // Find the max dimension among all rectangles to ensure all fit proportionately
-    const maxDimensionCM = rectangles.reduce((max, r) => {
-      const currentMax = Math.max(r.length, r.width);
-      return currentMax > max ? currentMax : max;
-    }, 0);
-
-    // Dynamic padding: use ~80% of container width to be visually appealing
-    // We limit max base representation to 600px unless screen is small
-    const availablePixels = Math.min(containerWidth * 0.8, 600);
-
-    return maxDimensionCM > 0 ? availablePixels / maxDimensionCM : 1;
-  }, [rectangles, containerWidth]);
-
+export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles }) => {
   if (!rectangles || rectangles.length === 0) {
     return (
       <div className="flex justify-center items-center w-full min-h-[400px] border-2 border-dashed border-border rounded-md">
@@ -66,25 +67,24 @@ export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles }) 
     );
   }
 
-  // Group by groupId to map rows if applicable; ungrouped ones go into their own arrays.
-  const groupedRectangles = useMemo(() => {
+  // Group by groupId to map rows; items without a groupId are grouped together.
+  const groupedRectangleRows = useMemo(() => {
     if (!rectangles) return [];
 
-    // Maintain insertion order by detecting group changes. Wait, better to just map by unique IDs
-    // but the input is already ordered. We can group adjacent items together by groupId.
     const groups: RectangleData[][] = [];
-    let currentGroupId: string | null = null;
+    let currentGroupId: string | null | undefined = undefined;
     let currentGroup: RectangleData[] = [];
 
     for (const rect of rectangles) {
-      if (rect.groupId && rect.groupId === currentGroupId) {
+      const gId = rect.groupId || null;
+      if (gId === currentGroupId) {
         currentGroup.push(rect);
       } else {
         if (currentGroup.length > 0) {
           groups.push(currentGroup);
         }
         currentGroup = [rect];
-        currentGroupId = rect.groupId || null;
+        currentGroupId = gId;
       }
     }
 
@@ -92,45 +92,33 @@ export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles }) 
       groups.push(currentGroup);
     }
 
-    // Sort each group so rectangles pack better horizontally
-    return groups.map((group) => {
-      return group.sort((a, b) => {
-        // Compare by the short side ascending (narrow rectangles first)
-        const aShortSide = Math.min(a.width, a.length);
-        const bShortSide = Math.min(b.width, b.length);
-
-        if (aShortSide !== bShortSide) {
-          return aShortSide - bShortSide;
-        }
-
-        // Compare by the long side descending (long rectangles first for the same width)
-        const aLongSide = Math.max(a.width, a.length);
-        const bLongSide = Math.max(b.width, b.length);
-
-        return bLongSide - aLongSide;
-      });
-    });
+    return groups.map((group) => groupRectanglesIntoRows(group, 400));
   }, [rectangles]);
 
   return (
-    <div ref={containerRef} className="w-full flex flex-col items-center gap-16 py-8 overflow-hidden print:overflow-visible print:flex print:gap-8 print:p-0 print:[--print-scale:0.55]">
-      {groupedRectangles.map((group, index) => {
-        const groupLabel = group.find(r => r.label)?.label;
+    <div className="w-full flex flex-col items-center gap-16 py-8 overflow-hidden print:overflow-visible print:block print:p-0">
+      {groupedRectangleRows.map((groupRows, index) => {
+        const groupLabel = groupRows[0]?.[0]?.groupId && groupRows[0]?.[0]?.label
 
         return (
           <div
             key={index}
-            className={`flex flex-col items-center w-full gap-8 ${index < groupedRectangles.length - 1 ? "border-b pb-12 border-border" : ""} print:flex print:flex-col print:gap-6 print:p-0 print:border-none print:break-inside-avoid print:mb-8`}
+            className={`flex flex-col items-center w-full gap-8 ${index < groupedRectangleRows.length - 1 ? "border-b pb-12 border-border print:border-b-0 print:pb-0" : ""} print:block print:p-0 print:border-none print:break-inside-avoid print:mb-8`}
           >
             {groupLabel && (
-              <h3 className="text-xl font-bold bg-muted/30 px-6 py-2 text-foreground text-start uppercase tracking-wide w-full print:bg-transparent print:text-black print:p-0 print:mb-2 text-sm">
+              <h3 className="font-bold bg-muted/30 text-foreground text-start uppercase tracking-wide w-full print:bg-transparent print:text-black print:p-0 print:mb-2 text-sm">
                 {groupLabel}
               </h3>
             )}
-            <div className="flex flex-wrap gap-12 items-end justify-center w-full print:flex print:flex-wrap print:gap-8 print:items-end print:justify-center print:p-0">
-              {group.map((rect) => (
-                <div key={rect.id} className="print:m-2">
-                  <DynamicRectangle rect={rect} scale={scale} />
+            <div className="flex flex-col w-full gap-12 print:gap-8 print:w-full">
+              {groupRows.map((row, rowIndex) => (
+                <div
+                  key={rowIndex}
+                  className="flex flex-row items-end justify-start w-full gap-6 print:gap-4 border-b border-gray-200 pb-4 print:border-b-0 print:pb-0"
+                >
+                  {row.map((rect) => (
+                    <DynamicRectangle key={rect.id} rect={rect} />
+                  ))}
                 </div>
               ))}
             </div>
@@ -143,34 +131,43 @@ export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles }) 
 
 interface DynamicRectangleProps {
   rect: RectangleData;
-  scale: number;
 }
 
-const DynamicRectangle: React.FC<DynamicRectangleProps> = ({ rect, scale }) => {
+const DynamicRectangle: React.FC<DynamicRectangleProps> = ({ rect }) => {
   const {
     length,
     width,
     fillColor = "lightgray",
     strokeColor = "black",
-    label,
     hasCrossTop,
     hasCrossRight,
     hasCrossBottom,
     hasCrossLeft,
     hasLeftCornerCrosses,
-    hasStroke = true
+    hasStroke = true,
+    label,
+    groupId
   } = rect;
 
   const isRotated = length > width;
   const renderWidth = isRotated ? length : width;
   const renderHeight = isRotated ? width : length;
 
-  const displayWidth = renderWidth * scale;
-  const displayHeight = renderHeight * scale;
+  const longerSide = Math.max(width, length);
+  // Calculate width percentage: 25% per 100cm, capped at 100%
+  const calculatedWidthPercentage = Math.min((longerSide / 100) * 25, 100);
 
   return (
-    <div className="flex flex-col items-start gap-3 print:flex print:p-0">
-      <div className="relative mt-2 mb-8 mr-2 ml-10 print:m-4 print:p-0 print:overflow-visible">
+    <div
+      className="flex flex-col items-end gap-1 print:flex print:p-0"
+      style={{ width: `${calculatedWidthPercentage}%`, minWidth: '40px' }}
+    >
+      {label && label !== groupId && (
+        <div className="w-[calc(100%-5rem)] ml-12 mr-8 text-left text-sm font-semibold text-foreground print:text-black whitespace-nowrap print:w-[calc(100%-4.5rem)] print:ml-10 print:mr-8">
+          {label}: {renderHeight} x {renderWidth}
+        </div>
+      )}
+      <div className="relative mt-2 mb-8 mr-8 w-[calc(100%-5rem)] ml-12 print:mt-4 print:mb-4 print:mr-8 print:w-[calc(100%-4.5rem)] print:ml-10 print:px-0 print:overflow-visible">
         <DimensionLabel
           value={renderHeight}
           positionClass="top-1/2 -left-4 -translate-x-full -translate-y-1/2"
@@ -180,7 +177,6 @@ const DynamicRectangle: React.FC<DynamicRectangleProps> = ({ rect, scale }) => {
           positionClass="left-1/2 -bottom-2 -translate-x-1/2 translate-y-full"
         />
 
-        {/* Optional Cross Markers */}
         {(isRotated ? hasCrossLeft : hasCrossTop) && (
           <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-4 text-sm text-foreground font-bold leading-none z-10 w-4 h-4 flex items-center justify-center bg-background/70 backdrop-blur-sm rounded-full pointer-events-none print:text-black print:bg-transparent">
             ×
@@ -202,7 +198,6 @@ const DynamicRectangle: React.FC<DynamicRectangleProps> = ({ rect, scale }) => {
           </div>
         )}
 
-        {/* Left Corner Cross Markers - Displayed together */}
         {hasLeftCornerCrosses && (
           isRotated ? (
             <>
@@ -226,46 +221,43 @@ const DynamicRectangle: React.FC<DynamicRectangleProps> = ({ rect, scale }) => {
         )}
 
         <svg
-          style={{
-            width: `calc(${displayWidth}px * var(--print-scale, 1))`,
-            height: `calc(${displayHeight}px * var(--print-scale, 1))`
-          }}
-          viewBox={`0 0 ${displayWidth} ${displayHeight}`}
+          viewBox={`0 0 ${renderWidth} ${renderHeight}`}
           xmlns="http://www.w3.org/2000/svg"
-          className="transition-all duration-300 ease-in-out print:overflow-visible"
+          className="w-full h-auto transition-all duration-300 ease-in-out print:overflow-visible"
         >
-          {/* Background Rectangle */}
           <rect
             width="100%"
             height="100%"
             fill={fillColor}
             stroke={strokeColor}
             strokeWidth="2"
+            vectorEffect="non-scaling-stroke"
           />
 
-          {/* Vertical Dotted Line */}
           {hasStroke && (
             isRotated ? (
               <line
                 x1="0%"
                 x2="100%"
-                y1={Math.max(displayHeight * 0.1, 8)}
-                y2={Math.max(displayHeight * 0.1, 8)}
+                y1={Math.max(Math.min(renderHeight, renderWidth) * 0.2, 4)}
+                y2={Math.max(Math.min(renderHeight, renderWidth) * 0.2, 4)}
                 stroke={strokeColor}
                 strokeOpacity={0.6}
                 strokeWidth="2"
                 strokeDasharray="4 4"
+                vectorEffect="non-scaling-stroke"
               />
             ) : (
               <line
-                x1={Math.max(displayWidth * 0.1, 8)}
-                x2={Math.max(displayWidth * 0.1, 8)}
+                x1={Math.max(Math.min(renderHeight, renderWidth) * 0.2, 4)}
+                x2={Math.max(Math.min(renderHeight, renderWidth) * 0.2, 4)}
                 y1="0%"
                 y2="100%"
                 stroke={strokeColor}
                 strokeOpacity={0.6}
                 strokeWidth="2"
                 strokeDasharray="4 4"
+                vectorEffect="non-scaling-stroke"
               />
             )
           )}
