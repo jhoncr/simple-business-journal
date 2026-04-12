@@ -15,11 +15,12 @@ export interface RectangleData {
   hasCrossLeft?: boolean;
   hasLeftCornerCrosses?: boolean;
   hasStroke?: boolean;
-  groupId?: string;
+  groupId?: string | null;
 }
 
 interface RectangleViewerProps {
   rectangles: RectangleData[];
+  header?: React.ReactNode;
 }
 
 function groupRectanglesIntoRows(
@@ -58,19 +59,33 @@ function groupRectanglesIntoRows(
   return rows;
 }
 
-export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles }) => {
+export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles, header }) => {
   if (!rectangles || rectangles.length === 0) {
     return (
-      <div className="flex justify-center items-center w-full min-h-[400px] border-2 border-dashed border-border rounded-md">
-        <p className="text-muted-foreground">No rectangles to display</p>
-      </div>
+      <table className="w-full">
+        {header && (
+          <thead className="table-header-group">
+            <tr>
+              <th className="font-normal text-left bg-white p-0">
+                {header}
+              </th>
+            </tr>
+          </thead>
+        )}
+        <tbody>
+          <tr>
+            <td className="p-0">
+              <div className="flex justify-center items-center w-full min-h-[400px] border-2 border-dashed border-border rounded-md mt-4">
+                <p className="text-muted-foreground">No rectangles to display</p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     );
   }
 
-  // Group by groupId to map rows; items without a groupId are grouped together.
   const groupedRectangleRows = useMemo(() => {
-    if (!rectangles) return [];
-
     const groups: RectangleData[][] = [];
     let currentGroupId: string | null | undefined = undefined;
     let currentGroup: RectangleData[] = [];
@@ -80,60 +95,83 @@ export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles }) 
       if (gId === currentGroupId) {
         currentGroup.push(rect);
       } else {
-        if (currentGroup.length > 0) {
-          groups.push(currentGroup);
-        }
+        if (currentGroup.length > 0) groups.push(currentGroup);
         currentGroup = [rect];
         currentGroupId = gId;
       }
     }
 
-    if (currentGroup.length > 0) {
-      groups.push(currentGroup);
-    }
+    if (currentGroup.length > 0) groups.push(currentGroup);
 
     return groups.map((group) => groupRectanglesIntoRows(group, 400));
   }, [rectangles]);
 
   return (
-    <div className="w-full flex flex-col items-center gap-16 py-8 overflow-hidden print:overflow-visible print:block print:p-0">
-      {groupedRectangleRows.map((groupRows, index) => {
-        const groupLabel = groupRows[0]?.[0]?.groupId && groupRows[0]?.[0]?.label
+    <table className="w-full border-collapse print:border-none">
+      {header && (
+        <thead className="table-header-group">
+          <tr>
+            <th className="font-normal text-left bg-white print:bg-white p-0 align-bottom">
+              {header}
+            </th>
+          </tr>
+        </thead>
+      )}
+      <tbody>
+        {groupedRectangleRows.map((groupRows, index) => {
+          const groupLabel = groupRows[0]?.[0]?.groupId && groupRows[0]?.[0]?.label;
 
-        return (
-          <div
-            key={index}
-            className={`flex flex-col items-center w-full gap-8 ${index < groupedRectangleRows.length - 1 ? "border-b pb-12 border-border print:border-b-0 print:pb-0" : ""} print:block print:p-0 print:border-none print:break-inside-avoid print:mb-8`}
-          >
-            {groupLabel && (
-              <h3 className="font-bold bg-muted/30 text-foreground text-start uppercase tracking-wide w-full print:bg-transparent print:text-black print:p-0 print:mb-2 text-sm">
-                {groupLabel}
-              </h3>
-            )}
-            <div className="flex flex-col w-full gap-12 print:gap-8 print:w-full">
+          return (
+            <React.Fragment key={index}>
+              {groupLabel && (
+                <tr className="print:break-inside-avoid">
+                  <td className="p-0">
+                    <h3 className="font-bold bg-muted/30 text-foreground text-start uppercase tracking-wide w-full print:bg-transparent print:text-black print:p-0 print:mb-2 text-sm mt-8">
+                      {groupLabel}
+                    </h3>
+                  </td>
+                </tr>
+              )}
               {groupRows.map((row, rowIndex) => (
-                <div
-                  key={rowIndex}
-                  className="flex flex-row items-end justify-start w-full gap-6 print:gap-4 border-b border-gray-200 pb-4 print:border-b-0 print:pb-0"
+                <tr
+                  key={`${index}-${rowIndex}`}
+                  className="print:break-inside-avoid"
                 >
-                  {row.map((rect) => (
-                    <DynamicRectangle key={rect.id} rect={rect} />
-                  ))}
-                </div>
+                  <td className="p-0 align-bottom">
+                    <div className={`flex flex-row items-end justify-start w-full gap-6 print:gap-4 pt-6 pb-6 print:py-4 ${rowIndex < groupRows.length - 1 ? 'border-b border-gray-200 print:border-b-0' : ''}`}>
+                      {row.map((rect) => (
+                        <DynamicRectangle key={rect.id} rect={rect} />
+                      ))}
+                    </div>
+                  </td>
+                </tr>
               ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
+            </React.Fragment>
+          );
+        })}
+      </tbody>
+    </table>
   );
 };
 
-interface DynamicRectangleProps {
-  rect: RectangleData;
-}
+// --- Sub-components ---
 
-const DynamicRectangle: React.FC<DynamicRectangleProps> = ({ rect }) => {
+const CrossMark: React.FC<{ className: string }> = ({ className }) => (
+  <div
+    className={`absolute text-sm text-foreground font-bold leading-none z-10 w-4 h-4 flex items-center justify-center bg-background/70 backdrop-blur-sm rounded-full pointer-events-none print:text-black print:bg-transparent ${className}`}
+  >
+    ×
+  </div>
+);
+
+const DimensionLabel: React.FC<{ value: number; positionClass: string }> = ({ value, positionClass }) => (
+  <div className={`absolute flex flex-col items-end justify-center text-sm text-foreground whitespace-nowrap ${positionClass} print:text-black`}>
+    <span className="leading-none print:text-black">{value}</span>
+    <span className="text-[10px] leading-none text-muted-foreground print:text-black">cm</span>
+  </div>
+);
+
+const DynamicRectangle: React.FC<{ rect: RectangleData }> = ({ rect }) => {
   const {
     length,
     width,
@@ -154,13 +192,12 @@ const DynamicRectangle: React.FC<DynamicRectangleProps> = ({ rect }) => {
   const renderHeight = isRotated ? width : length;
 
   const longerSide = Math.max(width, length);
-  // Calculate width percentage: 25% per 100cm, capped at 100%
   const calculatedWidthPercentage = Math.min((longerSide / 100) * 25, 100);
 
   return (
     <div
       className="flex flex-col items-end gap-1 print:flex print:p-0"
-      style={{ width: `${calculatedWidthPercentage}%`, minWidth: '160px' }}
+      style={{ width: `${calculatedWidthPercentage}%`, minWidth: "160px" }}
     >
       {label && label !== groupId && (
         <div className="w-[calc(100%-6rem)] ml-16 mr-8 text-left text-xs font-semibold text-foreground print:text-black whitespace-normal break-words print:w-[calc(100%-5rem)] print:ml-12 print:mr-8">
@@ -169,115 +206,46 @@ const DynamicRectangle: React.FC<DynamicRectangleProps> = ({ rect }) => {
       )}
 
       <div className="relative mt-2 mb-8 mr-8 w-[calc(100%-6rem)] ml-16 print:mt-4 print:mb-4 print:mr-8 print:w-[calc(100%-5rem)] print:ml-12 print:px-0 print:overflow-visible">
-        <DimensionLabel
-          value={renderHeight}
-          positionClass="top-1/2 -left-4 -translate-x-full -translate-y-1/2"
-        />
-        <DimensionLabel
-          value={renderWidth}
-          positionClass="left-1/2 -bottom-2 -translate-x-1/2 translate-y-full"
-        />
+        <DimensionLabel value={renderHeight} positionClass="top-1/2 -left-4 -translate-x-full -translate-y-1/2" />
+        <DimensionLabel value={renderWidth} positionClass="left-1/2 -bottom-2 -translate-x-1/2 translate-y-full" />
 
-        {(isRotated ? hasCrossLeft : hasCrossTop) && (
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-4 text-sm text-foreground font-bold leading-none z-10 w-4 h-4 flex items-center justify-center bg-background/70 backdrop-blur-sm rounded-full pointer-events-none print:text-black print:bg-transparent">
-            ×
-          </div>
-        )}
-        {(isRotated ? hasCrossTop : hasCrossRight) && (
-          <div className="absolute top-1/2 right-0 translate-x-4 -translate-y-1/2 text-sm text-foreground font-bold leading-none z-10 w-4 h-4 flex items-center justify-center bg-background/70 backdrop-blur-sm rounded-full pointer-events-none print:text-black print:bg-transparent">
-            ×
-          </div>
-        )}
-        {(isRotated ? hasCrossRight : hasCrossBottom) && (
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-4 text-sm text-foreground font-bold leading-none z-10 w-4 h-4 flex items-center justify-center bg-background/70 backdrop-blur-sm rounded-full pointer-events-none print:text-black print:bg-transparent">
-            ×
-          </div>
-        )}
-        {(isRotated ? hasCrossBottom : hasCrossLeft) && (
-          <div className="absolute top-1/2 left-0 -translate-x-4 -translate-y-1/2 text-sm text-foreground font-bold leading-none z-10 w-4 h-4 flex items-center justify-center bg-background/70 backdrop-blur-sm rounded-full pointer-events-none print:text-black print:bg-transparent">
-            ×
-          </div>
-        )}
+        {(isRotated ? hasCrossLeft : hasCrossTop) && <CrossMark className="top-0 left-1/2 -translate-x-1/2 -translate-y-4" />}
+        {(isRotated ? hasCrossTop : hasCrossRight) && <CrossMark className="top-1/2 right-0 translate-x-4 -translate-y-1/2" />}
+        {(isRotated ? hasCrossRight : hasCrossBottom) && <CrossMark className="bottom-0 left-1/2 -translate-x-1/2 translate-y-4" />}
+        {(isRotated ? hasCrossBottom : hasCrossLeft) && <CrossMark className="top-1/2 left-0 -translate-x-4 -translate-y-1/2" />}
 
-        {hasLeftCornerCrosses && (
-          isRotated ? (
+        {hasLeftCornerCrosses &&
+          (isRotated ? (
             <>
-              <div className="absolute top-[5%] left-0 -translate-x-4 -translate-y-1/2 text-sm text-foreground font-bold leading-none z-10 w-4 h-4 flex items-center justify-center bg-background/70 backdrop-blur-sm rounded-full pointer-events-none print:text-black print:bg-transparent">
-                ×
-              </div>
-              <div className="absolute top-[5%] right-0 translate-x-4 -translate-y-1/2 text-sm text-foreground font-bold leading-none z-10 w-4 h-4 flex items-center justify-center bg-background/70 backdrop-blur-sm rounded-full pointer-events-none print:text-black print:bg-transparent">
-                ×
-              </div>
+              <CrossMark className="top-[5%] left-0 -translate-x-4 -translate-y-1/2" />
+              <CrossMark className="top-[5%] right-0 translate-x-4 -translate-y-1/2" />
             </>
           ) : (
             <>
-              <div className="absolute top-0 left-[5%] -translate-x-1/2 -translate-y-4 text-sm text-foreground font-bold leading-none z-10 w-4 h-4 flex items-center justify-center bg-background/70 backdrop-blur-sm rounded-full pointer-events-none print:text-black print:bg-transparent">
-                ×
-              </div>
-              <div className="absolute bottom-0 left-[5%] -translate-x-1/2 translate-y-4 text-sm text-foreground font-bold leading-none z-10 w-4 h-4 flex items-center justify-center bg-background/70 backdrop-blur-sm rounded-full pointer-events-none print:text-black print:bg-transparent">
-                ×
-              </div>
+              <CrossMark className="top-0 left-[5%] -translate-x-1/2 -translate-y-4" />
+              <CrossMark className="bottom-0 left-[5%] -translate-x-1/2 translate-y-4" />
             </>
-          )
-        )}
+          ))}
 
-        <svg
-          viewBox={`0 0 ${renderWidth} ${renderHeight}`}
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-full h-auto transition-all duration-300 ease-in-out print:overflow-visible"
-        >
-          <rect
-            width="100%"
-            height="100%"
-            fill={fillColor}
-            stroke={strokeColor}
-            strokeWidth="2"
-            vectorEffect="non-scaling-stroke"
-          />
-
+        <svg viewBox={`0 0 ${renderWidth} ${renderHeight}`} xmlns="http://www.w3.org/2000/svg" className="w-full h-auto transition-all duration-300 ease-in-out print:overflow-visible">
+          <rect width="100%" height="100%" fill={fillColor} stroke={strokeColor} strokeWidth="2" vectorEffect="non-scaling-stroke" />
           {hasStroke && (
-            isRotated ? (
-              <line
-                x1="0%"
-                x2="100%"
-                y1={Math.max(Math.min(renderHeight, renderWidth) * 0.2, 4)}
-                y2={Math.max(Math.min(renderHeight, renderWidth) * 0.2, 4)}
-                stroke={strokeColor}
-                strokeOpacity={0.6}
-                strokeWidth="2"
-                strokeDasharray="4 4"
-                vectorEffect="non-scaling-stroke"
-              />
-            ) : (
-              <line
-                x1={Math.max(Math.min(renderHeight, renderWidth) * 0.2, 4)}
-                x2={Math.max(Math.min(renderHeight, renderWidth) * 0.2, 4)}
-                y1="0%"
-                y2="100%"
-                stroke={strokeColor}
-                strokeOpacity={0.6}
-                strokeWidth="2"
-                strokeDasharray="4 4"
-                vectorEffect="non-scaling-stroke"
-              />
-            )
+            <line
+              x1={isRotated ? "0%" : Math.max(Math.min(renderHeight, renderWidth) * 0.2, 4)}
+              x2={isRotated ? "100%" : Math.max(Math.min(renderHeight, renderWidth) * 0.2, 4)}
+              y1={isRotated ? Math.max(Math.min(renderHeight, renderWidth) * 0.2, 4) : "0%"}
+              y2={isRotated ? Math.max(Math.min(renderHeight, renderWidth) * 0.2, 4) : "100%"}
+              stroke={strokeColor}
+              strokeOpacity={0.6}
+              strokeWidth="2"
+              strokeDasharray="4 4"
+              vectorEffect="non-scaling-stroke"
+            />
           )}
         </svg>
       </div>
     </div>
   );
 };
-
-interface DimensionLabelProps {
-  value: number;
-  positionClass: string;
-}
-
-const DimensionLabel: React.FC<DimensionLabelProps> = ({ value, positionClass }) => (
-  <div className={`absolute flex flex-col items-end justify-center text-sm text-foreground whitespace-nowrap ${positionClass} print:text-black`}>
-    <span className="leading-none print:text-black">{value}</span>
-    <span className="text-[10px] leading-none text-muted-foreground print:text-black">cm</span>
-  </div>
-);
 
 export default RectangleViewer;
