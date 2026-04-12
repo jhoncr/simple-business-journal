@@ -160,14 +160,15 @@ const DynamicRectangle: React.FC<DynamicRectangleProps> = ({ rect }) => {
   return (
     <div
       className="flex flex-col items-end gap-1 print:flex print:p-0"
-      style={{ width: `${calculatedWidthPercentage}%`, minWidth: '40px' }}
+      style={{ width: `${calculatedWidthPercentage}%`, minWidth: '160px' }}
     >
       {label && label !== groupId && (
-        <div className="w-[calc(100%-5rem)] ml-12 mr-8 text-left text-sm font-semibold text-foreground print:text-black whitespace-nowrap print:w-[calc(100%-4.5rem)] print:ml-10 print:mr-8">
+        <div className="w-[calc(100%-6rem)] ml-16 mr-8 text-left text-xs font-semibold text-foreground print:text-black whitespace-normal break-words print:w-[calc(100%-5rem)] print:ml-12 print:mr-8">
           {label}: {renderHeight} x {renderWidth}
         </div>
       )}
-      <div className="relative mt-2 mb-8 mr-8 w-[calc(100%-5rem)] ml-12 print:mt-4 print:mb-4 print:mr-8 print:w-[calc(100%-4.5rem)] print:ml-10 print:px-0 print:overflow-visible">
+
+      <div className="relative mt-2 mb-8 mr-8 w-[calc(100%-6rem)] ml-16 print:mt-4 print:mb-4 print:mr-8 print:w-[calc(100%-5rem)] print:ml-12 print:px-0 print:overflow-visible">
         <DimensionLabel
           value={renderHeight}
           positionClass="top-1/2 -left-4 -translate-x-full -translate-y-1/2"
