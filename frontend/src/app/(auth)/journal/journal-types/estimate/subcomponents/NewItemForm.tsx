@@ -21,10 +21,9 @@ import {
   Package,
   Ban,
   GripHorizontal,
+  RectangleEllipsis,
+  Cuboid,
   RectangleHorizontal,
-  Image as ImageIcon,
-  Square,
-  Ruler,
 } from "lucide-react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useTranslations } from "next-intl";
@@ -595,26 +594,25 @@ export function NewItemForm({
                     {
                       value: "gallery",
                       label: t("itemTypeGallery"),
-                      icon: <ImageIcon className="h-4 w-4" />,
+                      icon: <Cuboid className="h-4 w-4" />,
                     },
                     {
                       value: "window-sill",
                       label: t("itemTypeWindowSill"),
-                      icon: <Square className="h-4 w-4" />,
+                      icon: <RectangleEllipsis className="h-4 w-4" />,
                     },
                     {
                       value: "tile-edge",
                       label: t("itemTypeTileEdge"),
-                      icon: <Ruler className="h-4 w-4" />,
+                      icon: <RectangleHorizontal className="h-4 w-4" />,
                     },
                   ].map((item) => (
                     <div
                       key={item.value}
-                      className={`border-input hover:bg-accent/50 relative flex flex-col items-center justify-center rounded-md border p-2 shadow-xs outline-none ${
-                        field.value === item.value
-                          ? "border-primary border-4 bg-primary/10 shadow-md"
-                          : ""
-                      }`}
+                      className={`border-input hover:bg-accent/50 relative flex flex-col items-center justify-center rounded-md border p-2 shadow-xs outline-none ${field.value === item.value
+                        ? "border-primary border-4 bg-primary/10 shadow-md"
+                        : ""
+                        }`}
                     >
                       <RadioGroupItem
                         value={item.value}
@@ -624,11 +622,10 @@ export function NewItemForm({
                       />
                       <Label
                         htmlFor={`category-${item.value}`}
-                        className={`flex h-full w-full cursor-pointer flex-col items-center justify-center gap-2 text-center text-xs ${
-                          field.value === item.value
-                            ? "font-semibold text-primary"
-                            : ""
-                        } ${!canAdd ? "cursor-not-allowed opacity-50" : ""}`}
+                        className={`flex h-full w-full cursor-pointer flex-col items-center justify-center gap-2 text-center text-xs ${field.value === item.value
+                          ? "font-semibold text-primary"
+                          : ""
+                          } ${!canAdd ? "cursor-not-allowed opacity-50" : ""}`}
                       >
                         {item.icon}
                         {item.label}
@@ -758,8 +755,8 @@ export function NewItemForm({
                       <div
                         key={item.value}
                         className={`border-input relative flex flex-col items-center justify-center rounded-md border p-2 shadow-xs outline-none ${field.value === item.value
-                            ? "border-4 bg-primary/10 shadow-md border-primary"
-                            : ""
+                          ? "border-4 bg-primary/10 shadow-md border-primary"
+                          : ""
                           } ${item.isDisabled ? "opacity-50 bg-muted" : "hover:bg-accent/50"}`}
                       >
                         <div className="flex items-center">
@@ -772,8 +769,8 @@ export function NewItemForm({
                           <Label
                             htmlFor={`dim-${item.value}`}
                             className={`flex h-full w-full items-center justify-center gap-2 ${field.value === item.value
-                                ? "font-semibold text-primary"
-                                : ""
+                              ? "font-semibold text-primary"
+                              : ""
                               } ${item.isDisabled ? "cursor-not-allowed" : "cursor-pointer"}`}
                           >
                             {item.icon}
@@ -896,8 +893,8 @@ export function NewItemForm({
                     <div
                       key={item.value}
                       className={`border-input hover:bg-accent/50 relative flex flex-col items-center justify-center border p-1 shadow-xs outline-none ${field.value === item.value
-                          ? "border-primary border-4 bg-primary/10"
-                          : ""
+                        ? "border-primary border-4 bg-primary/10"
+                        : ""
                         }`}
                     >
                       <RadioGroupItem
@@ -909,8 +906,8 @@ export function NewItemForm({
                       <Label
                         htmlFor={`labor-${item.value}`}
                         className={`flex h-full w-full cursor-pointer flex-row items-center justify-center gap-2 p-2 text-center ${field.value === item.value
-                            ? "font-semibold text-primary"
-                            : ""
+                          ? "font-semibold text-primary"
+                          : ""
                           } ${!canAdd ? "cursor-not-allowed opacity-50" : ""}`}
                       >
                         {item.icon}
@@ -1088,7 +1085,7 @@ export function NewItemForm({
           open={isGalleryOpen}
           onOpenChange={(open) => {
             setIsGalleryOpen(open);
-          if (!open && templateJustSelectedRef.current) {
+            if (!open && templateJustSelectedRef.current) {
               templateJustSelectedRef.current = false;
             } else if (!open && !attachedTemplate) {
               form.setValue("itemCategory", "none");

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { EllipsisVertical, ListTree, List, Box } from "lucide-react";
+import { EllipsisVertical, ListTree, List, RectangleEllipsis, RectangleHorizontal, Cuboid } from "lucide-react";
 import { LineItem } from "@/../../backend/functions/src/common/schemas/estimate_schema";
 import { useTranslations } from "next-intl";
 import {
@@ -34,29 +34,26 @@ interface AggregatedItem extends LineItem {
   total: number;
 }
 
-const AttachedTemplateIndicator = ({ name }: { name?: string }) => {
+const TechnicalDrawingIndicator = ({ category }: { category?: string }) => {
   const t = useTranslations("estimate.itemsList");
 
-  if (!name) return null;
+  if (!category || category === "none") return null;
+
+  const Icon = category === "window-sill" ? RectangleEllipsis : category === "gallery" ? Cuboid : RectangleHorizontal;
 
   return (
-    <div className="mt-1">
-      <TooltipProvider>
-        <Tooltip delayDuration={300}>
-          <TooltipTrigger asChild>
-            <div className="inline-flex items-center gap-1 text-2xs text-muted-foreground bg-secondary/30 px-1.5 py-0.5 rounded-sm w-fit border border-secondary/50">
-              <Box className="h-3 w-3" />
-              <span className="truncate max-w-[150px] sm:max-w-[200px]">
-                {name}
-              </span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            <p>{t("contains3DTemplate")}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    </div>
+    <TooltipProvider>
+      <Tooltip delayDuration={300}>
+        <TooltipTrigger asChild>
+          <div className="inline-flex items-center justify-center shrink-0">
+            <Icon className="h-3 w-3" />
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          <p>{t("hasTechnicalDrawing")}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
@@ -71,7 +68,7 @@ export const ItemsList = ({
 }: ItemsListProps) => {
   const t = useTranslations("estimate.itemsList");
   const [viewType, setViewType] = useState<"expanded" | "aggregated">(
-    "expanded",
+    "aggregated",
   );
 
   const isItemBeingEdited = (item: LineItem) => {
@@ -149,19 +146,19 @@ export const ItemsList = ({
           {aggregatedItems.map((item) => (
             <tr
               key={item.id}
-              className={`border-b border-dashed last:border-0 ${
-                isItemBeingEdited(item)
-                  ? "bg-orange-500/20"
-                  : "bg-secondary/30"
-              }`}
+              className={`border-b border-dashed last:border-0 ${isItemBeingEdited(item)
+                ? "bg-orange-500/20"
+                : "bg-secondary/30"
+                }`}
             >
               <td className="py-1 px-1 align-top">
                 <div className="text-sm leading-snug break-words font-semibold">
                   {item.description}
                 </div>
                 <div className="text-2xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-1">
+                  <TechnicalDrawingIndicator category={item.itemCategory} />
                   {item.material?.dimensions?.type === "area" &&
-                  item.dimensions ? (
+                    item.dimensions ? (
                     <>
                       {item.dimensions.length} × {item.dimensions.width}{" "}
                       {item.material.dimensions.unitLabel}
@@ -181,9 +178,7 @@ export const ItemsList = ({
                     <span>+ {t("headerService")}</span>
                   )}
                 </div>
-                <AttachedTemplateIndicator
-                  name={item.attachedTemplate?.snapshot?.name}
-                />
+
               </td>
               <td className="py-1 px-1 text-right align-top font-semibold">
                 {currencyFormat(item.total)}
@@ -214,8 +209,8 @@ export const ItemsList = ({
                       {editingItem?.id === item.id
                         ? "Editing..."
                         : item.attachedTemplate
-                        ? t("editItemAnd3DModel")
-                        : t("editItem")}
+                          ? t("editItemAnd3DModel")
+                          : t("editItem")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onSelect={(e) => e.preventDefault()}
@@ -268,34 +263,30 @@ export const ItemsList = ({
           {confirmedItems.map((item) => (
             <tr
               key={item.id}
-              className={`border-b border-dashed last:border-0 ${
-                isItemBeingEdited(item)
-                  ? "bg-orange-500/20"
-                  : item.parentId === "root"
+              className={`border-b border-dashed last:border-0 ${isItemBeingEdited(item)
+                ? "bg-orange-500/20"
+                : item.parentId === "root"
                   ? "bg-secondary/30"
                   : "bg-secondary/10"
-              }`}
+                }`}
             >
               <td className="py-1 px-1 align-top">
                 <div
-                  className={`text-sm leading-snug break-words ${
-                    item.parentId !== "root"
-                      ? "font-normal text-muted-foreground"
-                      : "font-semibold"
-                  }`}
+                  className={`text-sm leading-snug break-words ${item.parentId !== "root"
+                    ? "font-normal text-muted-foreground"
+                    : "font-semibold"
+                    }`}
                 >
                   {item.parentId !== "root" && " ↳ "}
                   {item.description}
-                  {item.description &&
-                    (item.material?.description ||
-                      (item.material?.dimensions?.type === "area" &&
-                        item.dimensions)) &&
-                    " "}
-                  <span className="text-2xs text-muted-foreground">
-                    {item.material?.description &&
-                    item.description !== item.material.description &&
-                    item.material?.dimensions?.type === "area" &&
-                    item.dimensions ? (
+
+                  {(() => {
+                    const hasCategory = item.itemCategory && item.itemCategory !== "none";
+
+                    const detailContent = (item.material?.description &&
+                      item.description !== item.material.description &&
+                      item.material?.dimensions?.type === "area" &&
+                      item.dimensions ? (
                       <>
                         {item.material.description}: {item.dimensions.length} ×{" "}
                         {item.dimensions.width}{" "}
@@ -311,12 +302,19 @@ export const ItemsList = ({
                         {item.dimensions.length} × {item.dimensions.width}{" "}
                         {item.material.dimensions.unitLabel}
                       </>
-                    ) : null}
-                  </span>
+                    ) : null);
+
+                    if (!hasCategory && !detailContent) return null;
+
+                    return (
+                      <div className="text-2xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-1">
+                        <TechnicalDrawingIndicator category={item.itemCategory} />
+                        {detailContent && <span>{detailContent}</span>}
+                      </div>
+                    );
+                  })()}
                 </div>
-                <AttachedTemplateIndicator
-                  name={item.attachedTemplate?.snapshot?.name}
-                />
+
               </td>
               <td className="py-1 px-1 text-left align-top">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1 items-start w-min">
@@ -371,8 +369,8 @@ export const ItemsList = ({
                       {editingItem?.id === item.id
                         ? "Editing..."
                         : item.attachedTemplate
-                        ? t("editItemAnd3DModel")
-                        : t("editItem")}
+                          ? t("editItemAnd3DModel")
+                          : t("editItem")}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onSelect={(e) => e.preventDefault()}

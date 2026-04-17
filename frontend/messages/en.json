@@ -207,7 +207,7 @@
       "headerItemTotal": "Subtotal",
       "headerService": "Service",
       "editItemAnd3DModel": "Edit Item & 3D Model",
-      "contains3DTemplate": "Contains 3D Template Configuration"
+      "hasTechnicalDrawing": "Has a technical drawing item"
     }
   },
   "contactInfo": {
