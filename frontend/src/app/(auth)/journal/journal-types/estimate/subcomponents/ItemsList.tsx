@@ -131,7 +131,7 @@ export const ItemsList = ({
   function AggregatedView() {
     return (
       <table className="w-full text-xs">
-        <thead>
+        <thead className="print:table-header-group">
           <tr className="text-2xs text-muted-foreground border-b">
             <th className="text-left py-1 px-1 font-medium">
               {t("headerDescription")}
@@ -146,7 +146,7 @@ export const ItemsList = ({
           {aggregatedItems.map((item) => (
             <tr
               key={item.id}
-              className={`border-b border-dashed last:border-0 ${isItemBeingEdited(item)
+              className={`break-inside-avoid print:break-inside-avoid border-b border-dashed last:border-0 ${isItemBeingEdited(item)
                 ? "bg-orange-500/20"
                 : "bg-secondary/30"
                 }`}
@@ -241,7 +241,7 @@ export const ItemsList = ({
   function ExpandedView() {
     return (
       <table className="w-full text-xs">
-        <thead>
+        <thead className="print:table-header-group">
           <tr className="text-2xs text-muted-foreground border-b">
             <th className="text-left py-1 px-1 font-medium">
               {t("headerDescription")}
@@ -263,7 +263,7 @@ export const ItemsList = ({
           {confirmedItems.map((item) => (
             <tr
               key={item.id}
-              className={`border-b border-dashed last:border-0 ${isItemBeingEdited(item)
+              className={`break-inside-avoid print:break-inside-avoid border-b border-dashed last:border-0 ${isItemBeingEdited(item)
                 ? "bg-orange-500/20"
                 : item.parentId === "root"
                   ? "bg-secondary/30"
