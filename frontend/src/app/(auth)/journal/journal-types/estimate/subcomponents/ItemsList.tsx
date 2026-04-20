@@ -2,12 +2,7 @@ import { Button } from "@/components/ui/button";
 import { EllipsisVertical, ListTree, List, RectangleEllipsis, RectangleHorizontal, Cuboid } from "lucide-react";
 import { LineItem } from "@/../../backend/functions/src/common/schemas/estimate_schema";
 import { useTranslations } from "next-intl";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { ItemActionMenu } from "./ItemActionMenu";
 import {
   Tooltip,
   TooltipContent,
@@ -16,6 +11,51 @@ import {
 } from "@/components/ui/tooltip";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { useState } from "react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+export const getItemDetails = (item: LineItem) => {
+  const hasCategory = item.itemCategory && item.itemCategory !== "none";
+
+  let detailContent = null;
+  if (
+    item.material?.description &&
+    item.description !== item.material.description &&
+    item.material?.dimensions?.type === "area" &&
+    item.dimensions
+  ) {
+    detailContent = (
+      <>
+        {item.material.description}: {item.dimensions.length} ×{" "}
+        {item.dimensions.width} {item.material.dimensions.unitLabel}
+      </>
+    );
+  } else if (
+    item.material?.description &&
+    !item.parentId &&
+    item.description !== item.material.description
+  ) {
+    detailContent = <>{item.material.description}</>;
+  } else if (
+    item.material?.dimensions?.type === "area" &&
+    item.dimensions
+  ) {
+    detailContent = (
+      <>
+        {item.dimensions.length} × {item.dimensions.width}{" "}
+        {item.material.dimensions.unitLabel}
+      </>
+    );
+  }
+
+  return { hasCategory, detailContent };
+};
 
 interface ItemsListProps {
   confirmedItems: LineItem[];
@@ -56,6 +96,7 @@ const TechnicalDrawingIndicator = ({ category }: { category?: string }) => {
     </TooltipProvider>
   );
 };
+
 
 export const ItemsList = ({
   confirmedItems,
@@ -103,55 +144,53 @@ export const ItemsList = ({
   }, [] as AggregatedItem[]);
 
   return (
-    <div className="space-y-2">
-      <ButtonGroup className="float-right print:hidden">
-        <Button
-          variant={viewType === "expanded" ? "default" : "outline"}
-          onClick={() => setViewType("expanded")}
-          size="sm"
-        >
-          {/* {t("viewExpanded")}
-           */}
-          <ListTree className="h-4 w-4" />
-        </Button>
-        <Button
-          variant={viewType === "aggregated" ? "default" : "outline"}
-          onClick={() => setViewType("aggregated")}
-          size="sm"
-        >
-          {/* {t("viewAggregated")}
-           */}
-          <List className="h-4 w-4" />
-        </Button>
-      </ButtonGroup>
+    <div className="flex flex-col mb-2">
+      <div className="flex justify-end print:hidden relative z-10 -mt-[34px] mb-2">
+        <ButtonGroup>
+          <Button
+            variant={viewType === "expanded" ? "default" : "outline"}
+            onClick={() => setViewType("expanded")}
+            size="sm"
+          >
+            <ListTree className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewType === "aggregated" ? "default" : "outline"}
+            onClick={() => setViewType("aggregated")}
+            size="sm"
+          >
+            <List className="h-4 w-4" />
+          </Button>
+        </ButtonGroup>
+      </div>
       {viewType === "expanded" ? <ExpandedView /> : <AggregatedView />}
     </div>
   );
 
   function AggregatedView() {
     return (
-      <table className="w-full text-xs">
-        <thead className="print:table-header-group">
-          <tr className="text-2xs text-muted-foreground border-b">
-            <th className="text-left py-1 px-1 font-medium">
+      <Table className="w-full text-xs">
+        <TableHeader className="print:table-header-group">
+          <TableRow className="text-2xs text-muted-foreground border-b">
+            <TableHead className="text-left py-1 px-1 font-medium">
               {t("headerDescription")}
-            </th>
-            <th className="text-right py-1 px-1 font-medium w-24">
+            </TableHead>
+            <TableHead className="text-right py-1 px-1 font-medium w-24">
               {t("headerTotal")}
-            </th>
-            <th className="w-6 print:hidden"></th>
-          </tr>
-        </thead>
-        <tbody>
+            </TableHead>
+            <TableHead className="w-6 print:hidden"></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {aggregatedItems.map((item) => (
-            <tr
+            <TableRow
               key={item.id}
               className={`break-inside-avoid print:break-inside-avoid border-b border-dashed last:border-0 ${isItemBeingEdited(item)
                 ? "bg-orange-500/20"
-                : "bg-secondary/30"
+                : "bg-muted/50"
                 }`}
             >
-              <td className="py-1 px-1 align-top">
+              <TableCell className="py-2 px-1 align-top">
                 <div className="text-sm leading-snug break-words font-semibold">
                   {item.description}
                 </div>
@@ -179,98 +218,70 @@ export const ItemsList = ({
                   )}
                 </div>
 
-              </td>
-              <td className="py-1 px-1 text-right align-top font-semibold">
+              </TableCell>
+              <TableCell className="py-2 px-1 text-right align-top font-semibold">
                 {currencyFormat(item.total)}
-              </td>
-              <td className="py-1 px-1 print:hidden align-top">
-                <DropdownMenu modal={false}>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      disabled={isSaving || !canUpdate}
-                      className="h-6 w-6"
-                      onAbort={(e) => e.preventDefault()}
-                    >
-                      <EllipsisVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem
-                      onSelect={(e) => e.preventDefault()}
-                      onClick={(e) => {
-                        editItem(item);
-                      }}
-                      disabled={
-                        !canUpdate || item.parentId !== "root" || !!editingItem
-                      }
-                    >
-                      {editingItem?.id === item.id
-                        ? "Editing..."
-                        : item.attachedTemplate
-                          ? t("editItemAnd3DModel")
-                          : t("editItem")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={(e) => e.preventDefault()}
-                      onClick={() => removeConfirmedItem(item.id)}
-                    >
-                      {t("removeItem")}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </td>
-            </tr>
+              </TableCell>
+              <TableCell className="py-2 px-1 print:hidden align-top">
+                <ItemActionMenu
+                  item={item}
+                  editItem={editItem}
+                  removeConfirmedItem={removeConfirmedItem}
+                  editingItem={editingItem}
+                  canUpdate={canUpdate}
+                  isSaving={isSaving}
+                />
+              </TableCell>
+            </TableRow>
           ))}
           {confirmedItems.length === 0 && (
-            <tr>
-              <td
+            <TableRow>
+              <TableCell
                 colSpan={3}
                 className="text-center py-3 text-xs text-muted-foreground"
               >
                 {t("noItems")}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           )}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     );
   }
 
   function ExpandedView() {
     return (
-      <table className="w-full text-xs">
-        <thead className="print:table-header-group">
-          <tr className="text-2xs text-muted-foreground border-b">
-            <th className="text-left py-1 px-1 font-medium">
+      <Table className="w-full text-xs">
+        <TableHeader className="print:table-header-group">
+          <TableRow className="text-2xs text-muted-foreground border-b">
+            <TableHead className="text-left py-1 px-1 font-medium">
               {t("headerDescription")}
-            </th>
+            </TableHead>
 
-            <th className="text-left py-1 px-1 font-medium w-16">
+            <TableHead className="text-left py-1 px-1 font-medium w-16">
               {t("headerQty")}
-            </th>
-            <th className="text-right py-1 px-2 font-medium w-30">
+            </TableHead>
+            <TableHead className="text-right py-1 px-2 font-medium w-30">
               {t("headerPrice")}
-            </th>
-            <th className="text-right py-1 px-1 font-medium w-20">
+            </TableHead>
+            <TableHead className="text-right py-1 px-1 font-medium w-20">
               {t("headerTotal")}
-            </th>
-            <th className="w-6 print:hidden"></th>
-          </tr>
-        </thead>
-        <tbody>
+            </TableHead>
+            <TableHead className="w-6 print:hidden"></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {confirmedItems.map((item) => (
-            <tr
+            <TableRow
               key={item.id}
               className={`break-inside-avoid print:break-inside-avoid border-b border-dashed last:border-0 ${isItemBeingEdited(item)
                 ? "bg-orange-500/20"
                 : item.parentId === "root"
-                  ? "bg-secondary/30"
-                  : "bg-secondary/10"
+                  ? "bg-muted/50"
+                  : "bg-muted/20"
                 }`}
             >
-              <td className="py-1 px-1 align-top">
+              <TableCell className="py-2 px-1 align-top">
                 <div
                   className={`text-sm leading-snug break-words ${item.parentId !== "root"
                     ? "font-normal text-muted-foreground"
@@ -281,28 +292,7 @@ export const ItemsList = ({
                   {item.description}
 
                   {(() => {
-                    const hasCategory = item.itemCategory && item.itemCategory !== "none";
-
-                    const detailContent = (item.material?.description &&
-                      item.description !== item.material.description &&
-                      item.material?.dimensions?.type === "area" &&
-                      item.dimensions ? (
-                      <>
-                        {item.material.description}: {item.dimensions.length} ×{" "}
-                        {item.dimensions.width}{" "}
-                        {item.material.dimensions.unitLabel}
-                      </>
-                    ) : item.material?.description &&
-                      !item.parentId &&
-                      item.description !== item.material.description ? (
-                      <>{item.material.description}</>
-                    ) : item.material?.dimensions?.type === "area" &&
-                      item.dimensions ? (
-                      <>
-                        {item.dimensions.length} × {item.dimensions.width}{" "}
-                        {item.material.dimensions.unitLabel}
-                      </>
-                    ) : null);
+                    const { hasCategory, detailContent } = getItemDetails(item);
 
                     if (!hasCategory && !detailContent) return null;
 
@@ -315,8 +305,8 @@ export const ItemsList = ({
                   })()}
                 </div>
 
-              </td>
-              <td className="py-1 px-1 text-left align-top">
+              </TableCell>
+              <TableCell className="py-2 px-1 text-left align-top">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:gap-1 items-start w-min">
                   <span>{item.quantity}</span>
                   {item.material?.dimensions?.unitLabel && (
@@ -325,8 +315,8 @@ export const ItemsList = ({
                     </span>
                   )}
                 </div>
-              </td>
-              <td className="py-1 px-1 align-top">
+              </TableCell>
+              <TableCell className="py-2 px-1 align-top">
                 <div className="text-right pr-2">
                   <span className="inline-flex flex-wrap items-baseline justify-end gap-x-1">
                     <span>
@@ -337,64 +327,36 @@ export const ItemsList = ({
                     </span>
                   </span>
                 </div>
-              </td>
-              <td className="py-1 px-1 text-right align-top font-semibold">
+              </TableCell>
+              <TableCell className="py-2 px-1 text-right align-top font-semibold">
                 {currencyFormat(
                   item.quantity * (item.material?.unitPrice || 0),
                 )}
-              </td>
-              <td className="py-1 px-1 print:hidden align-top">
-                <DropdownMenu modal={false}>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      disabled={isSaving || !canUpdate}
-                      className="h-6 w-6"
-                      onAbort={(e) => e.preventDefault()}
-                    >
-                      <EllipsisVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem
-                      onSelect={(e) => e.preventDefault()}
-                      onClick={(e) => {
-                        editItem(item);
-                      }}
-                      disabled={
-                        !canUpdate || item.parentId !== "root" || !!editingItem
-                      }
-                    >
-                      {editingItem?.id === item.id
-                        ? "Editing..."
-                        : item.attachedTemplate
-                          ? t("editItemAnd3DModel")
-                          : t("editItem")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={(e) => e.preventDefault()}
-                      onClick={() => removeConfirmedItem(item.id)}
-                    >
-                      {t("removeItem")}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </td>
-            </tr>
+              </TableCell>
+              <TableCell className="py-2 px-1 print:hidden align-top">
+                <ItemActionMenu
+                  item={item}
+                  editItem={editItem}
+                  removeConfirmedItem={removeConfirmedItem}
+                  editingItem={editingItem}
+                  canUpdate={canUpdate}
+                  isSaving={isSaving}
+                />
+              </TableCell>
+            </TableRow>
           ))}
           {confirmedItems.length === 0 && (
-            <tr>
-              <td
+            <TableRow>
+              <TableCell
                 colSpan={5}
                 className="text-center py-3 text-xs text-muted-foreground"
               >
                 {t("noItems")}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           )}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     );
   }
 };

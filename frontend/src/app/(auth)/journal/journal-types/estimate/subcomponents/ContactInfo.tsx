@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Edit2, Mail, MapPin, Phone, User, X, AtSignIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,6 +28,7 @@ interface ContactInfoProps {
   info: contactInfoSchemaType;
   setInfo: (info: contactInfoSchemaType) => void;
   onSave?: (updates: any) => void;
+  title?: string;
 }
 
 // Improved ContactSummary layout
@@ -87,7 +88,7 @@ const ContactSummary = ({ info }: { info: contactInfoSchemaType }) => {
 };
 
 export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
-  ({ info, setInfo, onSave }, ref) => {
+  ({ info, setInfo, onSave, title }, ref) => {
     const t = useTranslations("contactInfo");
     const tCommon = useTranslations("common");
     const [isEditing, setIsEditing] = useState(!info.name);
@@ -123,23 +124,25 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
     }));
 
     return (
-      <Card className="relative">
-        <CardHeader className="flex items-center justify-between pr-4 pb-2 pt-2">
-          {isEditing && (
-            <div className="flex flex-row-reverse items-center justify-start space-x-2 w-full  print:hidden">
+      <Card className="relative print:border-none print:shadow-none">
+        {(title || isEditing) && (
+          <CardHeader className="flex flex-row items-center justify-between p-4 pb-2 print:p-0">
+            {title && <CardTitle className="text-base font-semibold print:text-sm">{title}</CardTitle>}
+            {isEditing && (
               <Button
                 variant="brutalist"
                 size="icon"
                 onClick={handleCancel}
                 disabled={!contactInfoSchema.safeParse(info).success}
                 aria-label="Cancel editing"
+                className="print:hidden h-8 w-8 -my-2"
               >
                 <X className="h-4 w-4" />
               </Button>
-            </div>
-          )}
-        </CardHeader>
-        <CardContent className="p-4 pt-0">
+            )}
+          </CardHeader>
+        )}
+        <CardContent className={isEditing ? "p-4 pt-0 print:p-0" : "p-4 pt-0 print:p-0"}>
           <div className="hidden print:block">
             <ContactSummary info={info} />
           </div>

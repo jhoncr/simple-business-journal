@@ -47,9 +47,13 @@
   },
   "dashboard": {
     "title": "Dashboard",
-    "noJournals": "No journals found. Create a new business to get started!",
+    "noJournals": "No businesses yet",
+    "emptyStateDesc": "Get started by creating your first business journal to manage estimates, clients, and technical drawings.",
     "loadingJournals": "Loading journals...",
-    "createNew": "Create New"
+    "createNew": "Create New",
+    "navigation": {
+      "newJournal": "Create New Business"
+    }
   },
   "journal": {
     "title": "Journal",
@@ -89,7 +93,11 @@
     "estimateDuplicated": "Estimate Duplicated",
     "duplicateSuccess": "The estimate has been duplicated successfully.",
     "duplicationFailed": "Duplication Failed",
-    "couldNotDuplicate": "Could not duplicate estimate"
+    "couldNotDuplicate": "Could not duplicate estimate",
+    "moreActions": "More Actions",
+    "dateFilter": "Date Filter",
+    "studio": "Studio",
+    "contributors": "Contributors"
   },
   "errors": {
     "loadJournals": "Failed to load journals.",

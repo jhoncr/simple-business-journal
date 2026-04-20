@@ -47,9 +47,13 @@
   },
   "dashboard": {
     "title": "Painel",
-    "noJournals": "Nenhum diário encontrado. Crie um novo negócio para começar!",
+    "noJournals": "Ainda não tem negócios",
+    "emptyStateDesc": "Comece criando o seu primeiro negócio para gerenciar orçamentos, clientes e desenhos técnicos.",
     "loadingJournals": "Carregando diários...",
-    "createNew": "Criar novo"
+    "createNew": "Criar novo",
+    "navigation": {
+      "newJournal": "Criar Novo Negócio"
+    }
   },
   "journal": {
     "title": "Diário",
@@ -89,7 +93,11 @@
     "estimateDuplicated": "Orçamento Duplicado",
     "duplicateSuccess": "O orçamento foi duplicado com sucesso.",
     "duplicationFailed": "Falha na Duplicação",
-    "couldNotDuplicate": "Não foi possível duplicar o orçamento"
+    "couldNotDuplicate": "Não foi possível duplicar o orçamento",
+    "moreActions": "Mais Ações",
+    "dateFilter": "Filtro de Data",
+    "studio": "Estúdio",
+    "contributors": "Colaboradores"
   },
   "errors": {
     "loadJournals": "Falha ao carregar diários.",

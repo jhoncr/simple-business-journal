@@ -33,7 +33,11 @@ function Header({
   // header is fixed at the top of the page with a shadow and border at the bottom
 
   return (
-    <header className="flex flex-row items-center justify-between w-full px-3 py-1 border-b-2 h-content print:hidden">
+    <header 
+      className={`flex flex-row items-center justify-between w-full px-3 py-2 print:hidden sticky top-0 z-50 transition-all duration-200 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 ${
+        !atTop ? "border-b shadow-sm" : ""
+      }`}
+    >
       <Link href="/" className="text-xl font-semibold mr-4">
         <div className="flex items-center">
           <Image src="/logo.svg" alt="logo" width={24} height={24} />

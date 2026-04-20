@@ -6,7 +6,7 @@ import { useToolbar } from "../nav_tool_handler";
 import { ChatBox } from "./comp/chat";
 import { DatePickerWithRange } from "./actions/date-pick-with-range";
 import { format } from "date-fns";
-import { X, Box, Printer } from "lucide-react";
+import { X, Box, Printer, CalendarSearch, UserPlus2, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import ExportToCSV from "./actions/export-to-csv";
 import { useTranslations } from "next-intl";
@@ -21,6 +21,14 @@ import { EntryType } from "@/../../backend/functions/src/common/schemas/configma
 import { pendingAccessSchemaType } from "@/../../backend/functions/src/common/schemas/common_schemas";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 
 interface DateRange {
   from: Date;
@@ -77,6 +85,10 @@ export default function ListJournalPage() {
   const displayEntryType: EntryType = (jtypeParam === "template" || jtypeParam === "estimate") ? jtypeParam as EntryType : "estimate";
   const t = useTranslations("estimate");
   const t_c = useTranslations("contributors");
+  const t_j = useTranslations("journal");
+
+  // State to control AddContributers dialog from mobile dropdown
+  const [contributorsOpen, setContributorsOpen] = useState(false);
 
   useEffect(() => {
     if (!journalId) {
@@ -87,13 +99,18 @@ export default function ListJournalPage() {
 
   useEffect(() => {
     if (journal) {
+      const isAdmin =
+        journal.access &&
+        authUser?.uid &&
+        journal.access[authUser.uid]?.role === "admin";
+
       setToolBar(
         <div className="flex flex-row justify-between items-center w-full">
           <div className="flex justify-start items-center gap-2 min-w-0 px-3 py-1.5 bg-muted/40 rounded-lg hover:bg-muted/60 transition-colors cursor-default group" title={journal.title}>
             <div className="text-muted-foreground/80 group-hover:text-muted-foreground transition-colors">
               {getJournalIcon(journal.journalType)}
             </div>
-            <p className="font-semibold text-sm truncate max-w-[150px] sm:max-w-[250px]">
+            <p className="font-semibold text-sm truncate max-w-[100px] sm:max-w-[250px]">
               {journal.title}
             </p>
             {jtypeParam === "template" && (
@@ -114,25 +131,25 @@ export default function ListJournalPage() {
             )}
           </div>
           <div className="flex flex-row items-center space-x-2 flex-shrink-0">
-            <DatePickerWithRange
-              daterange={dateRange}
-              setDate={setDateRange}
-            />
-            {displayEntryType !== "template" && <Link href={`/journal?jid=${journal.id}&jtype=template`}>
-              <Button variant="outline" size="sm" className="flex items-center gap-2 h-9" title="Open 3D Studio">
-                <Box size={16} />
-                <span className="hidden sm:inline-block">Studio</span>
-              </Button>
-            </Link>}
-            {displayEntryType === "estimate" && <Link href={`/journal/quick-print?jid=${journal.id}`} target="_blank">
-              <Button variant="outline" size="sm" className="flex items-center gap-2 h-9" title={t("quickPrint") || "Quick Print"}>
-                <Printer size={16} />
-                <span className="hidden sm:inline-block">{t("quickPrint") || "Quick Print"}</span>
-              </Button>
-            </Link>}
-            {journal.access &&
-              authUser?.uid &&
-              journal.access[authUser?.uid]?.role === "admin" && (
+            {/* Desktop: show all actions inline */}
+            <div className="hidden md:flex items-center space-x-2">
+              <DatePickerWithRange
+                daterange={dateRange}
+                setDate={setDateRange}
+              />
+              {displayEntryType !== "template" && <Link href={`/journal?jid=${journal.id}&jtype=template`}>
+                <Button variant="outline" size="sm" className="flex items-center gap-2 h-9" title="Open 3D Studio">
+                  <Box size={16} />
+                  <span className="hidden lg:inline-block">Studio</span>
+                </Button>
+              </Link>}
+              {displayEntryType === "estimate" && <Link href={`/journal/quick-print?jid=${journal.id}`} target="_blank">
+                <Button variant="outline" size="sm" className="flex items-center gap-2 h-9" title={t("quickPrint") || "Quick Print"}>
+                  <Printer size={16} />
+                  <span className="hidden lg:inline-block">{t("quickPrint") || "Quick Print"}</span>
+                </Button>
+              </Link>}
+              {isAdmin && (
                 <AddContributers
                   journalId={journal.id}
                   access={journal.access as any}
@@ -141,6 +158,59 @@ export default function ListJournalPage() {
                   }
                 />
               )}
+            </div>
+
+            {/* Mobile: collapse secondary actions into a dropdown */}
+            <div className="md:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-9 w-9" aria-label={t_j("moreActions")}>
+                    <MoreHorizontal size={16} />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">{t_j("moreActions")}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="px-2">
+                    <DatePickerWithRange
+                      daterange={dateRange}
+                      setDate={setDateRange}
+                    />
+                    <span className="ml-2 text-sm">{t_j("dateFilter")}</span>
+                  </DropdownMenuItem>
+                  {displayEntryType !== "template" && (
+                    <DropdownMenuItem asChild>
+                      <Link href={`/journal?jid=${journal.id}&jtype=template`} className="flex items-center gap-2 cursor-pointer">
+                        <Box size={16} />
+                        <span>{t_j("studio")}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {displayEntryType === "estimate" && (
+                    <DropdownMenuItem asChild>
+                      <Link href={`/journal/quick-print?jid=${journal.id}`} target="_blank" className="flex items-center gap-2 cursor-pointer">
+                        <Printer size={16} />
+                        <span>{t("quickPrint") || "Quick Print"}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {isAdmin && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onSelect={() => setContributorsOpen(true)}
+                        className="flex items-center gap-2 cursor-pointer"
+                      >
+                        <UserPlus2 size={16} />
+                        <span>{t_j("contributors")}</span>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Role badge - always visible, it's compact */}
             {authUser?.uid && journal?.access?.[authUser.uid]?.role && (
               <Badge variant="secondary">
                 {t_c(`roles.${journal.access[authUser.uid].role}`) || "-"}
@@ -169,7 +239,7 @@ export default function ListJournalPage() {
     return () => {
       setToolBar(null);
     };
-  }, [journal, authUser, journalId, dateRange, setToolBar]);
+  }, [journal, authUser, journalId, dateRange, setToolBar, displayEntryType, jtypeParam]);
 
   const fetchFilterList = useCallback(async () => {
     if (!dateRange || !journalId) return;
@@ -212,6 +282,11 @@ export default function ListJournalPage() {
     return <div className="text-center p-6">{t("loading")}</div>;
   if (journal === null) return <NotFound />;
 
+  const isAdmin =
+    journal?.access &&
+    authUser?.uid &&
+    journal.access[authUser.uid]?.role === "admin";
+
   return (
     <div className="flex flex-col items-center justify-start w-full h-[calc(100vh-4rem)] overflow-hidden px-2 sm:px-6 lg:px-8">
       <div
@@ -247,6 +322,19 @@ export default function ListJournalPage() {
           />
         )}
       </div>
+
+      {/* Mobile-triggered Contributors dialog (controlled externally) */}
+      {isAdmin && (
+        <AddContributers
+          journalId={journalId!}
+          access={journal.access as any}
+          pendingAccess={
+            (journal.pendingAccess || {}) as pendingAccessSchemaType
+          }
+          externalOpen={contributorsOpen}
+          onExternalOpenChange={setContributorsOpen}
+        />
+      )}
     </div>
   );
 }

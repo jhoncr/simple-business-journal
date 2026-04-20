@@ -16,12 +16,13 @@ import { ContactInfo } from "./subcomponents/ContactInfo";
 import { ItemsList } from "./subcomponents/ItemsList";
 import { InvoiceDetails } from "./subcomponents/InvoiceDetails";
 import { Payments } from "./subcomponents/Payments";
-import { InvoiceBottomLines } from "./subcomponents/Adjustments";
 import { InlineEditTextarea } from "./subcomponents/EditNotes";
-import { NewItemForm } from "./subcomponents/NewItemForm";
+import { NewItemFormWrapper } from "./subcomponents/NewItemFormWrapper";
+import { InvoiceBottomLines } from "./subcomponents/Adjustments";
 import { Label } from "@/components/ui/label";
 import { WorkStatus } from "@/../../backend/functions/src/common/common_types";
 import { useTranslations } from "next-intl";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface EstimateDetailsProps {
   journalId: string;
@@ -103,9 +104,9 @@ export const EstimateDetails = React.memo(function EstimateDetails(
           handleStatusChange={canUpdate ? handleStatusChange : undefined}
         />
 
-        <div>
-          <h3 className="font-semibold mt-4">{t("client")}</h3>
+        <div className="mb-4">
           <ContactInfo
+            title={t("client")}
             ref={customerRef}
             info={customer}
             setInfo={setCustomer}
@@ -116,59 +117,70 @@ export const EstimateDetails = React.memo(function EstimateDetails(
         {canUpdate && (
           <fieldset
             disabled={!canUpdate}
-            className={!canUpdate ? "opacity-50" : ""}
+            className={!canUpdate ? "opacity-50 space-y-4" : "space-y-4"}
           >
-            <h3 className="font-semibold pt-4">{t("items")}</h3>
-            <div className="border rounded-md p-2">
-              <ItemsList
-                confirmedItems={confirmedItems}
-                removeConfirmedItem={removeConfirmedItem}
-                editItem={editItem}
-                editingItem={editingItem}
-                currencyFormat={currencyFormat}
-                isSaving={isSaving}
-                canUpdate={canUpdate}
-              />
-              <div className="print:hidden">
-                <NewItemForm
-                  onAddItem={addConfirmedItem}
-                  currency={props.journalCurrency}
-                  inventoryCache={props.journalInventoryCache}
-                  userRole={userRole}
-                  editingItem={editingItem}
-                  onCancelEdit={cancelEdit}
+            <Card className="print:border-none print:shadow-none">
+              <CardHeader className="p-4 pb-2 print:p-0">
+                <CardTitle className="text-base">{t("items")}</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 pt-0 print:p-0">
+                <ItemsList
                   confirmedItems={confirmedItems}
+                  removeConfirmedItem={removeConfirmedItem}
+                  editItem={editItem}
+                  editingItem={editingItem}
+                  currencyFormat={currencyFormat}
+                  isSaving={isSaving}
+                  canUpdate={canUpdate}
                 />
-              </div>
-              <InvoiceBottomLines
-                itemSubtotal={calculateSubtotal()}
-                adjustments={adjustments}
-                setAdjustments={(newAdjustments) => {
-                  setAdjustments(newAdjustments);
-                  handleSave({ adjustments: newAdjustments });
-                }}
-                taxPercentage={taxPercentage}
-                setTaxPercentage={(newTaxPercentage) => {
-                  setTaxPercentage(newTaxPercentage);
-                  handleSave({ taxPercentage: newTaxPercentage });
-                }}
-                currency={props.journalCurrency}
-                userRole={userRole}
-                payments={payments}
-              />
-            </div>
-            <div>
-              <h3 className="font-semibold mt-4">{t("notes")}</h3>
-              <InlineEditTextarea
-                initialValue={notes}
-                onSave={(value) => {
-                  setNotes(value);
-                  handleSave({ notes: value });
-                }}
-                placeholder={t("addNotesPlaceholder")}
-                disabled={isSaving}
-              />
-            </div>
+                <div className="print:hidden mt-4">
+                  <NewItemFormWrapper
+                    onAddItem={addConfirmedItem}
+                    currency={props.journalCurrency}
+                    inventoryCache={props.journalInventoryCache}
+                    userRole={userRole}
+                    editingItem={editingItem}
+                    onCancelEdit={cancelEdit}
+                    confirmedItems={confirmedItems}
+                  />
+                </div>
+                <div className="mt-4">
+                  <InvoiceBottomLines
+                    itemSubtotal={calculateSubtotal()}
+                    adjustments={adjustments}
+                    setAdjustments={(newAdjustments) => {
+                      setAdjustments(newAdjustments);
+                      handleSave({ adjustments: newAdjustments });
+                    }}
+                    taxPercentage={taxPercentage}
+                    setTaxPercentage={(newTaxPercentage) => {
+                      setTaxPercentage(newTaxPercentage);
+                      handleSave({ taxPercentage: newTaxPercentage });
+                    }}
+                    currency={props.journalCurrency}
+                    userRole={userRole}
+                    payments={payments}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="print:border-none print:shadow-none bg-secondary/5">
+              <CardHeader className="p-4 pb-2 print:p-0">
+                <CardTitle className="text-base">{t("notes")}</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 pt-0 print:p-0">
+                <InlineEditTextarea
+                  initialValue={notes}
+                  onSave={(value) => {
+                    setNotes(value);
+                    handleSave({ notes: value });
+                  }}
+                  placeholder={t("addNotesPlaceholder")}
+                  disabled={isSaving}
+                />
+              </CardContent>
+            </Card>
           </fieldset>
         )}
 
@@ -176,13 +188,17 @@ export const EstimateDetails = React.memo(function EstimateDetails(
           (status == WorkStatus.IN_PROCESS ||
             status == WorkStatus.DELIVERED ||
             payments.length > 0) && (
-            <Payments
-              payments={payments}
-              currencyFormat={currencyFormat}
-              isInvoiceFlow={true}
-              handleAddPayment={handleAddPayment}
-              isSaving={isSaving}
-            />
+            <Card className="print:border-none print:shadow-none">
+              <CardContent className="pt-6 print:p-0">
+                <Payments
+                  payments={payments}
+                  currencyFormat={currencyFormat}
+                  isInvoiceFlow={true}
+                  handleAddPayment={handleAddPayment}
+                  isSaving={isSaving}
+                />
+              </CardContent>
+            </Card>
           )}
       </div>
 

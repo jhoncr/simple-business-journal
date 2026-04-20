@@ -32,101 +32,30 @@ import {
   Camera,
 } from "lucide-react";
 import { StoneForgeVariableEditor } from "./StoneForgeVariableEditor";
-import { functions, app } from "../../lib/auth_handler";
-import { httpsCallable } from "firebase/functions";
-import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { useSearchParams } from "next/navigation";
-import { fetchEntry } from "../../lib/db_handler";
-
-const findComponentDeep = (
-  components: SlabComponent[],
-  id: string,
-): SlabComponent | null => {
-  for (const c of components) {
-    if (c.id === id) return c;
-    if (c.children) {
-      const found = findComponentDeep(c.children, id);
-      if (found) return found;
-    }
-  }
-  return null;
-};
-
-const updateComponentDeep = (
-  components: SlabComponent[],
-  id: string,
-  updater: (c: SlabComponent) => SlabComponent,
-): SlabComponent[] => {
-  return components.map((c) => {
-    if (c.id === id) {
-      return updater(c);
-    }
-    if (c.children) {
-      return { ...c, children: updateComponentDeep(c.children, id, updater) };
-    }
-    return c;
-  });
-};
-
-const deleteComponentDeep = (
-  components: SlabComponent[],
-  id: string,
-): SlabComponent[] => {
-  return components
-    .filter((c) => c.id !== id)
-    .map((c) => {
-      if (c.children) {
-        return { ...c, children: deleteComponentDeep(c.children, id) };
-      }
-      return c;
-    });
-};
-
-const ISOMETRIC_PRESETS = [
-  { id: 'iso-tfr', title: 'Top Front Right', icon: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="10" y="4" width="10" height="10" strokeOpacity={0.3} /><path d="M10 4l-6 6M20 4l-6 6M10 14l-6 6M20 14l-6 6" strokeOpacity={0.3} /><rect x="4" y="10" width="10" height="10" /><circle cx="14" cy="10" r="2.5" fill="#ef4444" stroke="none" /></svg> },
-  { id: 'iso-tfl', title: 'Top Front Left', icon: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="10" y="4" width="10" height="10" strokeOpacity={0.3} /><path d="M10 4l-6 6M20 4l-6 6M10 14l-6 6M20 14l-6 6" strokeOpacity={0.3} /><rect x="4" y="10" width="10" height="10" /><circle cx="4" cy="10" r="2.5" fill="#ef4444" stroke="none" /></svg> },
-  { id: 'iso-tbr', title: 'Top Back Right', icon: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="10" y="4" width="10" height="10" strokeOpacity={0.3} /><path d="M10 4l-6 6M20 4l-6 6M10 14l-6 6M20 14l-6 6" strokeOpacity={0.3} /><rect x="4" y="10" width="10" height="10" /><circle cx="20" cy="4" r="2.5" fill="#ef4444" stroke="none" /></svg> },
-  { id: 'iso-tbl', title: 'Top Back Left', icon: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="10" y="4" width="10" height="10" strokeOpacity={0.3} /><path d="M10 4l-6 6M20 4l-6 6M10 14l-6 6M20 14l-6 6" strokeOpacity={0.3} /><rect x="4" y="10" width="10" height="10" /><circle cx="10" cy="4" r="2.5" fill="#ef4444" stroke="none" /></svg> },
-  { id: 'iso-bfr', title: 'Bottom Front Right', icon: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="10" y="4" width="10" height="10" strokeOpacity={0.3} /><path d="M10 4l-6 6M20 4l-6 6M10 14l-6 6M20 14l-6 6" strokeOpacity={0.3} /><rect x="4" y="10" width="10" height="10" /><circle cx="14" cy="20" r="2.5" fill="#ef4444" stroke="none" /></svg> },
-  { id: 'iso-bfl', title: 'Bottom Front Left', icon: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="10" y="4" width="10" height="10" strokeOpacity={0.3} /><path d="M10 4l-6 6M20 4l-6 6M10 14l-6 6M20 14l-6 6" strokeOpacity={0.3} /><rect x="4" y="10" width="10" height="10" /><circle cx="4" cy="20" r="2.5" fill="#ef4444" stroke="none" /></svg> },
-  { id: 'iso-bbr', title: 'Bottom Back Right', icon: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="10" y="4" width="10" height="10" strokeOpacity={0.3} /><path d="M10 4l-6 6M20 4l-6 6M10 14l-6 6M20 14l-6 6" strokeOpacity={0.3} /><rect x="4" y="10" width="10" height="10" /><circle cx="20" cy="14" r="2.5" fill="#ef4444" stroke="none" /></svg> },
-  { id: 'iso-bbl', title: 'Bottom Back Left', icon: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="10" y="4" width="10" height="10" strokeOpacity={0.3} /><path d="M10 4l-6 6M20 4l-6 6M10 14l-6 6M20 14l-6 6" strokeOpacity={0.3} /><rect x="4" y="10" width="10" height="10" /><circle cx="10" cy="14" r="2.5" fill="#ef4444" stroke="none" /></svg> },
-];
+import { findComponentDeep, updateComponentDeep, deleteComponentDeep, findDimensionLabelDeep } from "../../lib/tree-utils";
+import { ISOMETRIC_PRESETS } from "./constants";
+import { useStoneForgeData } from "../../hooks/useStoneForgeData";
+import { EdgeInspector } from "./inspectors/EdgeInspector";
+import { DimensionInspector } from "./inspectors/DimensionInspector";
+import { ComponentInspector } from "./inspectors/ComponentInspector";
+import { GlobalInspector } from "./inspectors/GlobalInspector";
 
 export const StoneForgeEditor = () => {
   const searchParams = useSearchParams();
   const journalId = searchParams.get("jid");
   const entryId = searchParams.get("eid");
-  const [isLoading, setIsLoading] = useState(!!entryId);
 
-  const [template, setTemplate] = useState<AssemblyTemplate>({
-    id: "temp_1",
-    name: "Untitled Assembly",
-    variables: [],
-    components: [
-      {
-        id: "slab_1",
-        type: "slab",
-        name: "Main Counter",
-        length: 228.0,
-        depth: 60.0,
-        thickness: 2.0,
-        position: [0, 0, 0],
-        rotation: [0, 0, 0],
-        cutouts: [
-          {
-            id: "cut_1",
-            shape: "rectangular",
-            width: 40.0,
-            depth: 30.0,
-            centerX: 49.0,
-            centerY: 30.0,
-          },
-        ],
-        children: [],
-      },
-    ],
-  });
+  const {
+    template,
+    setTemplate,
+    isLoading,
+    isSaving,
+    toastMessage,
+    showToast,
+    handleSaveTemplate,
+    handleDuplicateTemplate,
+  } = useStoneForgeData(journalId, entryId);
 
   const [selectedComponentId, setSelectedComponentId] = useState<string | null>(
     "slab_1",
@@ -145,13 +74,10 @@ export const StoneForgeEditor = () => {
     searchParams.get("mode") === "designer" ? "designer" : "user",
   );
 
-  const [isSaving, setIsSaving] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const { setToolBar } = useToolbar();
 
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const canvasContainerRef = React.useRef<HTMLDivElement>(null);
-
 
   const [selectedPreviewViewId, setSelectedPreviewViewId] = useState<string | null>(null);
   const [previewRefreshCount, setPreviewRefreshCount] = useState<number>(0);
@@ -162,138 +88,16 @@ export const StoneForgeEditor = () => {
     setPreviewRefreshCount((prev) => prev + 1);
   };
 
-  const showToast = (message: string) => {
-    setToastMessage(message);
-    setTimeout(() => setToastMessage(null), 3000);
-  };
-
-  useEffect(() => {
-    async function loadTemplate() {
-      if (journalId && entryId) {
-        try {
-          const entry = await fetchEntry(journalId, "template", entryId);
-          if (entry && entry.details) {
-            // Document ID from Firestore is entryId
-            // The template.id in state should be the Firestore doc ID
-            setTemplate({
-              ...(entry.details as any),
-              id: entryId, // Force the doc ID to be the template ID
-            });
-            setSelectedComponentId(null);
-          }
-        } catch (error) {
-          console.error("Error fetching template:", error);
-          showToast("Failed to load existing template.");
-        } finally {
-          setIsLoading(false);
-        }
-      } else {
-        setIsLoading(false);
+  const onSave = async () => {
+    let thumbnailBase64;
+    if (canvasRef.current) {
+      try {
+        thumbnailBase64 = canvasRef.current.toDataURL("image/png");
+      } catch (err) {
+        console.warn("Failed to capture canvas thumbnail:", err);
       }
     }
-    loadTemplate();
-  }, [journalId, entryId]);
-
-  const handleSaveTemplate = async () => {
-    if (!journalId) {
-      showToast("Cannot save: No journal ID provided in URL");
-      return;
-    }
-    setIsSaving(true);
-    try {
-      let finalTemplate = { ...template };
-
-      // Auto-capture 3D preview thumbnail before saving
-      let thumbnailBase64 = undefined;
-      if (canvasRef.current) {
-        try {
-          thumbnailBase64 = canvasRef.current.toDataURL("image/png");
-        } catch (err) {
-          console.warn("Failed to capture canvas thumbnail:", err);
-        }
-      }
-
-      const auth = getAuth(app);
-      if (!auth.currentUser) {
-        const provider = new GoogleAuthProvider();
-        await signInWithPopup(auth, provider);
-      }
-
-      if (auth.currentUser) {
-        const addLogFunction = httpsCallable(functions, "addLogFn");
-
-        // If template.id is 'temp_1' or similar initial placeholder, it's a NEW template
-        // Otherwise, it's an existing one.
-        // Note: New templates from 'duplicateEntry' will have a real Firestore ID.
-        const isNew = template.id === "temp_1";
-
-        if (isNew) {
-          // It's a new template, create a new document
-          const payload = {
-            jid: journalId,
-            entryType: "template",
-            name: finalTemplate.name,
-            details: finalTemplate,
-            ...(thumbnailBase64 && { thumbnailBase64 }),
-          };
-          const response = await addLogFunction(payload);
-          const newTemplateId = (response.data as any).id;
-
-          // Update local state with the new ID
-          setTemplate((prev) => ({ ...prev, id: newTemplateId }));
-
-          showToast("Template saved successfully!");
-        } else {
-          // It's an existing template, update it
-          const payload = {
-            jid: journalId,
-            entryType: "template",
-            entryId: finalTemplate.id,
-            name: finalTemplate.name,
-            details: finalTemplate,
-            ...(thumbnailBase64 && { thumbnailBase64 }),
-          };
-          await addLogFunction(payload);
-          showToast("Template updated successfully!");
-        }
-      }
-    } catch (error) {
-      console.error("Error saving template:", error);
-      showToast("Failed to save template. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDuplicateTemplate = async () => {
-    if (!journalId || template.id === "temp_1") {
-      showToast(
-        "Cannot duplicate: Save the template first or provide a journal ID",
-      );
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const duplicateFn = httpsCallable(functions, "duplicateEntry");
-      const response = await duplicateFn({
-        jid: journalId,
-        entryId: template.id,
-        entryType: "template",
-      });
-
-      const newId = (response.data as any).id;
-      if (newId) {
-        showToast("Template duplicated! Reloading with new design...");
-        // Redirect to the new template
-        window.location.href = `/journal/entry?jid=${journalId}&eid=${newId}&jtype=template`;
-      }
-    } catch (error) {
-      console.error("Error duplicating template:", error);
-      showToast("Failed to duplicate template.");
-    } finally {
-      setIsSaving(false);
-    }
+    await handleSaveTemplate(thumbnailBase64);
   };
 
   const selectedComponent = selectedComponentId
@@ -747,21 +551,6 @@ export const StoneForgeEditor = () => {
 
   // ── Dimension Label Handlers ──────────────────────────
 
-  const findDimensionLabelDeep = (
-    components: SlabComponent[],
-    labelId: string,
-  ): { slabId: string; label: DimensionLabel } | null => {
-    for (const c of components) {
-      const found = c.dimensionLabels?.find((l) => l.id === labelId);
-      if (found) return { slabId: c.id, label: found };
-      if (c.children) {
-        const res = findDimensionLabelDeep(c.children, labelId);
-        if (res) return res;
-      }
-    }
-    return null;
-  };
-
   const handleAddDimensionLabel = (isCustom: boolean = false) => {
     if (!selectedEdge) return;
     const { slabId, edge } = selectedEdge;
@@ -985,7 +774,7 @@ export const StoneForgeEditor = () => {
             </button>
           )}
           <button
-            onClick={handleSaveTemplate}
+            onClick={onSave}
             disabled={isSaving}
             className="bg-indigo-600 text-white py-1.5 px-3 rounded-md text-xs font-medium hover:bg-indigo-700 flex items-center gap-1.5 disabled:opacity-50"
           >
@@ -1446,563 +1235,31 @@ export const StoneForgeEditor = () => {
               </div>
               <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
                 {selectedEdge ? (
-                  <div className="space-y-6">
-                    <div>
-                      <h4 className="text-sm font-bold text-gray-900 capitalize mb-1">
-                        {selectedEdge.edge} Edge Selected
-                      </h4>
-                      <p className="text-xs text-gray-500 mb-4">
-                        Add an attached component to this edge.
-                      </p>
-                      <div className="grid grid-cols-1 gap-2">
-                        <button
-                          onClick={() => handleAddEdgeComponent("splash")}
-                          className="text-xs bg-white hover:bg-gray-50 text-gray-700 py-2 px-3 rounded border border-gray-300 text-left flex items-center justify-between"
-                        >
-                          <span>Add Splash</span>
-                          <Plus className="w-3.5 h-3.5 text-gray-400" />
-                        </button>
-                        <button
-                          onClick={() => handleAddEdgeComponent("waterfall")}
-                          className="text-xs bg-white hover:bg-gray-50 text-gray-700 py-2 px-3 rounded border border-gray-300 text-left flex items-center justify-between"
-                        >
-                          <span>Add Waterfall</span>
-                          <Plus className="w-3.5 h-3.5 text-gray-400" />
-                        </button>
-                        <button
-                          onClick={() => handleAddEdgeComponent("raised")}
-                          className="text-xs bg-white hover:bg-gray-50 text-gray-700 py-2 px-3 rounded border border-gray-300 text-left flex items-center justify-between"
-                        >
-                          <span>Add Raised Edge</span>
-                          <Plus className="w-3.5 h-3.5 text-gray-400" />
-                        </button>
-                        <button
-                          onClick={() => handleAddEdgeComponent("custom")}
-                          className="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-2 px-3 rounded border border-indigo-200 text-left flex items-center justify-between mt-2"
-                        >
-                          <span>Add Custom Component</span>
-                          <Plus className="w-3.5 h-3.5 text-indigo-500" />
-                        </button>
-                        <button
-                          onClick={() => handleAddDimensionLabel()}
-                          className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 py-2 px-3 rounded border border-amber-200 text-left flex items-center justify-between mt-2"
-                        >
-                          <span>Add Dimension Label</span>
-                          <Ruler className="w-3.5 h-3.5 text-amber-500" />
-                        </button>
-                        <button
-                          onClick={() => handleAddDimensionLabel(true)}
-                          className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 py-2 px-3 rounded border border-amber-200 text-left flex items-center justify-between mt-2"
-                        >
-                          <span>Add Custom Dimension</span>
-                          <Ruler className="w-3.5 h-3.5 text-amber-500" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  <EdgeInspector
+                    selectedEdge={selectedEdge}
+                    handleAddEdgeComponent={handleAddEdgeComponent}
+                    handleAddDimensionLabel={handleAddDimensionLabel}
+                  />
                 ) : selectedDimLabel ? (
-                  <div className="space-y-6">
-                    <div>
-                      <h4 className="text-sm font-bold text-gray-900 capitalize mb-1 flex items-center gap-1.5">
-                        <Ruler className="w-4 h-4 text-amber-600" /> Dimension
-                        Label
-                      </h4>
-                      <p className="text-xs text-gray-500 mb-4">
-                        Configure this dimension label.
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Name
-                      </label>
-                      <input
-                        type="text"
-                        value={selectedDimLabel.label.name}
-                        onChange={(e) =>
-                          handleUpdateDimensionLabel(
-                            selectedDimLabel.slabId,
-                            selectedDimLabel.label.id,
-                            "name",
-                            e.target.value,
-                          )
-                        }
-                        className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Edge
-                      </label>
-                      <div className="text-sm text-gray-600 bg-gray-50 px-2 py-1.5 rounded border border-gray-200 capitalize">
-                        {selectedDimLabel.label.edge}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Text Expression
-                      </label>
-                      <input
-                        type="text"
-                        value={selectedDimLabel.label.text}
-                        onChange={(e) =>
-                          handleUpdateDimensionLabel(
-                            selectedDimLabel.slabId,
-                            selectedDimLabel.label.id,
-                            "text",
-                            e.target.value,
-                          )
-                        }
-                        className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 font-mono"
-                        placeholder="e.g. length_a or 228"
-                      />
-                      <p className="text-[10px] text-gray-500 mt-1">
-                        Evaluated:{" "}
-                        <span className="font-medium">
-                          {evaluateExpression(
-                            selectedDimLabel.label.text,
-                            variablesMap,
-                          )}
-                        </span>
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Offset (distance from edge)
-                      </label>
-                      <input
-                        type="number"
-                        value={selectedDimLabel.label.offset}
-                        onChange={(e) =>
-                          handleUpdateDimensionLabel(
-                            selectedDimLabel.slabId,
-                            selectedDimLabel.label.id,
-                            "offset",
-                            parseFloat(e.target.value) || 0,
-                          )
-                        }
-                        className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-1 focus:ring-amber-500 focus:border-amber-500"
-                      />
-                    </div>
-                    {selectedDimLabel.label.edge === "custom" && (
-                      <div className="pt-4 border-t border-gray-100">
-                        <h4 className="text-xs font-semibold text-gray-900 mb-3">
-                          Custom Points
-                        </h4>
-
-                        <div className="mb-3">
-                          <label className="block text-[10px] font-medium text-gray-500 mb-1">
-                            Start Pos (X, Y, Z)
-                          </label>
-                          <div className="grid grid-cols-3 gap-2">
-                            {["X", "Y", "Z"].map((axis, i) => (
-                              <input
-                                key={`start-${axis}`}
-                                type="text"
-                                value={String(
-                                  selectedDimLabel.label.startPos?.[i] ?? 0,
-                                )}
-                                onChange={(e) => {
-                                  const newPos = [
-                                    ...(selectedDimLabel.label.startPos || [
-                                      0, 0, 0,
-                                    ]),
-                                  ] as [Expression, Expression, Expression];
-                                  newPos[i] = e.target.value;
-                                  handleUpdateDimensionLabel(
-                                    selectedDimLabel.slabId,
-                                    selectedDimLabel.label.id,
-                                    "startPos",
-                                    newPos,
-                                  );
-                                }}
-                                className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                              />
-                            ))}
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="block text-[10px] font-medium text-gray-500 mb-1">
-                            End Pos (X, Y, Z)
-                          </label>
-                          <div className="grid grid-cols-3 gap-2">
-                            {["X", "Y", "Z"].map((axis, i) => (
-                              <input
-                                key={`end-${axis}`}
-                                type="text"
-                                value={String(
-                                  selectedDimLabel.label.endPos?.[i] ?? 0,
-                                )}
-                                onChange={(e) => {
-                                  const newPos = [
-                                    ...(selectedDimLabel.label.endPos || [
-                                      0, 0, 0,
-                                    ]),
-                                  ] as [Expression, Expression, Expression];
-                                  newPos[i] = e.target.value;
-                                  handleUpdateDimensionLabel(
-                                    selectedDimLabel.slabId,
-                                    selectedDimLabel.label.id,
-                                    "endPos",
-                                    newPos,
-                                  );
-                                }}
-                                className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    <div className="pt-4 border-t border-gray-100">
-                      <button
-                        onClick={() =>
-                          handleRemoveDimensionLabel(
-                            selectedDimLabel.slabId,
-                            selectedDimLabel.label.id,
-                          )
-                        }
-                        className="text-xs text-red-600 hover:text-red-800 flex items-center gap-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> Remove Label
-                      </button>
-                    </div>
-                  </div>
+                  <DimensionInspector
+                    selectedDimLabel={selectedDimLabel}
+                    variablesMap={variablesMap}
+                    handleUpdateDimensionLabel={handleUpdateDimensionLabel}
+                    handleRemoveDimensionLabel={handleRemoveDimensionLabel}
+                  />
                 ) : selectedComponent ? (
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Name
-                      </label>
-                      <input
-                        type="text"
-                        value={selectedComponent.name}
-                        onChange={(e) =>
-                          handleComponentChange(
-                            selectedComponent.id,
-                            "name",
-                            e.target.value,
-                          )
-                        }
-                        className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Length (X)
-                        </label>
-                        <input
-                          type="text"
-                          value={String(selectedComponent.length)}
-                          onChange={(e) =>
-                            handleComponentChange(
-                              selectedComponent.id,
-                              "length",
-                              e.target.value,
-                            )
-                          }
-                          className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Thickness (Y)
-                        </label>
-                        <input
-                          type="text"
-                          value={String(selectedComponent.thickness)}
-                          onChange={(e) =>
-                            handleComponentChange(
-                              selectedComponent.id,
-                              "thickness",
-                              e.target.value,
-                            )
-                          }
-                          className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          Depth (Z)
-                        </label>
-                        <input
-                          type="text"
-                          value={String(selectedComponent.depth)}
-                          onChange={(e) =>
-                            handleComponentChange(
-                              selectedComponent.id,
-                              "depth",
-                              e.target.value,
-                            )
-                          }
-                          className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="pt-4 border-t border-gray-100">
-                      <h4 className="text-xs font-semibold text-gray-900 mb-3">
-                        Position
-                      </h4>
-                      <div className="grid grid-cols-3 gap-2">
-                        {["X", "Y", "Z"].map((axis, i) => (
-                          <div key={axis}>
-                            <label className="block text-[10px] font-medium text-gray-500 mb-1">
-                              {axis}
-                            </label>
-                            <input
-                              type="text"
-                              value={String(
-                                selectedComponent.position[i as 0 | 1 | 2],
-                              )}
-                              onChange={(e) => {
-                                const newPos = [
-                                  ...selectedComponent.position,
-                                ] as [Expression, Expression, Expression];
-                                newPos[i] = e.target.value;
-                                handleComponentChange(
-                                  selectedComponent.id,
-                                  "position",
-                                  newPos,
-                                );
-                              }}
-                              className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="pt-4 border-t border-gray-100">
-                      <h4 className="text-xs font-semibold text-gray-900 mb-3">
-                        Rotation (Radians)
-                      </h4>
-                      <div className="grid grid-cols-3 gap-2">
-                        {["X", "Y", "Z"].map((axis, i) => (
-                          <div key={axis}>
-                            <label className="block text-[10px] font-medium text-gray-500 mb-1">
-                              {axis}
-                            </label>
-                            <input
-                              type="text"
-                              value={String(
-                                selectedComponent.rotation?.[i as 0 | 1 | 2] ||
-                                0,
-                              )}
-                              onChange={(e) => {
-                                const newRot = [
-                                  ...(selectedComponent.rotation || [0, 0, 0]),
-                                ] as [Expression, Expression, Expression];
-                                newRot[i] = e.target.value;
-                                handleComponentChange(
-                                  selectedComponent.id,
-                                  "rotation",
-                                  newRot,
-                                );
-                              }}
-                              className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="pt-4 border-t border-gray-100">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-xs font-semibold text-gray-900">
-                          Sinks / Cutouts
-                        </h4>
-                        <button
-                          onClick={() => handleAddCutout(selectedComponent.id)}
-                          className="text-indigo-600 hover:text-indigo-800"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                      {selectedComponent.cutouts.length === 0 && (
-                        <p className="text-[10px] text-gray-500 mb-4">
-                          No sinks added.
-                        </p>
-                      )}
-                      {selectedComponent.cutouts.map((cutout, idx) => (
-                        <div
-                          key={cutout.id}
-                          className="mb-3 bg-gray-50 p-2 rounded-md border border-gray-100"
-                        >
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-xs font-medium text-gray-700">
-                              Sink {idx + 1}
-                            </span>
-                            <button
-                              onClick={() =>
-                                handleRemoveCutout(
-                                  selectedComponent.id,
-                                  cutout.id,
-                                )
-                              }
-                            >
-                              <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                            </button>
-                          </div>
-
-                          <div className="space-y-2">
-                            <div>
-                              <label className="block text-[10px] text-gray-500 mb-1">
-                                Shape
-                              </label>
-                              <select
-                                value={cutout.shape}
-                                onChange={(e) =>
-                                  handleUpdateCutout(
-                                    selectedComponent.id,
-                                    cutout.id,
-                                    "shape",
-                                    e.target.value,
-                                  )
-                                }
-                                className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                              >
-                                <option value="rectangular">Rectangular</option>
-                                <option value="circular">Circular</option>
-                                <option value="oval">Oval</option>
-                              </select>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="block text-[10px] text-gray-500 mb-1">
-                                  Center X (from Left)
-                                </label>
-                                <input
-                                  type="text"
-                                  value={String(cutout.centerX)}
-                                  onChange={(e) =>
-                                    handleUpdateCutout(
-                                      selectedComponent.id,
-                                      cutout.id,
-                                      "centerX",
-                                      e.target.value,
-                                    )
-                                  }
-                                  className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] text-gray-500 mb-1">
-                                  Center Y (from Front)
-                                </label>
-                                <input
-                                  type="text"
-                                  value={String(cutout.centerY)}
-                                  onChange={(e) =>
-                                    handleUpdateCutout(
-                                      selectedComponent.id,
-                                      cutout.id,
-                                      "centerY",
-                                      e.target.value,
-                                    )
-                                  }
-                                  className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="block text-[10px] text-gray-500 mb-1">
-                                  {cutout.shape === "circular"
-                                    ? "Diameter"
-                                    : "Width"}
-                                </label>
-                                <input
-                                  type="text"
-                                  value={String(cutout.width)}
-                                  onChange={(e) =>
-                                    handleUpdateCutout(
-                                      selectedComponent.id,
-                                      cutout.id,
-                                      "width",
-                                      e.target.value,
-                                    )
-                                  }
-                                  className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                                />
-                              </div>
-                              {cutout.shape !== "circular" && (
-                                <div>
-                                  <label className="block text-[10px] text-gray-500 mb-1">
-                                    Depth
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={String(cutout.depth)}
-                                    onChange={(e) =>
-                                      handleUpdateCutout(
-                                        selectedComponent.id,
-                                        cutout.id,
-                                        "depth",
-                                        e.target.value,
-                                      )
-                                    }
-                                    className="w-full text-xs border border-gray-300 rounded px-2 py-1"
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <ComponentInspector
+                    selectedComponent={selectedComponent}
+                    handleComponentChange={handleComponentChange}
+                    handleAddCutout={handleAddCutout}
+                    handleRemoveCutout={handleRemoveCutout}
+                    handleUpdateCutout={handleUpdateCutout}
+                  />
                 ) : (
-                  <div className="space-y-6">
-                    <div>
-                      <h4 className="text-sm font-bold text-gray-900 capitalize mb-1 flex items-center gap-1.5">
-                        <Settings className="w-4 h-4 text-indigo-600" /> Global Properties
-                      </h4>
-                      <p className="text-xs text-gray-500 mb-4">
-                        Configure the template properties.
-                      </p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Template Name
-                      </label>
-                      <input
-                        type="text"
-                        value={template.name}
-                        onChange={(e) =>
-                          setTemplate((prev) => ({
-                            ...prev,
-                            name: e.target.value,
-                          }))
-                        }
-                        className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-700 mb-1">
-                        Description (Optional)
-                      </label>
-                      <textarea
-                        value={template.description || ""}
-                        maxLength={200}
-                        onChange={(e) =>
-                          setTemplate((prev) => ({
-                            ...prev,
-                            description: e.target.value,
-                          }))
-                        }
-                        className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 min-h-[80px]"
-                        placeholder="Add a brief description (up to 200 characters)..."
-                      />
-                      <div className="text-[10px] text-right mt-1 text-gray-400">
-                        {(template.description || "").length}/200
-                      </div>
-                    </div>
-                  </div>
+                  <GlobalInspector
+                    template={template}
+                    setTemplate={setTemplate}
+                  />
                 )}
               </div>
             </div>

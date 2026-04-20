@@ -24,6 +24,8 @@ interface PaymentsProps {
   isSaving: boolean;
 }
 
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 export const Payments = ({
   payments,
   currencyFormat,
@@ -32,21 +34,13 @@ export const Payments = ({
   isSaving,
 }: PaymentsProps) => {
   const t = useTranslations("payments");
-  const [newPaymentAmount, setNewPaymentAmount] = useState<number | string>(
-    "",
-  );
-  const [newPaymentDate, setNewPaymentDate] = useState<Date | undefined>(
-    new Date(),
-  );
+  const [newPaymentAmount, setNewPaymentAmount] = useState<number | string>("");
+  const [newPaymentDate, setNewPaymentDate] = useState<Date | undefined>(new Date());
   const [newPaymentMethod, setNewPaymentMethod] = useState<string>("");
   const [paymentDatePopoverOpen, setPaymentDatePopoverOpen] = useState(false);
 
   const onAddPayment = () => {
-    if (
-      !newPaymentAmount ||
-      isNaN(Number(newPaymentAmount)) ||
-      Number(newPaymentAmount) <= 0
-    ) {
+    if (!newPaymentAmount || isNaN(Number(newPaymentAmount)) || Number(newPaymentAmount) <= 0) {
       toast.error(t("errors.invalidAmount"));
       return;
     }
@@ -62,16 +56,17 @@ export const Payments = ({
     };
 
     handleAddPayment(newPayment);
-
     setNewPaymentAmount("");
     setNewPaymentDate(new Date());
     setNewPaymentMethod("");
   };
 
   return (
-    <div className="break-before-page">
-      <h3 className="text-lg font-semibold pt-4 mb-2">{t("title")}</h3>
-      <div className="border rounded-md p-4 space-y-4">
+    <Card className="print:border-none print:shadow-none break-before-page">
+      <CardHeader className="print:p-0">
+        <CardTitle className="text-lg">{t("title")}</CardTitle>
+      </CardHeader>
+      <CardContent className="print:p-0 space-y-4">
         {payments.length > 0 ? (
           <ul className="space-y-2">
             {payments.map((payment, index) => (
@@ -80,9 +75,7 @@ export const Payments = ({
                 className="flex justify-between items-center p-2 border-b last:border-b-0"
               >
                 <div>
-                  <p className="font-medium">
-                    {currencyFormat(payment.amount)}
-                  </p>
+                  <p className="font-medium">{currencyFormat(payment.amount)}</p>
                   <p className="text-sm text-muted-foreground">
                     {t("method")}: {payment.method || t("na")}
                   </p>
@@ -172,7 +165,7 @@ export const Payments = ({
             </Button>
           </div>
         )}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };

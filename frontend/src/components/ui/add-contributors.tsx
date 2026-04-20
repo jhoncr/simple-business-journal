@@ -55,10 +55,16 @@ export function AddContributers({
   journalId,
   access,
   pendingAccess,
+  externalOpen,
+  onExternalOpenChange,
 }: {
   journalId: string | undefined;
   access: AccessMap;
   pendingAccess: pendingAccessSchemaType;
+  /** When provided, the dialog open state is controlled externally (used by mobile dropdown). */
+  externalOpen?: boolean;
+  /** Callback for externally controlled open state changes. */
+  onExternalOpenChange?: (open: boolean) => void;
 }) {
   const t = useTranslations("contributors");
 
@@ -72,10 +78,19 @@ export function AddContributers({
 
   type PersonType = z.infer<typeof schema>;
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [people, setPeople] = useState([] as AccessList[]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Support external or internal control
+  const isOpen = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setIsOpen = (open: boolean) => {
+    if (onExternalOpenChange) {
+      onExternalOpenChange(open);
+    }
+    setInternalOpen(open);
+  };
 
   const form = useForm<PersonType>({
     resolver: zodResolver(schema),
@@ -210,11 +225,14 @@ export function AddContributers({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenHandler}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="icon" disabled={!journalId}>
-          <UserPlus2 className="h-5 w-5" />
-        </Button>
-      </DialogTrigger>
+      {/* Hide trigger when controlled externally (mobile dropdown opens the dialog) */}
+      {externalOpen === undefined && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="icon" disabled={!journalId}>
+            <UserPlus2 className="h-5 w-5" />
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="" onCloseAutoFocus={onClose}>
         <DialogHeader>
           <DialogTitle>{t("title")}</DialogTitle>
