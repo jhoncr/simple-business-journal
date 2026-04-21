@@ -228,8 +228,9 @@ export function AddContributers({
       {/* Hide trigger when controlled externally (mobile dropdown opens the dialog) */}
       {externalOpen === undefined && (
         <DialogTrigger asChild>
-          <Button variant="outline" size="icon" disabled={!journalId}>
-            <UserPlus2 className="h-5 w-5" />
+          <Button variant="outline" size="sm" className="flex items-center gap-2 h-9" disabled={!journalId}>
+            <UserPlus2 size={16} />
+            <span className="hidden lg:inline-block">{t("title")}</span>
           </Button>
         </DialogTrigger>
       )}

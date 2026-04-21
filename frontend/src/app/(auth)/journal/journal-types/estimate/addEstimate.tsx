@@ -2,8 +2,14 @@
 "use client";
 
 import React from "react";
-import { ChevronLeft, Printer } from "lucide-react";
+import { ChevronLeft, MoreHorizontal, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   contactInfoSchemaType,
   allowedCurrencySchemaType,
@@ -202,37 +208,83 @@ export const EstimateDetails = React.memo(function EstimateDetails(
           )}
       </div>
 
-      <div
-        id="estimate-actions-bar"
-        className="print:hidden flex justify-between items-center mt-6 px-2 md:px-4 sticky bottom-0 py-2 bg-background/90 backdrop-blur-sm border-t"
-      >
-        <Button variant="brutalist" asChild size="sm" disabled={isSaving}>
-          <Link href={`/journal?jid=${props.journalId}&jtype=estimate`}>
-            <ChevronLeft className="h-4 w-4 mr-2" /> {t("back")}
-          </Link>
-        </Button>
-        <div className="flex items-center space-x-2">
-          {confirmedItems.some(item => !!item.attachedTemplate || item.itemCategory === "window-sill" || item.itemCategory === "tile-edge") && (
-            <Button variant="outline" asChild size="sm" disabled={isSaving}>
-              <Link
-                href={`/journal/entry/technical-drawings?jid=${props.journalId}&eid=${entryId}`}
-                target="_blank"
-              >
-                <Printer className="h-4 w-4 mr-2" />
-                Print Technical Drawings
+      {(() => {
+        const hasTechnicalDrawings = confirmedItems.some(
+          (item) =>
+            !!item.attachedTemplate ||
+            item.itemCategory === "window-sill" ||
+            item.itemCategory === "tile-edge",
+        );
+        const technicalDrawingsHref = `/journal/entry/technical-drawings?jid=${props.journalId}&eid=${entryId}`;
+
+        return (
+          <div
+            id="estimate-actions-bar"
+            className="print:hidden flex justify-between items-center mt-6 px-2 md:px-4 sticky bottom-0 py-2 bg-background/90 backdrop-blur-sm border-t"
+          >
+            <Button variant="brutalist" asChild size="sm" disabled={isSaving}>
+              <Link href={`/journal?jid=${props.journalId}&jtype=estimate`}>
+                <ChevronLeft className="h-4 w-4 mr-2" /> {t("back")}
               </Link>
             </Button>
-          )}
-          <Button
-            variant="brutalist"
-            size="sm"
-            onClick={() => window.print()}
-            disabled={isSaving}
-          >
-            <Printer className="h-4 w-4 mr-2" /> {t("print")}
-          </Button>
-        </div>
-      </div>
+
+            {/* Desktop: all buttons visible */}
+            <div className="hidden sm:flex items-center space-x-2">
+              {hasTechnicalDrawings && (
+                <Button variant="outline" asChild size="sm" disabled={isSaving}>
+                  <Link href={technicalDrawingsHref} target="_blank">
+                    <Printer className="h-4 w-4 mr-2" />
+                    {t("printTechnicalDrawings")}
+                  </Link>
+                </Button>
+              )}
+              <Button
+                variant="brutalist"
+                size="sm"
+                onClick={() => window.print()}
+                disabled={isSaving}
+              >
+                <Printer className="h-4 w-4 mr-2" /> {t("print")}
+              </Button>
+            </div>
+
+            {/* Mobile: primary print + dropdown for secondary actions */}
+            <div className="flex sm:hidden items-center gap-2">
+              <Button
+                variant="brutalist"
+                size="sm"
+                onClick={() => window.print()}
+                disabled={isSaving}
+              >
+                <Printer className="h-4 w-4 mr-2" /> {t("print")}
+              </Button>
+
+              {hasTechnicalDrawings && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      aria-label={t("moreActions")}
+                    >
+                      <MoreHorizontal className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem asChild>
+                      <Link href={technicalDrawingsHref} target="_blank">
+                        <Printer className="mr-2 h-4 w-4" />
+                        <span>{t("printTechnicalDrawings")}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 });

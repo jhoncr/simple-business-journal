@@ -46,7 +46,7 @@ function JournalBreadcrumb() {
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
-          <BreadcrumbItem className="truncate">
+          <BreadcrumbItem className="truncate max-w-[150px] sm:max-w-[300px]">
             <BreadcrumbLink asChild>
               <Link href={journalLink}>{journal.title}</Link>
             </BreadcrumbLink>

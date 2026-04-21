@@ -195,6 +195,8 @@
     "addNotesPlaceholder": "Add any additional notes...",
     "back": "Back",
     "print": "Print",
+    "printTechnicalDrawings": "Print Technical Drawings",
+    "moreActions": "More Actions",
     "newEstimate": "New Estimate",
     "orderId": "Order ID",
     "created": "Created",
