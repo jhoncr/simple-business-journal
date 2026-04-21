@@ -88,11 +88,40 @@ export const StoneForgeEditor = () => {
     setPreviewRefreshCount((prev) => prev + 1);
   };
 
+  const resizeImage = (dataUrl: string, maxWidth = 400): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = new window.Image();
+      img.src = dataUrl;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const scaleSize = maxWidth / img.width;
+
+        // If the canvas is already smaller than our target, just return a compressed version
+        if (scaleSize >= 1) {
+          canvas.width = img.width;
+          canvas.height = img.height;
+        } else {
+          canvas.width = maxWidth;
+          canvas.height = img.height * scaleSize;
+        }
+
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        // Compress as WebP at 80% quality for a massive size reduction
+        resolve(canvas.toDataURL("image/webp", 0.8));
+      };
+    });
+  };
+
   const onSave = async () => {
     let thumbnailBase64;
     if (canvasRef.current) {
       try {
-        thumbnailBase64 = canvasRef.current.toDataURL("image/png");
+        // Capture the raw canvas
+        const rawDataUrl = canvasRef.current.toDataURL("image/png");
+        // Resize and compress it before sending to the backend
+        thumbnailBase64 = await resizeImage(rawDataUrl, 400);
       } catch (err) {
         console.warn("Failed to capture canvas thumbnail:", err);
       }

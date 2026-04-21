@@ -71,25 +71,31 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled, op
     const fetchUrls = async () => {
       const storage = getStorage(app);
       const newUrls: Record<string, string> = {};
-      for (const [id, entry] of Object.entries(cacheMap)) {
-        if (!isMounted) break;
-        if (entry.t) {
-          if (entry.t.startsWith("http") || entry.t.startsWith("data:")) {
-            newUrls[id] = entry.t;
-          } else {
-            try {
-              const url = await getDownloadURL(ref(storage, entry.t));
-              newUrls[id] = url;
-            } catch (e) {
-              console.error("Failed to fetch image url for", id, e);
-            }
+      
+      // Map over the entries to create an array of promises
+      const fetchPromises = Object.entries(cacheMap).map(async ([id, entry]) => {
+        if (!entry.t) return;
+        
+        if (entry.t.startsWith("http") || entry.t.startsWith("data:")) {
+          newUrls[id] = entry.t;
+        } else {
+          try {
+            const url = await getDownloadURL(ref(storage, entry.t));
+            newUrls[id] = url;
+          } catch (e) {
+            console.error("Failed to fetch image url for", id, e);
           }
         }
-      }
+      });
+
+      // Wait for all URLs to be fetched simultaneously
+      await Promise.all(fetchPromises);
+
       if (isMounted) {
         setImageUrls(newUrls);
       }
     };
+
     if (Object.keys(cacheMap).length > 0) {
       fetchUrls();
     }

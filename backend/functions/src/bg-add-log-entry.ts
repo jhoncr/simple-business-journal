@@ -89,16 +89,23 @@ export const addLogFn = createAuditedCallable(
       if (thumbnailBase64 && entryType === 'template') {
         try {
           const bucket = getStorage().bucket();
-          const filePath = `journals/${journalId}/templates/${actualEntryId}/thumbnail.png`;
+
+          // Dynamically detect the format (e.g., image/webp, image/jpeg, image/png)
+          const mimeMatch = thumbnailBase64.match(/^data:(image\/\w+);base64,/);
+          const contentType = mimeMatch ? mimeMatch[1] : 'image/png';
+          const ext = contentType.split('/')[1] || 'png';
+
+          const filePath = `journals/${journalId}/templates/${actualEntryId}/thumbnail.${ext}`;
           const file = bucket.file(filePath);
 
-          // Remove the data:image/png;base64, part if present
+          // Strip the data URL prefix dynamically based on the matched content type
           const base64Data = thumbnailBase64.replace(/^data:image\/\w+;base64,/, '');
           const buffer = Buffer.from(base64Data, 'base64');
 
           await file.save(buffer, {
             metadata: {
-              contentType: 'image/png',
+              contentType: contentType, // Use the dynamically detected type
+              cacheControl: 'public, max-age=31536000', // Optional: heavily caches thumbnails in the browser
             },
           });
 
@@ -106,7 +113,6 @@ export const addLogFn = createAuditedCallable(
           logger.info(`Thumbnail uploaded successfully for template ${actualEntryId}`);
         } catch (uploadError) {
           logger.error('Error uploading thumbnail:', uploadError);
-          // We don't fail the entire request if thumbnail upload fails
         }
       }
 
