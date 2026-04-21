@@ -148,6 +148,7 @@ export function NewItemFormWrapper({
         onOpenGallery={() => {
           if (!attachedTemplate) setIsGalleryOpen(true);
         }}
+        onClearTemplate={() => setAttachedTemplate(null)}
         onSuccess={onSuccess}
         setIsSubmitting={setIsSubmitting}
       />
@@ -164,24 +165,36 @@ export function NewItemFormWrapper({
     </>
   );
 
-  const combinedContent = attachedTemplate ? (
-    <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] lg:grid-cols-[2fr_1fr] gap-6 h-full min-h-[600px]">
-      {/* LEFT PANE: 3D Viewer */}
-      <div className="flex flex-col h-full bg-secondary/20 rounded-md overflow-hidden border relative min-h-[400px]">
-        <StoneForgeViewer
-          components={attachedTemplate.snapshot.components}
-          variables={mergedVariables}
-          fixedCameraView={attachedTemplate.snapshot.cameraViews?.[0]}
-        />
-      </div>
+  const combinedContent = (
+    <div
+      className={
+        attachedTemplate
+          ? "grid grid-cols-1 md:grid-cols-[3fr_2fr] lg:grid-cols-[2fr_1fr] gap-6 h-full min-h-[600px]"
+          : "flex flex-col h-full"
+      }
+    >
+      {/* LEFT PANE: 3D Viewer (Occupies position index 0. Replaced by null if false) */}
+      {attachedTemplate ? (
+        <div className="flex flex-col h-full bg-secondary/20 rounded-md overflow-hidden border relative min-h-[400px]">
+          <StoneForgeViewer
+            components={attachedTemplate.snapshot.components}
+            variables={mergedVariables}
+            fixedCameraView={attachedTemplate.snapshot.cameraViews?.[0]}
+          />
+        </div>
+      ) : null}
 
-      {/* RIGHT PANE: Form & Variables */}
-      <div className="flex flex-col h-full overflow-hidden border-l pl-0 md:pl-2">
+      {/* RIGHT PANE: Form & Variables (Always stays at position index 1) */}
+      <div
+        className={
+          attachedTemplate
+            ? "flex flex-col h-full overflow-hidden border-l pl-0 md:pl-2"
+            : "flex-grow overflow-y-auto pr-2"
+        }
+      >
         {formContent}
       </div>
     </div>
-  ) : (
-    <div className="flex-grow overflow-y-auto pr-2">{formContent}</div>
   );
 
   if (isDesktop) {

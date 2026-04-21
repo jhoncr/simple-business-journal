@@ -21,6 +21,7 @@ export interface NewItemFormRootProps {
   confirmedItems?: LineItem[];
   attachedTemplate: AttachedTemplate | null;
   onOpenGallery: () => void;
+  onClearTemplate: () => void;
   onSuccess: () => void;
   formId: string;
   setIsSubmitting: (val: boolean) => void;
@@ -41,6 +42,7 @@ export const NewItemForm = forwardRef<NewItemFormHandle, NewItemFormRootProps>(
       confirmedItems = [],
       attachedTemplate,
       onOpenGallery,
+      onClearTemplate,
       onSuccess,
       formId,
       setIsSubmitting,
@@ -312,7 +314,7 @@ export const NewItemForm = forwardRef<NewItemFormHandle, NewItemFormRootProps>(
         }`}
         id={formId}
       >
-        <ItemTypeSelector form={form} canAdd={canAdd} currency={currency} onOpenGallery={onOpenGallery} />
+        <ItemTypeSelector form={form} canAdd={canAdd} currency={currency} onOpenGallery={onOpenGallery} onClearTemplate={onClearTemplate} />
         <DimensionsInput form={form} canAdd={canAdd} />
         <LaborInput form={form} canAdd={canAdd} currency={currency} />
 

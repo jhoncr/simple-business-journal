@@ -14,9 +14,10 @@ interface ItemTypeSelectorProps {
   canAdd: boolean;
   currency: allowedCurrencySchemaType;
   onOpenGallery: () => void;
+  onClearTemplate: () => void;
 }
 
-export function ItemTypeSelector({ form, canAdd, currency, onOpenGallery }: ItemTypeSelectorProps) {
+export function ItemTypeSelector({ form, canAdd, currency, onOpenGallery, onClearTemplate }: ItemTypeSelectorProps) {
   const t = useTranslations("newItemForm");
 
   return (
@@ -35,6 +36,10 @@ export function ItemTypeSelector({ form, canAdd, currency, onOpenGallery }: Item
                 value={field.value}
                 onValueChange={(value: "none" | "gallery" | "window-sill" | "tile-edge") => {
                   field.onChange(value);
+
+                  if (value !== "gallery") {
+                    onClearTemplate();
+                  }
 
                   if (value === "window-sill" || value === "tile-edge") {
                     form.setValue("dimensionType", "area-m²");
