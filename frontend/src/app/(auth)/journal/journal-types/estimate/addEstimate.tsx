@@ -76,6 +76,10 @@ export const EstimateDetails = React.memo(function EstimateDetails(
     handleAddPayment,
   } = useEstimate(props);
 
+  // Derived state: require contact info before unlocking the rest of the form
+  const isContactInfoValid = Boolean(customer?.name?.trim());
+  const isFormEnabled = canUpdate && isContactInfoValid;
+
   if (loading) {
     return <div className="text-center p-10">{t("loadingDetails")}</div>;
   }
@@ -121,76 +125,84 @@ export const EstimateDetails = React.memo(function EstimateDetails(
         </div>
 
         {canUpdate && (
-          <fieldset
-            disabled={!canUpdate}
-            className={!canUpdate ? "opacity-50 space-y-4" : "space-y-4"}
-          >
-            <Card className="print:border-none print:shadow-none">
-              <CardHeader className="p-4 pb-2 print:p-0">
-                <CardTitle className="text-base">{t("items")}</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-0 print:p-0">
-                <ItemsList
-                  confirmedItems={confirmedItems}
-                  removeConfirmedItem={removeConfirmedItem}
-                  editItem={editItem}
-                  editingItem={editingItem}
-                  currencyFormat={currencyFormat}
-                  isSaving={isSaving}
-                  canUpdate={canUpdate}
-                />
-                <div className="print:hidden mt-4">
-                  <NewItemFormWrapper
-                    onAddItem={addConfirmedItem}
-                    currency={props.journalCurrency}
-                    inventoryCache={props.journalInventoryCache}
-                    userRole={userRole}
-                    editingItem={editingItem}
-                    onCancelEdit={cancelEdit}
+          <>
+            {!isContactInfoValid && (
+              <div className="bg-secondary/50 text-secondary-foreground p-3 rounded-md text-sm text-center print:hidden border border-border">
+                {t("unlockFormPrompt")}
+              </div>
+            )}
+
+            <fieldset
+              disabled={!isFormEnabled}
+              className={!isFormEnabled ? "opacity-50 space-y-4 pointer-events-none select-none" : "space-y-4"}
+            >
+              <Card className="print:border-none print:shadow-none">
+                <CardHeader className="p-4 pb-2 print:p-0">
+                  <CardTitle className="text-base">{t("items")}</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 print:p-0">
+                  <ItemsList
                     confirmedItems={confirmedItems}
+                    removeConfirmedItem={removeConfirmedItem}
+                    editItem={editItem}
+                    editingItem={editingItem}
+                    currencyFormat={currencyFormat}
+                    isSaving={isSaving}
+                    canUpdate={canUpdate}
                   />
-                </div>
-                <div className="mt-4">
-                  <InvoiceBottomLines
-                    itemSubtotal={calculateSubtotal()}
-                    adjustments={adjustments}
-                    setAdjustments={(newAdjustments) => {
-                      setAdjustments(newAdjustments);
-                      handleSave({ adjustments: newAdjustments });
+                  <div className="print:hidden mt-4">
+                    <NewItemFormWrapper
+                      onAddItem={addConfirmedItem}
+                      currency={props.journalCurrency}
+                      inventoryCache={props.journalInventoryCache}
+                      userRole={userRole}
+                      editingItem={editingItem}
+                      onCancelEdit={cancelEdit}
+                      confirmedItems={confirmedItems}
+                    />
+                  </div>
+                  <div className="mt-4">
+                    <InvoiceBottomLines
+                      itemSubtotal={calculateSubtotal()}
+                      adjustments={adjustments}
+                      setAdjustments={(newAdjustments) => {
+                        setAdjustments(newAdjustments);
+                        handleSave({ adjustments: newAdjustments });
+                      }}
+                      taxPercentage={taxPercentage}
+                      setTaxPercentage={(newTaxPercentage) => {
+                        setTaxPercentage(newTaxPercentage);
+                        handleSave({ taxPercentage: newTaxPercentage });
+                      }}
+                      currency={props.journalCurrency}
+                      userRole={userRole}
+                      payments={payments}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="print:border-none print:shadow-none bg-secondary/5">
+                <CardHeader className="p-4 pb-2 print:p-0">
+                  <CardTitle className="text-base">{t("notes")}</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 print:p-0">
+                  <InlineEditTextarea
+                    initialValue={notes}
+                    onSave={(value) => {
+                      setNotes(value);
+                      handleSave({ notes: value });
                     }}
-                    taxPercentage={taxPercentage}
-                    setTaxPercentage={(newTaxPercentage) => {
-                      setTaxPercentage(newTaxPercentage);
-                      handleSave({ taxPercentage: newTaxPercentage });
-                    }}
-                    currency={props.journalCurrency}
-                    userRole={userRole}
-                    payments={payments}
+                    placeholder={t("addNotesPlaceholder")}
+                    disabled={isSaving}
                   />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="print:border-none print:shadow-none bg-secondary/5">
-              <CardHeader className="p-4 pb-2 print:p-0">
-                <CardTitle className="text-base">{t("notes")}</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 pt-0 print:p-0">
-                <InlineEditTextarea
-                  initialValue={notes}
-                  onSave={(value) => {
-                    setNotes(value);
-                    handleSave({ notes: value });
-                  }}
-                  placeholder={t("addNotesPlaceholder")}
-                  disabled={isSaving}
-                />
-              </CardContent>
-            </Card>
-          </fieldset>
+                </CardContent>
+              </Card>
+            </fieldset>
+          </>
         )}
 
-        {canUpdate &&
+        {isFormEnabled &&
           (status == WorkStatus.IN_PROCESS ||
             status == WorkStatus.DELIVERED ||
             payments.length > 0) && (

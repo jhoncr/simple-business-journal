@@ -197,6 +197,7 @@
     "print": "Print",
     "printTechnicalDrawings": "Print Technical Drawings",
     "moreActions": "More Actions",
+    "unlockFormPrompt": "Please add the client's name in the contact info above to unlock the rest of the estimate.",
     "newEstimate": "New Estimate",
     "orderId": "Order ID",
     "created": "Created",

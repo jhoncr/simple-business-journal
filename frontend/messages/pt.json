@@ -197,6 +197,7 @@
     "print": "Imprimir",
     "printTechnicalDrawings": "Imprimir Desenhos Técnicos",
     "moreActions": "Mais Ações",
+    "unlockFormPrompt": "Adicione o nome do cliente nas informações de contato acima para desbloquear o restante do orçamento.",
     "newEstimate": "Novo Orçamento",
     "orderId": "ID",
     "created": "Criado",
