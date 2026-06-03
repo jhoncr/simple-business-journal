@@ -107,6 +107,68 @@ export const Slab3D: React.FC<Slab3DProps> = ({ slab, isSelected, onSelect, sele
     });
   }, [isSelected]);
 
+  const extrudeGeometry = useMemo(() => {
+    return new THREE.ExtrudeGeometry(shape, extrudeSettings);
+  }, [shape, extrudeSettings]);
+
+  const edgesGeometry = useMemo(() => {
+    return new THREE.EdgesGeometry(extrudeGeometry);
+  }, [extrudeGeometry]);
+
+  const polishedMaterial = useMemo(() => {
+    return new THREE.MeshBasicMaterial({ color: "#f59e0b" });
+  }, []);
+
+  const polishedGeometryX = useMemo(() => {
+    return new THREE.BoxGeometry(L, 0.3, 0.3);
+  }, [L]);
+
+  const polishedGeometryZ = useMemo(() => {
+    return new THREE.BoxGeometry(0.3, 0.3, D);
+  }, [D]);
+
+  React.useEffect(() => {
+    return () => {
+      extrudeGeometry.dispose();
+    };
+  }, [extrudeGeometry]);
+
+  React.useEffect(() => {
+    return () => {
+      edgesGeometry.dispose();
+    };
+  }, [edgesGeometry]);
+
+  React.useEffect(() => {
+    return () => {
+      material.dispose();
+    };
+  }, [material]);
+
+  React.useEffect(() => {
+    return () => {
+      edgeMaterial.dispose();
+    };
+  }, [edgeMaterial]);
+
+  React.useEffect(() => {
+    return () => {
+      polishedMaterial.dispose();
+    };
+  }, [polishedMaterial]);
+
+  React.useEffect(() => {
+    return () => {
+      polishedGeometryX.dispose();
+    };
+  }, [polishedGeometryX]);
+
+  React.useEffect(() => {
+    return () => {
+      polishedGeometryZ.dispose();
+    };
+  }, [polishedGeometryZ]);
+
   const hitT = 4; // Hitbox thickness
 
   return (
@@ -121,117 +183,69 @@ export const Slab3D: React.FC<Slab3DProps> = ({ slab, isSelected, onSelect, sele
     >
       {/* Main Slab */}
       <group rotation={[-Math.PI / 2, 0, 0]}>
-        <mesh material={material}>
-          <extrudeGeometry args={[shape, extrudeSettings]} />
-        </mesh>
-        <lineSegments>
-          <edgesGeometry args={[new THREE.ExtrudeGeometry(shape, extrudeSettings)]} />
-          <primitive object={edgeMaterial} attach="material" />
-        </lineSegments>
+        <mesh geometry={extrudeGeometry} material={material} />
+        <lineSegments geometry={edgesGeometry} material={edgeMaterial} />
       </group>
 
-      {/* Edge Hitboxes */}
-      {/* Top Edges */}
-      <EdgeHitbox
-        position={[L / 2, T, 0]}
-        args={[L, hitT, hitT]}
-        edgeName="top-front"
-        slabId={slab.id}
-        onEdgeSelect={onEdgeSelect}
-        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-front'}
-      />
-      <EdgeHitbox
-        position={[L / 2, T, -D]}
-        args={[L, hitT, hitT]}
-        edgeName="top-back"
-        slabId={slab.id}
-        onEdgeSelect={onEdgeSelect}
-        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-back'}
-      />
-      <EdgeHitbox
-        position={[0, T, -D / 2]}
-        args={[hitT, hitT, D]}
-        edgeName="top-left"
-        slabId={slab.id}
-        onEdgeSelect={onEdgeSelect}
-        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-left'}
-      />
-      <EdgeHitbox
-        position={[L, T, -D / 2]}
-        args={[hitT, hitT, D]}
-        edgeName="top-right"
-        slabId={slab.id}
-        onEdgeSelect={onEdgeSelect}
-        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-right'}
-      />
+      {/* Edge Hitboxes (Top 4 edges only with margins and offsets to prevent overlaps and occlusion) */}
+      {(() => {
+        const marginX = Math.min(4, L / 4);
+        const marginZ = Math.min(4, D / 4);
+        const hitboxWidth = Math.max(1, L - 2 * marginX);
+        const hitboxDepth = Math.max(1, D - 2 * marginZ);
+        const hitSize = 3; // Compact, easy-to-click size
 
-      {/* Bottom Edges */}
-      <EdgeHitbox
-        position={[L / 2, 0, 0]}
-        args={[L, hitT, hitT]}
-        edgeName="bottom-front"
-        slabId={slab.id}
-        onEdgeSelect={onEdgeSelect}
-        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'bottom-front'}
-      />
-      <EdgeHitbox
-        position={[L / 2, 0, -D]}
-        args={[L, hitT, hitT]}
-        edgeName="bottom-back"
-        slabId={slab.id}
-        onEdgeSelect={onEdgeSelect}
-        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'bottom-back'}
-      />
-      <EdgeHitbox
-        position={[0, 0, -D / 2]}
-        args={[hitT, hitT, D]}
-        edgeName="bottom-left"
-        slabId={slab.id}
-        onEdgeSelect={onEdgeSelect}
-        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'bottom-left'}
-      />
-      <EdgeHitbox
-        position={[L, 0, -D / 2]}
-        args={[hitT, hitT, D]}
-        edgeName="bottom-right"
-        slabId={slab.id}
-        onEdgeSelect={onEdgeSelect}
-        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'bottom-right'}
-      />
+        return (
+          <>
+            <EdgeHitbox
+              position={[L / 2, T + 0.5, 0.5]}
+              args={[hitboxWidth, hitSize, hitSize]}
+              edgeName="top-front"
+              slabId={slab.id}
+              onEdgeSelect={onEdgeSelect}
+              isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-front'}
+            />
+            <EdgeHitbox
+              position={[L / 2, T + 0.5, -D - 0.5]}
+              args={[hitboxWidth, hitSize, hitSize]}
+              edgeName="top-back"
+              slabId={slab.id}
+              onEdgeSelect={onEdgeSelect}
+              isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-back'}
+            />
+            <EdgeHitbox
+              position={[-0.5, T + 0.5, -D / 2]}
+              args={[hitSize, hitSize, hitboxDepth]}
+              edgeName="top-left"
+              slabId={slab.id}
+              onEdgeSelect={onEdgeSelect}
+              isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-left'}
+            />
+            <EdgeHitbox
+              position={[L + 0.5, T + 0.5, -D / 2]}
+              args={[hitSize, hitSize, hitboxDepth]}
+              edgeName="top-right"
+              slabId={slab.id}
+              onEdgeSelect={onEdgeSelect}
+              isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-right'}
+            />
+          </>
+        );
+      })()}
 
-      {/* Vertical Edges */}
-      <EdgeHitbox
-        position={[0, T / 2, 0]}
-        args={[hitT, T, hitT]}
-        edgeName="front-left"
-        slabId={slab.id}
-        onEdgeSelect={onEdgeSelect}
-        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'front-left'}
-      />
-      <EdgeHitbox
-        position={[L, T / 2, 0]}
-        args={[hitT, T, hitT]}
-        edgeName="front-right"
-        slabId={slab.id}
-        onEdgeSelect={onEdgeSelect}
-        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'front-right'}
-      />
-      <EdgeHitbox
-        position={[0, T / 2, -D]}
-        args={[hitT, T, hitT]}
-        edgeName="back-left"
-        slabId={slab.id}
-        onEdgeSelect={onEdgeSelect}
-        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'back-left'}
-      />
-      <EdgeHitbox
-        position={[L, T / 2, -D]}
-        args={[hitT, T, hitT]}
-        edgeName="back-right"
-        slabId={slab.id}
-        onEdgeSelect={onEdgeSelect}
-        isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'back-right'}
-      />
+      {/* Polished Edge Visual Highlights */}
+      {slab.polishedEdges?.includes('front') && (
+        <mesh position={[L / 2, T, 0]} geometry={polishedGeometryX} material={polishedMaterial} />
+      )}
+      {slab.polishedEdges?.includes('back') && (
+        <mesh position={[L / 2, T, -D]} geometry={polishedGeometryX} material={polishedMaterial} />
+      )}
+      {slab.polishedEdges?.includes('left') && (
+        <mesh position={[0, T, -D / 2]} geometry={polishedGeometryZ} material={polishedMaterial} />
+      )}
+      {slab.polishedEdges?.includes('right') && (
+        <mesh position={[L, T, -D / 2]} geometry={polishedGeometryZ} material={polishedMaterial} />
+      )}
 
       {/* Dimension Labels */}
       {slab.dimensionLabels?.map(label => (

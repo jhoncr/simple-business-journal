@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { AssemblyTemplate } from "@backend/common/schemas/studio";
+import { AssemblyTemplate, AssemblyTemplateSchema } from "@backend/common/schemas/studio";
 import { functions, app } from "@/lib/auth_handler";
 import { fetchEntry } from "@/lib/db_handler";
 import { httpsCallable } from "firebase/functions";
 import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { useToast } from "@/hooks/use-toast";
+import { useTranslations } from "next-intl";
 
 export const INITIAL_TEMPLATE: AssemblyTemplate = {
   id: "temp_1",
@@ -34,15 +36,93 @@ export const INITIAL_TEMPLATE: AssemblyTemplate = {
   ],
 };
 
+const sanitizeComponent = (comp: any): any => {
+  if (!comp || typeof comp !== "object") return comp;
+
+  const sanitized = { ...comp };
+
+  // Sanitize polishedEdges
+  if (Array.isArray(sanitized.polishedEdges)) {
+    sanitized.polishedEdges = sanitized.polishedEdges.filter(
+      (e: any) => e === "front" || e === "back" || e === "left" || e === "right"
+    );
+  } else {
+    delete sanitized.polishedEdges;
+  }
+
+  // Ensure cutouts is an array
+  if (!Array.isArray(sanitized.cutouts)) {
+    sanitized.cutouts = [];
+  } else {
+    sanitized.cutouts = sanitized.cutouts.map((cutout: any) => ({
+      ...cutout,
+      shape: ["rectangular", "circular", "oval"].includes(cutout.shape)
+        ? cutout.shape
+        : "rectangular",
+    }));
+  }
+
+  // Ensure dimensionLabels is an array if present
+  if (sanitized.dimensionLabels !== undefined) {
+    if (!Array.isArray(sanitized.dimensionLabels)) {
+      delete sanitized.dimensionLabels;
+    } else {
+      sanitized.dimensionLabels = sanitized.dimensionLabels.map((lbl: any) => {
+        const sanitizedLbl = { ...lbl };
+        if (sanitizedLbl.type !== "dimension_label") {
+          sanitizedLbl.type = "dimension_label";
+        }
+        return sanitizedLbl;
+      });
+    }
+  }
+
+  // Recursively sanitize children
+  if (Array.isArray(sanitized.children)) {
+    sanitized.children = sanitized.children.map(sanitizeComponent);
+  } else {
+    sanitized.children = [];
+  }
+
+  return sanitized;
+};
+
+const sanitizeTemplate = (templateData: any): any => {
+  if (!templateData || typeof templateData !== "object") return templateData;
+
+  const sanitized = { ...templateData };
+
+  // Ensure variables is an array
+  if (!Array.isArray(sanitized.variables)) {
+    sanitized.variables = [];
+  }
+
+  // Ensure cameraViews is an array if present
+  if (sanitized.cameraViews !== undefined && !Array.isArray(sanitized.cameraViews)) {
+    delete sanitized.cameraViews;
+  }
+
+  // Ensure components is an array
+  if (!Array.isArray(sanitized.components)) {
+    sanitized.components = [];
+  } else {
+    sanitized.components = sanitized.components.map(sanitizeComponent);
+  }
+
+  return sanitized;
+};
+
 export const useStoneForgeData = (journalId: string | null, entryId: string | null) => {
   const [template, setTemplate] = useState<AssemblyTemplate>(INITIAL_TEMPLATE);
   const [isLoading, setIsLoading] = useState(!!entryId);
   const [isSaving, setIsSaving] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const { toast } = useToast();
+  const t = useTranslations("studio");
 
   const showToast = (message: string) => {
-    setToastMessage(message);
-    setTimeout(() => setToastMessage(null), 3000);
+    toast({
+      description: message,
+    });
   };
 
   useEffect(() => {
@@ -51,8 +131,9 @@ export const useStoneForgeData = (journalId: string | null, entryId: string | nu
         try {
           const entry = await fetchEntry(journalId, "template", entryId);
           if (entry && entry.details) {
+            const sanitizedDetails = sanitizeTemplate(entry.details);
             setTemplate({
-              ...(entry.details as any),
+              ...sanitizedDetails,
               id: entryId,
             });
           }
@@ -67,16 +148,44 @@ export const useStoneForgeData = (journalId: string | null, entryId: string | nu
       }
     }
     loadTemplate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [journalId, entryId]);
 
   const handleSaveTemplate = async (thumbnailBase64?: string) => {
     if (!journalId) {
-      showToast("Cannot save: No journal ID provided in URL");
+      toast({
+        title: "Error",
+        description: "Cannot save: No journal ID provided in URL",
+        variant: "destructive",
+      });
       return;
     }
     setIsSaving(true);
     try {
       const finalTemplate = { ...template };
+
+      // Validate the template model client-side before sending to Cloud Function
+      const validation = AssemblyTemplateSchema.safeParse(finalTemplate);
+      if (!validation.success) {
+        console.error("Template validation failed:", validation.error.format());
+
+        // Construct a structured, readable error message
+        const errors = validation.error.errors
+          .map((err) => {
+            const path = err.path.join(".");
+            return `${path}: ${err.message}`;
+          })
+          .join("\n");
+
+        toast({
+          title: t("validationErrorTitle"),
+          description: t("validationErrorDescription", { errors }),
+          variant: "destructive",
+        });
+        setIsSaving(false);
+        return;
+      }
+
       const auth = getAuth(app);
       if (!auth.currentUser) {
         const provider = new GoogleAuthProvider();
@@ -98,7 +207,7 @@ export const useStoneForgeData = (journalId: string | null, entryId: string | nu
           const response = await addLogFunction(payload);
           const newTemplateId = (response.data as any).id;
           setTemplate((prev) => ({ ...prev, id: newTemplateId }));
-          showToast("Template saved successfully!");
+          showToast(t("saveSuccess"));
         } else {
           const payload = {
             jid: journalId,
@@ -109,12 +218,16 @@ export const useStoneForgeData = (journalId: string | null, entryId: string | nu
             ...(thumbnailBase64 && { thumbnailBase64 }),
           };
           await addLogFunction(payload);
-          showToast("Template updated successfully!");
+          showToast(t("updateSuccess"));
         }
       }
     } catch (error) {
       console.error("Error saving template:", error);
-      showToast("Failed to save template. Please try again.");
+      toast({
+        title: "Error",
+        description: "Failed to save template. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -152,7 +265,6 @@ export const useStoneForgeData = (journalId: string | null, entryId: string | nu
     setTemplate,
     isLoading,
     isSaving,
-    toastMessage,
     showToast,
     handleSaveTemplate,
     handleDuplicateTemplate,

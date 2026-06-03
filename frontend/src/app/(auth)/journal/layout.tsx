@@ -22,9 +22,9 @@ export default function JournalLayout({
     // Wrap with Suspense because JournalProvider uses useSearchParams
     <Suspense fallback={<div>Loading journal context...</div>}>
       <JournalProvider>
-        <div className="flex flex-col w-full flex-1 min-h-0">
+        <div className="flex flex-col w-full flex-1 min-h-0 print:h-auto print:block print:overflow-visible">
           <JournalBreadcrumb /> {/* Render breadcrumbs that use the context */}
-          <div className="flex-1 min-h-0 flex flex-col">{children}</div>
+          <div className="flex-1 min-h-0 flex flex-col print:h-auto print:block print:overflow-visible">{children}</div>
         </div>
       </JournalProvider>
     </Suspense>

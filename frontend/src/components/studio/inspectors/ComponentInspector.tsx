@@ -1,6 +1,7 @@
 import React from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { SlabComponent, Cutout, Expression } from "@backend/common/schemas/studio";
+import { useTranslations } from "next-intl";
 
 interface ComponentInspectorProps {
   selectedComponent: SlabComponent;
@@ -26,11 +27,13 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
   handleRemoveCutout,
   handleUpdateCutout,
 }) => {
+  const t = useTranslations("studio");
+
   return (
     <div className="space-y-6">
       <div>
         <label className="block text-xs font-medium text-gray-700 mb-1">
-          Name
+          {t("name")}
         </label>
         <input
           type="text"
@@ -45,7 +48,7 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
       <div className="grid grid-cols-3 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
-            Length (X)
+            {t("lengthX")}
           </label>
           <input
             type="text"
@@ -62,7 +65,7 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
-            Thickness (Y)
+            {t("thicknessY")}
           </label>
           <input
             type="text"
@@ -79,7 +82,7 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
-            Depth (Z)
+            {t("depthZ")}
           </label>
           <input
             type="text"
@@ -97,7 +100,7 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
       </div>
 
       <div className="pt-4 border-t border-gray-100">
-        <h4 className="text-xs font-semibold text-gray-900 mb-3">Position</h4>
+        <h4 className="text-xs font-semibold text-gray-900 mb-3">{t("position")}</h4>
         <div className="grid grid-cols-3 gap-2">
           {["X", "Y", "Z"].map((axis, i) => (
             <div key={axis}>
@@ -127,7 +130,7 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
 
       <div className="pt-4 border-t border-gray-100">
         <h4 className="text-xs font-semibold text-gray-900 mb-3">
-          Rotation (Radians)
+          {t("rotationRadians")}
         </h4>
         <div className="grid grid-cols-3 gap-2">
           {["X", "Y", "Z"].map((axis, i) => (
@@ -159,7 +162,7 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
       <div className="pt-4 border-t border-gray-100">
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-xs font-semibold text-gray-900">
-            Sinks / Cutouts
+            {t("sinksCutouts")}
           </h4>
           <button
             onClick={() => handleAddCutout(selectedComponent.id)}
@@ -169,7 +172,7 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
           </button>
         </div>
         {selectedComponent.cutouts.length === 0 && (
-          <p className="text-[10px] text-gray-500 mb-4">No sinks added.</p>
+          <p className="text-[10px] text-gray-500 mb-4">{t("noSinks")}</p>
         )}
         {selectedComponent.cutouts.map((cutout, idx) => (
           <div
@@ -178,7 +181,7 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
           >
             <div className="flex justify-between items-center mb-2">
               <span className="text-xs font-medium text-gray-700">
-                Sink {idx + 1}
+                {t("sinkNum", { num: idx + 1 })}
               </span>
               <button
                 onClick={() =>
@@ -192,7 +195,7 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
             <div className="space-y-2">
               <div>
                 <label className="block text-[10px] text-gray-500 mb-1">
-                  Shape
+                  {t("shape")}
                 </label>
                 <select
                   value={cutout.shape}
@@ -206,16 +209,16 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
                   }
                   className="w-full text-xs border border-gray-300 rounded px-2 py-1"
                 >
-                  <option value="rectangular">Rectangular</option>
-                  <option value="circular">Circular</option>
-                  <option value="oval">Oval</option>
+                  <option value="rectangular">{t("rectangular")}</option>
+                  <option value="circular">{t("circular")}</option>
+                  <option value="oval">{t("oval")}</option>
                 </select>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[10px] text-gray-500 mb-1">
-                    Center X (from Left)
+                    {t("centerXLeft")}
                   </label>
                   <input
                     type="text"
@@ -233,7 +236,7 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
                 </div>
                 <div>
                   <label className="block text-[10px] text-gray-500 mb-1">
-                    Center Y (from Front)
+                    {t("centerYFront")}
                   </label>
                   <input
                     type="text"
@@ -254,7 +257,7 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[10px] text-gray-500 mb-1">
-                    {cutout.shape === "circular" ? "Diameter" : "Width"}
+                    {cutout.shape === "circular" ? t("diameter") : t("width")}
                   </label>
                   <input
                     type="text"
@@ -273,7 +276,7 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
                 {cutout.shape !== "circular" && (
                   <div>
                     <label className="block text-[10px] text-gray-500 mb-1">
-                      Depth
+                      {t("depth")}
                     </label>
                     <input
                       type="text"

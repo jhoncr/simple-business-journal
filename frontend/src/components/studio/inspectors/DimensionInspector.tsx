@@ -2,6 +2,7 @@ import React from "react";
 import { Ruler, Trash2 } from "lucide-react";
 import { DimensionLabel, Expression } from "@backend/common/schemas/studio";
 import { evaluateExpression } from "@/lib/evaluator";
+import { useTranslations } from "next-intl";
 
 interface DimensionInspectorProps {
   selectedDimLabel: {
@@ -24,19 +25,21 @@ export const DimensionInspector: React.FC<DimensionInspectorProps> = ({
   handleUpdateDimensionLabel,
   handleRemoveDimensionLabel,
 }) => {
+  const t = useTranslations("studio");
+
   return (
     <div className="space-y-6">
       <div>
         <h4 className="text-sm font-bold text-gray-900 capitalize mb-1 flex items-center gap-1.5">
-          <Ruler className="w-4 h-4 text-amber-600" /> Dimension Label
+          <Ruler className="w-4 h-4 text-amber-600" /> {t("dimensionLabel")}
         </h4>
         <p className="text-xs text-gray-500 mb-4">
-          Configure this dimension label.
+          {t("configureDimension")}
         </p>
       </div>
       <div>
         <label className="block text-xs font-medium text-gray-700 mb-1">
-          Name
+          {t("name")}
         </label>
         <input
           type="text"
@@ -54,15 +57,15 @@ export const DimensionInspector: React.FC<DimensionInspectorProps> = ({
       </div>
       <div>
         <label className="block text-xs font-medium text-gray-700 mb-1">
-          Edge
+          {t("edge")}
         </label>
         <div className="text-sm text-gray-600 bg-gray-50 px-2 py-1.5 rounded border border-gray-200 capitalize">
-          {selectedDimLabel.label.edge}
+          {t(`edges.${selectedDimLabel.label.edge}`)}
         </div>
       </div>
       <div>
         <label className="block text-xs font-medium text-gray-700 mb-1">
-          Text Expression
+          {t("textExpression")}
         </label>
         <input
           type="text"
@@ -79,7 +82,7 @@ export const DimensionInspector: React.FC<DimensionInspectorProps> = ({
           placeholder="e.g. length_a or 228"
         />
         <p className="text-[10px] text-gray-500 mt-1">
-          Evaluated:{" "}
+          {t("evaluated")}{" "}
           <span className="font-medium">
             {evaluateExpression(selectedDimLabel.label.text, variablesMap)}
           </span>
@@ -87,7 +90,7 @@ export const DimensionInspector: React.FC<DimensionInspectorProps> = ({
       </div>
       <div>
         <label className="block text-xs font-medium text-gray-700 mb-1">
-          Offset (distance from edge)
+          {t("offset")}
         </label>
         <input
           type="number"
@@ -106,12 +109,12 @@ export const DimensionInspector: React.FC<DimensionInspectorProps> = ({
       {selectedDimLabel.label.edge === "custom" && (
         <div className="pt-4 border-t border-gray-100">
           <h4 className="text-xs font-semibold text-gray-900 mb-3">
-            Custom Points
+            {t("customPoints")}
           </h4>
 
           <div className="mb-3">
             <label className="block text-[10px] font-medium text-gray-500 mb-1">
-              Start Pos (X, Y, Z)
+              {t("startPos")}
             </label>
             <div className="grid grid-cols-3 gap-2">
               {["X", "Y", "Z"].map((axis, i) => (
@@ -139,7 +142,7 @@ export const DimensionInspector: React.FC<DimensionInspectorProps> = ({
 
           <div>
             <label className="block text-[10px] font-medium text-gray-500 mb-1">
-              End Pos (X, Y, Z)
+              {t("endPos")}
             </label>
             <div className="grid grid-cols-3 gap-2">
               {["X", "Y", "Z"].map((axis, i) => (
@@ -176,7 +179,7 @@ export const DimensionInspector: React.FC<DimensionInspectorProps> = ({
           }
           className="text-xs text-red-600 hover:text-red-800 flex items-center gap-1"
         >
-          <Trash2 className="w-3.5 h-3.5" /> Remove Label
+          <Trash2 className="w-3.5 h-3.5" /> {t("removeLabel")}
         </button>
       </div>
     </div>

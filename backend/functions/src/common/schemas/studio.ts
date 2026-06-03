@@ -6,6 +6,9 @@ export type CutoutShape = z.infer<typeof CutoutShapeSchema>;
 export const ExpressionSchema = z.union([z.string(), z.number()]);
 export type Expression = z.infer<typeof ExpressionSchema>;
 
+export const EdgeTypeSchema = z.enum(['front', 'back', 'left', 'right']);
+export type EdgeType = z.infer<typeof EdgeTypeSchema>;
+
 export const CutoutSchema = z.object({
   id: z.string(),
   shape: CutoutShapeSchema,
@@ -40,6 +43,7 @@ const baseComponentSchema = z.object({
   rotation: z.tuple([ExpressionSchema, ExpressionSchema, ExpressionSchema]).optional(),
   cutouts: z.array(CutoutSchema),
   dimensionLabels: z.array(DimensionLabelSchema).optional(),
+  polishedEdges: z.array(EdgeTypeSchema).optional(),
 });
 
 export type SlabComponent = z.infer<typeof baseComponentSchema> & {

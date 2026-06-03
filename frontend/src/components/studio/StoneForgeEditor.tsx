@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useToolbar } from "@/app/(auth)/nav_tool_handler";
+import { useTranslations } from "next-intl";
 import * as THREE from "three";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls, Environment, Bounds } from "@react-three/drei";
@@ -42,6 +43,7 @@ import { ComponentInspector } from "./inspectors/ComponentInspector";
 import { GlobalInspector } from "./inspectors/GlobalInspector";
 
 export const StoneForgeEditor = () => {
+  const t = useTranslations("studio");
   const searchParams = useSearchParams();
   const journalId = searchParams.get("jid");
   const entryId = searchParams.get("eid");
@@ -51,7 +53,6 @@ export const StoneForgeEditor = () => {
     setTemplate,
     isLoading,
     isSaving,
-    toastMessage,
     showToast,
     handleSaveTemplate,
     handleDuplicateTemplate,
@@ -191,7 +192,7 @@ export const StoneForgeEditor = () => {
         {
           id: newId,
           type: "slab",
-          name: `New Slab ${prev.components.length + 1}`,
+          name: t("newSlab", { num: prev.components.length + 1 }),
           length: 100.0,
           depth: 60.0,
           thickness: 2.0,
@@ -216,6 +217,37 @@ export const StoneForgeEditor = () => {
     if (selectedEdge?.slabId === id) setSelectedEdge(null);
   };
 
+  const handleTogglePolish = (edge: string) => {
+    if (!selectedEdge) return;
+    const { slabId } = selectedEdge;
+
+    let mapEdge: "front" | "back" | "left" | "right" | null = null;
+    if (edge.includes("front")) mapEdge = "front";
+    else if (edge.includes("back")) mapEdge = "back";
+    else if (edge.includes("left")) mapEdge = "left";
+    else if (edge.includes("right")) mapEdge = "right";
+
+    if (!mapEdge) return;
+
+    setTemplate((prev) => ({
+      ...prev,
+      components: updateComponentDeep(prev.components, slabId, (c) => {
+        // Strip any existing invalid strings to avoid zod errors from previous attempts
+        const currentEdges = (c.polishedEdges || []).filter(e => 
+          e === 'front' || e === 'back' || e === 'left' || e === 'right'
+        ) as ("front" | "back" | "left" | "right")[];
+
+        const isPolished = currentEdges.includes(mapEdge!);
+        return {
+          ...c,
+          polishedEdges: isPolished
+            ? currentEdges.filter((e) => e !== mapEdge)
+            : [...currentEdges, mapEdge!],
+        };
+      }),
+    }));
+  };
+
   const handleAddEdgeComponent = (
     type: "splash" | "waterfall" | "raised" | "custom",
   ) => {
@@ -228,7 +260,7 @@ export const StoneForgeEditor = () => {
     let newComp: SlabComponent = {
       id: newId,
       type: "slab",
-      name: "New Component",
+      name: t("newComponent"),
       length: 100,
       depth: 60,
       thickness: 2,
@@ -267,7 +299,7 @@ export const StoneForgeEditor = () => {
 
     if (type === "custom") {
       addToRoot = true;
-      newComp.name = `${edge} Custom`;
+      newComp.name = `${t(`edges.${edge}`)} ${t("custom")}`;
       newComp.thickness = T;
 
       const localOffset = new THREE.Vector3();
@@ -529,7 +561,7 @@ export const StoneForgeEditor = () => {
     const existingViews = template.cameraViews || [];
 
     if (existingViews.length >= 10) {
-      showToast("Maximum of 10 camera views allowed.");
+      showToast(t("maxCameraViews"));
       return;
     }
 
@@ -539,13 +571,13 @@ export const StoneForgeEditor = () => {
         ...existingViews,
         {
           id: `cam_${Date.now()}`,
-          name: `View ${existingViews.length + 1}`,
+          name: `${t("tabViews")} ${existingViews.length + 1}`,
           preset: 'iso-tfr',
           isDefault: existingViews.length === 0,
         },
       ],
     }));
-    showToast("Camera View Added!");
+    showToast(t("cameraViewAdded"));
   };
 
 
@@ -592,7 +624,7 @@ export const StoneForgeEditor = () => {
       newLabel = {
         id: `dim_${Date.now()}`,
         type: "dimension_label",
-        name: `Custom Dimension`,
+        name: t("customDimension"),
         edge: "custom",
         text: "0",
         offset: 15,
@@ -611,7 +643,7 @@ export const StoneForgeEditor = () => {
       newLabel = {
         id: `dim_${Date.now()}`,
         type: "dimension_label",
-        name: `${edge} Dimension`,
+        name: `${t(`edges.${edge}`)} ${t("dimension")}`,
         edge: edge,
         text: defaultText,
         offset: 15,
@@ -765,23 +797,23 @@ export const StoneForgeEditor = () => {
           <div className="flex items-center bg-gray-100 rounded-md p-0.5 border border-gray-200">
             <button
               onClick={() => setViewMode("user")}
-              title="User View – variables only"
+              title={t("userTooltip")}
               className={`flex items-center gap-1.5 py-1 px-2.5 rounded text-xs font-medium transition-colors ${viewMode === "user"
                 ? "bg-white text-indigo-700 shadow-sm"
                 : "text-gray-500 hover:text-gray-700"
                 }`}
             >
-              <Eye className="w-3.5 h-3.5" /> User
+              <Eye className="w-3.5 h-3.5" /> {t("user")}
             </button>
             <button
               onClick={() => setViewMode("designer")}
-              title="Designer View – full editor"
+              title={t("designerTooltip")}
               className={`flex items-center gap-1.5 py-1 px-2.5 rounded text-xs font-medium transition-colors ${viewMode === "designer"
                 ? "bg-white text-indigo-700 shadow-sm"
                 : "text-gray-500 hover:text-gray-700"
                 }`}
             >
-              <LayoutTemplate className="w-3.5 h-3.5" /> Designer
+              <LayoutTemplate className="w-3.5 h-3.5" /> {t("designer")}
             </button>
           </div>
 
@@ -790,7 +822,7 @@ export const StoneForgeEditor = () => {
               onClick={handleExport}
               className="bg-white border border-gray-300 text-gray-700 py-1.5 px-3 rounded-md text-xs font-medium hover:bg-gray-50 flex items-center gap-1.5"
             >
-              <Download className="w-3.5 h-3.5" /> Export Image
+              <Download className="w-3.5 h-3.5" /> {t("exportImage")}
             </button>
           )}
           {viewMode === "designer" && template.id !== "temp_1" && (
@@ -799,7 +831,7 @@ export const StoneForgeEditor = () => {
               disabled={isSaving}
               className="bg-white border border-indigo-200 text-indigo-700 py-1.5 px-3 rounded-md text-xs font-medium hover:bg-indigo-50 flex items-center gap-1.5 disabled:opacity-50"
             >
-              <Copy className="w-3.5 h-3.5" /> Duplicate Design
+              <Copy className="w-3.5 h-3.5" /> {t("duplicateDesign")}
             </button>
           )}
           <button
@@ -808,7 +840,7 @@ export const StoneForgeEditor = () => {
             className="bg-indigo-600 text-white py-1.5 px-3 rounded-md text-xs font-medium hover:bg-indigo-700 flex items-center gap-1.5 disabled:opacity-50"
           >
             <Save className="w-3.5 h-3.5" />{" "}
-            {isSaving ? "Saving..." : "Save Template"}
+            {isSaving ? t("saving") : t("saveTemplate")}
           </button>
         </div>
       </div>,
@@ -823,7 +855,7 @@ export const StoneForgeEditor = () => {
         <div className="flex flex-col items-center gap-2">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
           <p className="text-sm font-medium text-gray-500">
-            Loading workspace...
+            {t("loadingWorkspace")}
           </p>
         </div>
       </div>
@@ -895,19 +927,19 @@ export const StoneForgeEditor = () => {
                   onClick={() => setActiveLeftTab("assembly")}
                   className={`flex-1 text-xs font-medium py-1.5 rounded ${activeLeftTab === "assembly" ? "text-indigo-600 bg-indigo-50" : "text-gray-500 hover:bg-gray-100"}`}
                 >
-                  Assembly
+                  {t("tabAssembly")}
                 </button>
                 <button
                   onClick={() => setActiveLeftTab("views")}
                   className={`flex-1 text-xs font-medium py-1.5 rounded ${activeLeftTab === "views" ? "text-indigo-600 bg-indigo-50" : "text-gray-500 hover:bg-gray-100"}`}
                 >
-                  Views
+                  {t("tabViews")}
                 </button>
                 <button
                   onClick={() => setActiveLeftTab("variables")}
                   className={`flex-1 text-xs font-medium py-1.5 rounded ${activeLeftTab === "variables" ? "text-indigo-600 bg-indigo-50" : "text-gray-500 hover:bg-gray-100"}`}
                 >
-                  Variables
+                  {t("tabVariables")}
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto p-4">
@@ -915,7 +947,7 @@ export const StoneForgeEditor = () => {
                   <>
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5" /> Components
+                        <Layers className="w-3.5 h-3.5" /> {t("components")}
                       </h3>
                       <button
                         onClick={handleAddComponent}
@@ -932,20 +964,18 @@ export const StoneForgeEditor = () => {
                   <>
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-                        <Camera className="w-3.5 h-3.5" /> Camera Views
+                        <Camera className="w-3.5 h-3.5" /> {t("cameraViews")}
                       </h3>
                       <button
                         onClick={handleCaptureCameraView}
                         className="text-gray-400 hover:text-indigo-600"
-                        title="Capture Current View"
+                        title={t("captureCurrentView")}
                       >
                         <Plus className="w-4 h-4" />
                       </button>
                     </div>
                     <p className="text-[10px] text-gray-500 mb-4 leading-relaxed">
-                      Save multiple 3D perspectives to display on the technical
-                      drawings print layout. You can explicitly promote any view
-                      to be the default view.
+                      {t("cameraViewsDescription")}
                     </p>
                     <div className="space-y-2">
                       {template.cameraViews?.map((view) => (
@@ -978,7 +1008,7 @@ export const StoneForgeEditor = () => {
                             )}
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-[10px] uppercase font-bold text-gray-500 w-16 shrink-0">Preset</span>
+                            <span className="text-[10px] uppercase font-bold text-gray-500 w-16 shrink-0">{t("preset")}</span>
                             <select
                               value={view.preset || 'iso-tfr'}
                               onChange={(e) => {
@@ -991,15 +1021,15 @@ export const StoneForgeEditor = () => {
                               }}
                               className="text-xs flex-1 p-1 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 bg-white"
                             >
-                              <optgroup label="Standard">
-                                <option value="front">Front</option>
-                                <option value="back">Back</option>
-                                <option value="left">Left</option>
-                                <option value="right">Right</option>
-                                <option value="top">Top</option>
-                                <option value="bottom">Bottom</option>
+                              <optgroup label={t("presetStandard") || "Standard"}>
+                                <option value="front">{t("edges.front")}</option>
+                                <option value="back">{t("edges.back")}</option>
+                                <option value="left">{t("edges.left")}</option>
+                                <option value="right">{t("edges.right")}</option>
+                                <option value="top">{t("edges.top")}</option>
+                                <option value="bottom">{t("edges.bottom")}</option>
                               </optgroup>
-                              <optgroup label="Isometric">
+                              <optgroup label={t("presetIsometric") || "Isometric"}>
                                 <option value="iso-tfr">Top Front Right (TFR)</option>
                                 <option value="iso-tfl">Top Front Left (TFL)</option>
                                 <option value="iso-tbr">Top Back Right (TBR)</option>
@@ -1042,7 +1072,7 @@ export const StoneForgeEditor = () => {
                               })}
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-[10px] uppercase font-bold text-gray-500 w-16 shrink-0">Target</span>
+                            <span className="text-[10px] uppercase font-bold text-gray-500 w-16 shrink-0">{t("target")}</span>
                             <select
                               value={view.focusTargetId || ''}
                               onChange={(e) => {
@@ -1055,7 +1085,7 @@ export const StoneForgeEditor = () => {
                               }}
                               className="text-xs flex-1 p-1 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 bg-white"
                             >
-                              <option value="">Entire Model</option>
+                              <option value="">{t("entireModel")}</option>
                               {/* Flatten components to populate list recursively */}
                               {(() => {
                                 const renderOptions = (comps: SlabComponent[], indent = '') => {
@@ -1074,14 +1104,14 @@ export const StoneForgeEditor = () => {
                           <div className="mt-1 pt-2 border-t border-gray-200">
                             {view.isDefault ? (
                               <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded w-max">
-                                Default View
+                                {t("defaultView")}
                               </span>
                             ) : (
                               <button
                                 onClick={() => handlePromoteToDefault(view.id)}
                                 className="text-[10px] font-semibold text-gray-500 hover:text-indigo-600 bg-gray-100 hover:bg-indigo-50 px-2 py-0.5 rounded w-max"
                               >
-                                Set as Default
+                                {t("setAsDefault")}
                               </button>
                             )}
                           </div>
@@ -1090,7 +1120,7 @@ export const StoneForgeEditor = () => {
                       {(!template.cameraViews ||
                         template.cameraViews.length === 0) && (
                           <p className="text-xs text-gray-500 text-center py-4">
-                            No camera views saved.
+                            {t("noCameraViews")}
                           </p>
                         )}
                     </div>
@@ -1099,7 +1129,7 @@ export const StoneForgeEditor = () => {
                   <>
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-                        Variables
+                        {t("tabVariables")}
                       </h3>
                       <button
                         onClick={handleAddVariable}
@@ -1111,7 +1141,7 @@ export const StoneForgeEditor = () => {
                     <div className="space-y-3">
                       {template.variables.length === 0 && (
                         <p className="text-xs text-gray-500 text-center py-4">
-                          No variables defined yet.
+                          {t("noVariables")}
                         </p>
                       )}
                       {template.variables.map((v) => (
@@ -1131,11 +1161,11 @@ export const StoneForgeEditor = () => {
                               handleUpdateVariable(v.id, "label", safeLabel);
                             }}
                             className="text-xs font-medium text-gray-700 w-full mb-2 p-1 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500"
-                            placeholder="Variable Name (e.g. length_a)"
+                            placeholder={t("variableNamePlaceholder")}
                           />
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] text-gray-500 uppercase font-semibold">
-                              Default:
+                              {t("defaultLabel")}
                             </span>
                             <input
                               type="number"
@@ -1167,7 +1197,7 @@ export const StoneForgeEditor = () => {
                                   e.target.value === "" ? undefined : e.target.value,
                                 )
                               }
-                              placeholder="Min (e.g. 10 or length/2)"
+                              placeholder={t("minPlaceholder")}
                               className="text-[10px] flex-1 p-1 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 placeholder-gray-400 font-mono"
                             />
                             <input
@@ -1180,7 +1210,7 @@ export const StoneForgeEditor = () => {
                                   e.target.value === "" ? undefined : e.target.value,
                                 )
                               }
-                              placeholder="Max limit"
+                              placeholder={t("maxPlaceholder")}
                               className="text-[10px] flex-1 p-1 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 placeholder-gray-400 font-mono"
                             />
                           </div>
@@ -1259,7 +1289,7 @@ export const StoneForgeEditor = () => {
             <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full shadow-sm z-10">
               <div className="p-3 border-b border-gray-100 bg-gray-50">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-                  <Settings className="w-3.5 h-3.5" /> Properties
+                  <Settings className="w-3.5 h-3.5" /> {t("properties")}
                 </h3>
               </div>
               <div className="flex-1 overflow-y-auto p-4 scrollbar-thin">
@@ -1268,6 +1298,16 @@ export const StoneForgeEditor = () => {
                     selectedEdge={selectedEdge}
                     handleAddEdgeComponent={handleAddEdgeComponent}
                     handleAddDimensionLabel={handleAddDimensionLabel}
+                    handleTogglePolish={handleTogglePolish}
+                    isPolished={(() => {
+                      const comp = findComponentDeep(template.components, selectedEdge.slabId);
+                      let mapEdge: "front" | "back" | "left" | "right" | null = null;
+                      if (selectedEdge.edge.includes("front")) mapEdge = "front";
+                      else if (selectedEdge.edge.includes("back")) mapEdge = "back";
+                      else if (selectedEdge.edge.includes("left")) mapEdge = "left";
+                      else if (selectedEdge.edge.includes("right")) mapEdge = "right";
+                      return comp?.polishedEdges?.includes(mapEdge as any) ?? false;
+                    })()}
                   />
                 ) : selectedDimLabel ? (
                   <DimensionInspector
@@ -1296,13 +1336,6 @@ export const StoneForgeEditor = () => {
         )}
       </div>
       {/* end flex flex-1 overflow-hidden */}
-
-      {toastMessage && (
-        <div className="fixed bottom-4 right-4 bg-gray-900 text-white px-4 py-2 rounded-md shadow-lg text-sm z-50 flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4 text-green-400" />
-          {toastMessage}
-        </div>
-      )}
     </div>
   );
 };

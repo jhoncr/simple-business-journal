@@ -171,7 +171,7 @@ const DimensionLabel: React.FC<{ value: number; positionClass: string }> = ({ va
   </div>
 );
 
-const DynamicRectangle: React.FC<{ rect: RectangleData }> = ({ rect }) => {
+export const DynamicRectangle: React.FC<{ rect: RectangleData }> = ({ rect }) => {
   const {
     length,
     width,
