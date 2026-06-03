@@ -119,13 +119,23 @@ export const Slab3D: React.FC<Slab3DProps> = ({ slab, isSelected, onSelect, sele
     return new THREE.MeshBasicMaterial({ color: "#f59e0b" });
   }, []);
 
+  const isThicknessT = T <= L && T <= D;
+  const isThicknessD = D < L && D < T;
+  const isThicknessL = L < D && L < T;
+
   const polishedGeometryX = useMemo(() => {
+    if (isThicknessL) {
+      return new THREE.BoxGeometry(0.3, T, 0.3);
+    }
     return new THREE.BoxGeometry(L, 0.3, 0.3);
-  }, [L]);
+  }, [L, T, isThicknessL]);
 
   const polishedGeometryZ = useMemo(() => {
+    if (isThicknessD) {
+      return new THREE.BoxGeometry(0.3, T, 0.3);
+    }
     return new THREE.BoxGeometry(0.3, 0.3, D);
-  }, [D]);
+  }, [D, T, isThicknessD]);
 
   React.useEffect(() => {
     return () => {
@@ -187,64 +197,149 @@ export const Slab3D: React.FC<Slab3DProps> = ({ slab, isSelected, onSelect, sele
         <lineSegments geometry={edgesGeometry} material={edgeMaterial} />
       </group>
 
-      {/* Edge Hitboxes (Top 4 edges only with margins and offsets to prevent overlaps and occlusion) */}
+      {/* Edge Hitboxes */}
       {(() => {
         const marginX = Math.min(4, L / 4);
         const marginZ = Math.min(4, D / 4);
-        const hitboxWidth = Math.max(1, L - 2 * marginX);
-        const hitboxDepth = Math.max(1, D - 2 * marginZ);
         const hitSize = 3; // Compact, easy-to-click size
 
-        return (
-          <>
-            <EdgeHitbox
-              position={[L / 2, T + 0.5, 0.5]}
-              args={[hitboxWidth, hitSize, hitSize]}
-              edgeName="top-front"
-              slabId={slab.id}
-              onEdgeSelect={onEdgeSelect}
-              isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-front'}
-            />
-            <EdgeHitbox
-              position={[L / 2, T + 0.5, -D - 0.5]}
-              args={[hitboxWidth, hitSize, hitSize]}
-              edgeName="top-back"
-              slabId={slab.id}
-              onEdgeSelect={onEdgeSelect}
-              isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-back'}
-            />
-            <EdgeHitbox
-              position={[-0.5, T + 0.5, -D / 2]}
-              args={[hitSize, hitSize, hitboxDepth]}
-              edgeName="top-left"
-              slabId={slab.id}
-              onEdgeSelect={onEdgeSelect}
-              isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-left'}
-            />
-            <EdgeHitbox
-              position={[L + 0.5, T + 0.5, -D / 2]}
-              args={[hitSize, hitSize, hitboxDepth]}
-              edgeName="top-right"
-              slabId={slab.id}
-              onEdgeSelect={onEdgeSelect}
-              isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-right'}
-            />
-          </>
-        );
+        if (isThicknessD) {
+          // Case B: D is the 2cm thickness (X-aligned vertical backsplash)
+          const hitD = Math.max(0.5, D / 2);
+          const hitboxWidth = Math.max(1, L - 2 * marginX);
+          const hitboxDepthZ = Math.max(1, D);
+          return (
+            <>
+              <EdgeHitbox
+                position={[L / 2, T + hitSize / 2, -D / 4]}
+                args={[hitboxWidth, hitSize, hitD]}
+                edgeName="top-front"
+                slabId={slab.id}
+                onEdgeSelect={onEdgeSelect}
+                isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-front'}
+              />
+              <EdgeHitbox
+                position={[L / 2, T + hitSize / 2, -D + D / 4]}
+                args={[hitboxWidth, hitSize, hitD]}
+                edgeName="top-back"
+                slabId={slab.id}
+                onEdgeSelect={onEdgeSelect}
+                isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-back'}
+              />
+              <EdgeHitbox
+                position={[-hitSize / 2, T / 2, -D / 2]}
+                args={[hitSize, T, hitboxDepthZ]}
+                edgeName="top-left"
+                slabId={slab.id}
+                onEdgeSelect={onEdgeSelect}
+                isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-left'}
+              />
+              <EdgeHitbox
+                position={[L + hitSize / 2, T / 2, -D / 2]}
+                args={[hitSize, T, hitboxDepthZ]}
+                edgeName="top-right"
+                slabId={slab.id}
+                onEdgeSelect={onEdgeSelect}
+                isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-right'}
+              />
+            </>
+          );
+        } else if (isThicknessL) {
+          // Case C: L is the 2cm thickness (Z-aligned vertical waterfall)
+          const hitL = Math.max(0.5, L / 2);
+          const hitboxDepth = Math.max(1, D - 2 * marginZ);
+          const hitboxWidthX = Math.max(1, L);
+          return (
+            <>
+              <EdgeHitbox
+                position={[L / 4, T + hitSize / 2, -D / 2]}
+                args={[hitL, hitSize, hitboxDepth]}
+                edgeName="top-left"
+                slabId={slab.id}
+                onEdgeSelect={onEdgeSelect}
+                isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-left'}
+              />
+              <EdgeHitbox
+                position={[L - L / 4, T + hitSize / 2, -D / 2]}
+                args={[hitL, hitSize, hitboxDepth]}
+                edgeName="top-right"
+                slabId={slab.id}
+                onEdgeSelect={onEdgeSelect}
+                isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-right'}
+              />
+              <EdgeHitbox
+                position={[L / 2, T / 2, hitSize / 2]}
+                args={[hitboxWidthX, T, hitSize]}
+                edgeName="top-front"
+                slabId={slab.id}
+                onEdgeSelect={onEdgeSelect}
+                isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-front'}
+              />
+              <EdgeHitbox
+                position={[L / 2, T / 2, -D - hitSize / 2]}
+                args={[hitboxWidthX, T, hitSize]}
+                edgeName="top-back"
+                slabId={slab.id}
+                onEdgeSelect={onEdgeSelect}
+                isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-back'}
+              />
+            </>
+          );
+        } else {
+          // Case A: Horizontal slab (T is thickness)
+          const hitboxWidth = Math.max(1, L - 2 * marginX);
+          const hitboxDepth = Math.max(1, D - 2 * marginZ);
+          return (
+            <>
+              <EdgeHitbox
+                position={[L / 2, T + 0.5, 0.5]}
+                args={[hitboxWidth, hitSize, hitSize]}
+                edgeName="top-front"
+                slabId={slab.id}
+                onEdgeSelect={onEdgeSelect}
+                isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-front'}
+              />
+              <EdgeHitbox
+                position={[L / 2, T + 0.5, -D - 0.5]}
+                args={[hitboxWidth, hitSize, hitSize]}
+                edgeName="top-back"
+                slabId={slab.id}
+                onEdgeSelect={onEdgeSelect}
+                isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-back'}
+              />
+              <EdgeHitbox
+                position={[-0.5, T + 0.5, -D / 2]}
+                args={[hitSize, hitSize, hitboxDepth]}
+                edgeName="top-left"
+                slabId={slab.id}
+                onEdgeSelect={onEdgeSelect}
+                isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-left'}
+              />
+              <EdgeHitbox
+                position={[L + 0.5, T + 0.5, -D / 2]}
+                args={[hitSize, hitSize, hitboxDepth]}
+                edgeName="top-right"
+                slabId={slab.id}
+                onEdgeSelect={onEdgeSelect}
+                isSelected={selectedEdge?.slabId === slab.id && selectedEdge?.edge === 'top-right'}
+              />
+            </>
+          );
+        }
       })()}
 
       {/* Polished Edge Visual Highlights */}
       {slab.polishedEdges?.includes('front') && (
-        <mesh position={[L / 2, T, 0]} geometry={polishedGeometryX} material={polishedMaterial} />
+        <mesh position={isThicknessL ? [L / 2, T / 2, 0] : [L / 2, T, 0]} geometry={polishedGeometryX} material={polishedMaterial} />
       )}
       {slab.polishedEdges?.includes('back') && (
-        <mesh position={[L / 2, T, -D]} geometry={polishedGeometryX} material={polishedMaterial} />
+        <mesh position={isThicknessL ? [L / 2, T / 2, -D] : [L / 2, T, -D]} geometry={polishedGeometryX} material={polishedMaterial} />
       )}
       {slab.polishedEdges?.includes('left') && (
-        <mesh position={[0, T, -D / 2]} geometry={polishedGeometryZ} material={polishedMaterial} />
+        <mesh position={isThicknessD ? [0, T / 2, -D / 2] : [0, T, -D / 2]} geometry={polishedGeometryZ} material={polishedMaterial} />
       )}
       {slab.polishedEdges?.includes('right') && (
-        <mesh position={[L, T, -D / 2]} geometry={polishedGeometryZ} material={polishedMaterial} />
+        <mesh position={isThicknessD ? [L, T / 2, -D / 2] : [L, T, -D / 2]} geometry={polishedGeometryZ} material={polishedMaterial} />
       )}
 
       {/* Dimension Labels */}

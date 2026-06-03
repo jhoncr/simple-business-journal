@@ -247,14 +247,44 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
                     const T = evaluateExpression(comp.thickness, mergedVariables);
 
                     const edges = comp.polishedEdges || [];
+
+                    const isThicknessT = T <= L && T <= D;
+                    const isThicknessD = D < L && D < T;
+                    const isThicknessL = L < D && L < T;
+
+                    let paperLength = D;
+                    let paperWidth = L;
+                    let crossTop = edges.includes('back');
+                    let crossBottom = edges.includes('front');
+                    let crossLeft = edges.includes('left');
+                    let crossRight = edges.includes('right');
+
+                    if (isThicknessD) {
+                      // Case B: Backsplash. Cut dimensions are L x T
+                      paperLength = T;
+                      paperWidth = L;
+                      crossTop = edges.includes('back') || edges.includes('front'); // Top edge of backsplash
+                      crossBottom = false; // Bottom edge sits on countertop
+                      crossLeft = edges.includes('left');
+                      crossRight = edges.includes('right');
+                    } else if (isThicknessL) {
+                      // Case C: Z-aligned Waterfall. Cut dimensions are D x T
+                      paperLength = T;
+                      paperWidth = D;
+                      crossTop = edges.includes('left') || edges.includes('right'); // Top edge of waterfall
+                      crossBottom = false; // Bottom edge sits on floor
+                      crossLeft = edges.includes('front');
+                      crossRight = edges.includes('back');
+                    }
+
                     return {
                       id: comp.id,
-                      length: D,
-                      width: L,
-                      hasCrossTop: edges.includes('back'),
-                      hasCrossRight: edges.includes('right'),
-                      hasCrossBottom: edges.includes('front'),
-                      hasCrossLeft: edges.includes('left'),
+                      length: paperLength,
+                      width: paperWidth,
+                      hasCrossTop: crossTop,
+                      hasCrossBottom: crossBottom,
+                      hasCrossLeft: crossLeft,
+                      hasCrossRight: crossRight,
                       label: comp.name,
                       groupId: null,
                       hasStroke: false
