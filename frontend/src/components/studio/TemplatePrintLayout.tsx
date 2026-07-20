@@ -31,6 +31,23 @@ const formatPrintDimensions = (length: number, depth: number, thickness: number)
   return { length: dims[0], width: dims[1], label: `${dims[0]} x ${dims[1]}` };
 };
 
+export function getPolishedSymbolCoords(
+  edge: 'front' | 'back' | 'left' | 'right',
+  slab: { x: number; y: number; width: number; height: number },
+  insideOffset: number = 0
+) {
+  switch (edge) {
+    case 'back': // Top edge
+      return { x: slab.x + slab.width / 2, y: slab.y + insideOffset };
+    case 'front': // Bottom edge
+      return { x: slab.x + slab.width / 2, y: slab.y + slab.height - insideOffset };
+    case 'left':
+      return { x: slab.x + insideOffset, y: slab.y + slab.height / 2 };
+    case 'right':
+      return { x: slab.x + slab.width - insideOffset, y: slab.y + slab.height / 2 };
+  }
+}
+
 interface CameraView {
   id: string;
   name: string;

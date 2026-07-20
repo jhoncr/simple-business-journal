@@ -48,7 +48,7 @@ export const acceptShare = createAuditedCallable(
       }
 
       // Transaction to modify the business document
-      await db.runTransaction(async (transaction) => {
+      const result = await db.runTransaction(async (transaction) => {
         const logDocRef = db.collection(JOURNAL_COLLECTION).doc(businessId);
         const logDoc = await transaction.get(logDocRef);
 
@@ -155,13 +155,10 @@ export const acceptShare = createAuditedCallable(
         }
       }); // End transaction
 
-      // If the transaction returned a specific message (e.g. for "check"), that will be the function's return.
-      // Otherwise, default to "accept" operation's success message.
-      // Note: The transaction now returns the message for "check", so this part is mainly for "accept".
-      // If the transaction promise resolves to an object (like the one from "check"),
-      // that object will be returned by the onCall function.
-      // If the transaction promise resolves to undefined (normal successful transaction for "accept"),
-      // then the specific message for "accept" is returned.
+      if (result) {
+        return result;
+      }
+
       return { id: businessId, response: { result: 'ok', message: 'Accepted grant to access business' } };
     } catch (error) {
       // If HttpsError was thrown from within the transaction for "check" (e.g. "not-found"),

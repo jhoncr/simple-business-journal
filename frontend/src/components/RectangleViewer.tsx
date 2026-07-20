@@ -158,11 +158,15 @@ export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles, he
 
 const CrossMark: React.FC<{ className: string }> = ({ className }) => (
   <div
-    className={`absolute text-sm text-foreground font-bold leading-none z-10 w-4 h-4 flex items-center justify-center bg-background/70 backdrop-blur-sm rounded-full pointer-events-none print:text-black print:bg-transparent ${className}`}
+    className={`absolute text-xs text-black font-bold leading-none z-10 w-3 h-3 flex items-center justify-center bg-white rounded-full pointer-events-none print:text-black print:bg-white print:border-gray-400 ${className}`}
+    style={{
+      boxShadow: "0 0 0 2px white",
+    }}
   >
-    ×
+    <span className="relative -top-[1px] leading-none">x</span>
   </div>
 );
+
 
 const DimensionLabel: React.FC<{ value: number; positionClass: string }> = ({ value, positionClass }) => (
   <div className={`absolute flex flex-col items-end justify-center text-sm text-foreground whitespace-nowrap ${positionClass} print:text-black`}>
@@ -194,6 +198,11 @@ export const DynamicRectangle: React.FC<{ rect: RectangleData }> = ({ rect }) =>
   const longerSide = Math.max(width, length);
   const calculatedWidthPercentage = Math.min((longerSide / 100) * 25, 100);
 
+  const showTopCross = isRotated ? hasCrossLeft : hasCrossTop;
+  const showRightCross = isRotated ? hasCrossTop : hasCrossRight;
+  const showBottomCross = isRotated ? hasCrossRight : hasCrossBottom;
+  const showLeftCross = isRotated ? hasCrossBottom : hasCrossLeft;
+
   return (
     <div
       className="flex flex-col items-end gap-1 print:flex print:p-0"
@@ -209,25 +218,25 @@ export const DynamicRectangle: React.FC<{ rect: RectangleData }> = ({ rect }) =>
         <DimensionLabel value={renderHeight} positionClass="top-1/2 -left-4 -translate-x-full -translate-y-1/2" />
         <DimensionLabel value={renderWidth} positionClass="left-1/2 -bottom-2 -translate-x-1/2 translate-y-full" />
 
-        {(isRotated ? hasCrossLeft : hasCrossTop) && <CrossMark className="top-0 left-1/2 -translate-x-1/2 -translate-y-4" />}
-        {(isRotated ? hasCrossTop : hasCrossRight) && <CrossMark className="top-1/2 right-0 translate-x-4 -translate-y-1/2" />}
-        {(isRotated ? hasCrossRight : hasCrossBottom) && <CrossMark className="bottom-0 left-1/2 -translate-x-1/2 translate-y-4" />}
-        {(isRotated ? hasCrossBottom : hasCrossLeft) && <CrossMark className="top-1/2 left-0 -translate-x-4 -translate-y-1/2" />}
+        {showTopCross && <CrossMark className="top-0 left-1/2 -translate-x-1/2 -translate-y-1/2" />}
+        {showRightCross && <CrossMark className="top-1/2 right-0 translate-x-1/2 -translate-y-1/2" />}
+        {showBottomCross && <CrossMark className="bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2" />}
+        {showLeftCross && <CrossMark className="top-1/2 left-0 -translate-x-1/2 -translate-y-1/2" />}
 
         {hasLeftCornerCrosses &&
           (isRotated ? (
             <>
-              <CrossMark className="top-[5%] left-0 -translate-x-4 -translate-y-1/2" />
-              <CrossMark className="top-[5%] right-0 translate-x-4 -translate-y-1/2" />
+              <CrossMark className="top-[5%] left-0 -translate-x-1/2 -translate-y-1/2" />
+              <CrossMark className="top-[5%] right-0 translate-x-1/2 -translate-y-1/2" />
             </>
           ) : (
             <>
-              <CrossMark className="top-0 left-[5%] -translate-x-1/2 -translate-y-4" />
-              <CrossMark className="bottom-0 left-[5%] -translate-x-1/2 translate-y-4" />
+              <CrossMark className="top-0 left-[5%] -translate-x-1/2 -translate-y-1/2" />
+              <CrossMark className="bottom-0 left-[5%] -translate-x-1/2 translate-y-1/2" />
             </>
           ))}
 
-        <svg viewBox={`0 0 ${renderWidth} ${renderHeight}`} xmlns="http://www.w3.org/2000/svg" className="w-full h-auto transition-all duration-300 ease-in-out print:overflow-visible">
+        <svg viewBox={`0 0 ${renderWidth} ${renderHeight}`} xmlns="http://www.w3.org/2000/svg" className="w-full h-auto transition-all duration-300 ease-in-out overflow-visible">
           <rect width="100%" height="100%" fill={fillColor} stroke={strokeColor} strokeWidth="2" vectorEffect="non-scaling-stroke" />
           {hasStroke && (
             <line

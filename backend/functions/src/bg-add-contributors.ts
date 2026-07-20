@@ -76,7 +76,7 @@ export const addContributor = createAuditedCallable(
   },
 );
 
-const handleAddOperation = async (
+const handleAddOperation = (
   transaction: FirebaseFirestore.Transaction,
   logDocRef: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>,
   data: z.infer<typeof updateShareRequest>,
@@ -120,7 +120,7 @@ const handleAddOperation = async (
   });
 };
 
-const handleRemoveOperation = async (
+const handleRemoveOperation = (
   transaction: FirebaseFirestore.Transaction,
   logDocRef: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>,
   data: z.infer<typeof updateShareRequest>,

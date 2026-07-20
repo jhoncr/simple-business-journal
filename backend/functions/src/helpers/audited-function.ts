@@ -70,7 +70,7 @@ export const createAuditedCallable = <T extends z.ZodType>(
           'This journal is not active.',
         );
       }
-      const userRole = journalData?.access[request.auth.uid]?.role;
+      const userRole = journalData?.access?.[request.auth.uid]?.role;
       const isAuthorized = userRole && allowedRoles.includes(userRole);
       if (!isAuthorized) {
         throw new functions.https.HttpsError(
