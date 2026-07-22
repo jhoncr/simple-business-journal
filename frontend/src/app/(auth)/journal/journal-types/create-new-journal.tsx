@@ -30,12 +30,12 @@ import { functions, useAuth } from "@/lib/auth_handler";
 import {
   allowedCurrencySchema,
   contactInfoSchema,
-} from "@/../../backend/functions/src/common/schemas/common_schemas"; // Use common_schemas for currency/contact
+} from "@backend/common/schemas/common_schemas"; // Use common_schemas for currency/contact
 import {
   // JournalGroupSchema, // Removed
   businessDetailsSchema, // Import specific details schema
-} from "@/../../backend/functions/src/common/schemas/JournalSchema"; // Update path if needed
-import { JOURNAL_TYPES } from "@/../../backend/functions/src/common/const"; // Import JOURNAL_TYPES
+} from "@backend/common/schemas/JournalSchema"; // Update path if needed
+import { JOURNAL_TYPES } from "@backend/common/const"; // Import JOURNAL_TYPES
 import { LogoUpload } from "@/components/LogoUpload";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner"; // Import toast from sonner

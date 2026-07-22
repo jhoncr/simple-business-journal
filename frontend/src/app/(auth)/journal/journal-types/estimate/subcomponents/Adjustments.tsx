@@ -6,10 +6,10 @@ import { AdjustmentForm, Adjustment } from "./AdjustmentForm";
 import { Button } from "@/components/ui/button";
 import { MinusCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { allowedCurrencySchemaType } from "@/../../backend/functions/src/common/schemas/common_schemas";
-import { ROLES_THAT_ADD } from "@/../../backend/functions/src/common/const"; // Import ROLES_THAT_ADD
-import { ROLES } from "@/../../backend/functions/src/common/schemas/common_schemas"; // Import ROLES type
-import { Payment } from "@/../../backend/functions/src/common/schemas/estimate_schema";
+import { allowedCurrencySchemaType } from "@backend/common/schemas/common_schemas";
+import { ROLES_THAT_ADD } from "@backend/common/const"; // Import ROLES_THAT_ADD
+import { ROLES } from "@backend/common/schemas/common_schemas"; // Import ROLES type
+import { Payment } from "@backend/common/schemas/estimate_schema";
 
 interface InvoiceBottomLinesProps {
   itemSubtotal: number;

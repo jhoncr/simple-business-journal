@@ -4,7 +4,7 @@ import { DBentry, AccessUser } from "@/lib/custom_types"; // Keep using DBentry
 import {
   ROLES_CAN_DELETE,
   ROLES_THAT_ADD,
-} from "@/../../backend/functions/src/common/const";
+} from "@backend/common/const";
 import { DeleteEntryBtn } from "../actions/delete-entry";
 import { DuplicateEstimateBtn } from "../actions/duplicate-estimate";
 import {
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { MoreVertical } from "lucide-react";
-import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap"; // Import EntryType
+import { EntryType } from "@backend/common/schemas/configmap"; // Import EntryType
 
 // --- Update Props ---
 export interface EntryViewProps<T extends DBentry> {

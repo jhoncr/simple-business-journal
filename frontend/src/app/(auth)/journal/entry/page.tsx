@@ -9,13 +9,13 @@ import { EstimateDetails } from "@/app/(auth)/journal/journal-types/estimate/add
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { useJournalContext } from "@/context/JournalContext";
-import { JOURNAL_TYPES } from "@/../../backend/functions/src/common/const";
-import { BusinessDetailsType } from "@/../../backend/functions/src/common/schemas/JournalSchema";
-import { EntryItf } from "@/../../backend/functions/src/common/common_types";
+import { JOURNAL_TYPES } from "@backend/common/const";
+import { BusinessDetailsType } from "@backend/common/schemas/JournalSchema";
+import { EntryItf } from "@backend/common/common_types";
 import {
   contactInfoSchemaType,
   allowedCurrencySchemaType,
-} from "@/../../backend/functions/src/common/schemas/common_schemas";
+} from "@backend/common/schemas/common_schemas";
 
 // Default empty contact info (useful for initialization)
 const initInfo: contactInfoSchemaType = {

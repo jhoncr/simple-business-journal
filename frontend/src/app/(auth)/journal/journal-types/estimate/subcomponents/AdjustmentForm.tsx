@@ -23,9 +23,9 @@ import { ListPlus, Plus } from "lucide-react";
 import {
   estimateDetailsState,
   estimateDetailsStateSchema,
-} from "@/../../backend/functions/src/common/schemas/estimate_schema";
-import { ROLES_THAT_ADD } from "@/../../backend/functions/src/common/const"; // Import ROLES_THAT_ADD
-import { ROLES } from "@/../../backend/functions/src/common/schemas/common_schemas"; // Import ROLES for type
+} from "@backend/common/schemas/estimate_schema";
+import { ROLES_THAT_ADD } from "@backend/common/const"; // Import ROLES_THAT_ADD
+import { ROLES } from "@backend/common/schemas/common_schemas"; // Import ROLES for type
 
 export type Adjustment = estimateDetailsState["adjustments"][number];
 

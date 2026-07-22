@@ -1,6 +1,6 @@
 import React from "react";
 import { EntryView } from "../../comp/EntryView";
-import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap";
+import { EntryType } from "@backend/common/schemas/configmap";
 import { DBentry, AccessUser } from "@/lib/custom_types";
 import { formattedDate } from "@/lib/utils";
 import Link from "next/link";

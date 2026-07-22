@@ -36,7 +36,7 @@ export const INITIAL_TEMPLATE: AssemblyTemplate = {
   ],
 };
 
-const sanitizeComponent = (comp: any): any => {
+const sanitizeComponent = (comp) => {
   if (!comp || typeof comp !== "object") return comp;
 
   const sanitized = { ...comp };
@@ -44,7 +44,7 @@ const sanitizeComponent = (comp: any): any => {
   // Sanitize polishedEdges
   if (Array.isArray(sanitized.polishedEdges)) {
     sanitized.polishedEdges = sanitized.polishedEdges.filter(
-      (e: any) => e === "front" || e === "back" || e === "left" || e === "right"
+      (e) => e === "front" || e === "back" || e === "left" || e === "right"
     );
   } else {
     delete sanitized.polishedEdges;
@@ -54,7 +54,7 @@ const sanitizeComponent = (comp: any): any => {
   if (!Array.isArray(sanitized.cutouts)) {
     sanitized.cutouts = [];
   } else {
-    sanitized.cutouts = sanitized.cutouts.map((cutout: any) => ({
+    sanitized.cutouts = sanitized.cutouts.map((cutout) => ({
       ...cutout,
       shape: ["rectangular", "circular", "oval"].includes(cutout.shape)
         ? cutout.shape
@@ -67,7 +67,7 @@ const sanitizeComponent = (comp: any): any => {
     if (!Array.isArray(sanitized.dimensionLabels)) {
       delete sanitized.dimensionLabels;
     } else {
-      sanitized.dimensionLabels = sanitized.dimensionLabels.map((lbl: any) => {
+      sanitized.dimensionLabels = sanitized.dimensionLabels.map((lbl) => {
         const sanitizedLbl = { ...lbl };
         if (sanitizedLbl.type !== "dimension_label") {
           sanitizedLbl.type = "dimension_label";
@@ -87,7 +87,7 @@ const sanitizeComponent = (comp: any): any => {
   return sanitized;
 };
 
-const sanitizeTemplate = (templateData: any): any => {
+const sanitizeTemplate = (templateData) => {
   if (!templateData || typeof templateData !== "object") return templateData;
 
   const sanitized = { ...templateData };

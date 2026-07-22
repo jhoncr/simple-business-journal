@@ -180,7 +180,7 @@ async function _addEntry(
     EntryItf,
     'createdAt' | 'updatedAt' | 'details' | 'createdBy'
   >,
-  validatedDetails: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  validatedDetails: Record<string, unknown>,
   uid: string,
   entryType: string, // For logging
   journalId: string, // For logging
@@ -230,7 +230,7 @@ async function _updateEntry(
     EntryItf,
     'createdAt' | 'updatedAt' | 'details' | 'createdBy'
   >,
-  validatedDetails: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  validatedDetails: Record<string, unknown>,
   targetSubcollectionName: string, // For logging
 ) {
   try {

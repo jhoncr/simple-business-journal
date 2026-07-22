@@ -12,13 +12,13 @@ import ExportToCSV from "./actions/export-to-csv";
 import { useTranslations } from "next-intl";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getAddEntryForm, getJournalIcon } from "./journal-types/config";
-import { ROLES_THAT_ADD } from "@/../../backend/functions/src/common/const";
+import { ROLES_THAT_ADD } from "@backend/common/const";
 import { useAuth } from "@/lib/auth_handler";
 import { useJournalContext } from "@/context/JournalContext";
 import { useToast } from "@/hooks/use-toast";
 import { DBentry } from "@/lib/custom_types";
-import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap";
-import { pendingAccessSchemaType } from "@/../../backend/functions/src/common/schemas/common_schemas";
+import { EntryType } from "@backend/common/schemas/configmap";
+import { pendingAccessSchemaType } from "@backend/common/schemas/common_schemas";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {

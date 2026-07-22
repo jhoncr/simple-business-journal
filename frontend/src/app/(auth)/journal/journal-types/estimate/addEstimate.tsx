@@ -13,8 +13,8 @@ import {
 import {
   contactInfoSchemaType,
   allowedCurrencySchemaType,
-} from "@/../../backend/functions/src/common/schemas/common_schemas";
-import { EntryItf } from "@/../../backend/functions/src/common/common_types";
+} from "@backend/common/schemas/common_schemas";
+import { EntryItf } from "@backend/common/common_types";
 import { EstimateHeader } from "./subcomponents/header";
 import Link from "next/link";
 import { useEstimate } from "./useEstimate"; // Import the new hook
@@ -26,7 +26,7 @@ import { InlineEditTextarea } from "./subcomponents/EditNotes";
 import { NewItemFormWrapper } from "./subcomponents/NewItemFormWrapper";
 import { InvoiceBottomLines } from "./subcomponents/Adjustments";
 import { Label } from "@/components/ui/label";
-import { WorkStatus } from "@/../../backend/functions/src/common/common_types";
+import { WorkStatus } from "@backend/common/common_types";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 

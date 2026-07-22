@@ -17,7 +17,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   contactInfoSchema,
   contactInfoSchemaType,
-} from "@/../../backend/functions/src/common/schemas/common_schemas";
+} from "@backend/common/schemas/common_schemas";
 import { useTranslations } from "next-intl";
 
 export interface ContactInfoRef {

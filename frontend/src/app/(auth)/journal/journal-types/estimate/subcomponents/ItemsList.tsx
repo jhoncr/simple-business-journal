@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { EllipsisVertical, ListTree, List, RectangleEllipsis, RectangleHorizontal, Cuboid } from "lucide-react";
-import { LineItem } from "@/../../backend/functions/src/common/schemas/estimate_schema";
+import { LineItem } from "@backend/common/schemas/estimate_schema";
 import { useTranslations } from "next-intl";
 import { ItemActionMenu } from "./ItemActionMenu";
 import {

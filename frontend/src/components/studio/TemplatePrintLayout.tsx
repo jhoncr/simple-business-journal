@@ -243,7 +243,7 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
                       <span className="text-[9px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         {t("quickPrintDimensions")}
                       </span>
-                      {template.variables?.map((v: any) => {
+                      {template.variables?.map((v) => {
                         const value = item.variableOverrides?.[v.id] ?? v.default;
                         return (
                           <span key={v.id} className="text-[11px] text-gray-700">

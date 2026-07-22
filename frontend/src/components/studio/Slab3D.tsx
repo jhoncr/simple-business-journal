@@ -17,7 +17,16 @@ interface Slab3DProps {
   selectedDimensionLabelId?: string | null;
 }
 
-const EdgeHitbox = ({ position, args, edgeName, slabId, onEdgeSelect, isSelected }: any) => {
+interface EdgeHitboxProps {
+  position: [number, number, number];
+  args: [number, number, number];
+  edgeName: string;
+  slabId: string;
+  onEdgeSelect: (slabId: string, edgeName: string) => void;
+  isSelected: boolean;
+}
+
+const EdgeHitbox = ({ position, args, edgeName, slabId, onEdgeSelect, isSelected }: EdgeHitboxProps) => {
   const [hovered, setHovered] = useState(false);
   return (
     <mesh

@@ -11,16 +11,16 @@ import {
   estimateDetailsState,
   estimateDetailsStateSchema,
   Payment,
-} from "@/../../backend/functions/src/common/schemas/estimate_schema";
+} from "@backend/common/schemas/estimate_schema";
 import {
   contactInfoSchemaType,
   allowedCurrencySchemaType,
   ROLES,
-} from "@/../../backend/functions/src/common/schemas/common_schemas";
+} from "@backend/common/schemas/common_schemas";
 import {
   WorkStatus,
   EntryItf,
-} from "@/../../backend/functions/src/common/common_types";
+} from "@backend/common/common_types";
 import { useAuth } from "@/lib/auth_handler";
 import { useJournalContext } from "@/context/JournalContext";
 import { ContactInfoRef } from "./subcomponents/ContactInfo";
@@ -253,10 +253,10 @@ export const useEstimate = ({
   };
 
   const handleSaveSuccess = (
-    result: any,
+    result: { data?: { id?: string } } | unknown,
     validatedDetails: estimateDetailsState,
   ) => {
-    const returnedId = (result.data as { id: string })?.id;
+    const returnedId = (result as { data?: { id?: string } })?.data?.id;
     if (returnedId && !entryId) {
       setEntryId(returnedId);
       const url = new URL(window.location.href);

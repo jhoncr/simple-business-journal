@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, memo, useRef } from "react";
 import { DBentry } from "../../../../lib/custom_types";
-import { AccessMap } from "@/../../backend/functions/src/common/schemas/common_schemas";
+import { AccessMap } from "@backend/common/schemas/common_schemas";
 import { Button } from "@/components/ui/button";
 import { ChevronsUp } from "lucide-react";
 import { Entry } from "./Entry";
@@ -8,7 +8,7 @@ import { useFetchEntries } from "./useFetch";
 import { useAuth } from "@/lib/auth_handler";
 import { useTranslations } from "next-intl";
 import { useToast } from "@/hooks/use-toast";
-import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap";
+import { EntryType } from "@backend/common/schemas/configmap";
 
 interface MessageListProps {
   messages: DBentry[];

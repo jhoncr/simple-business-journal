@@ -11,7 +11,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "@radix-ui/react-icons";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { Payment } from "@/../../backend/functions/src/common/schemas/estimate_schema";
+import { Payment } from "@backend/common/schemas/estimate_schema";
 import { formattedDate } from "@/lib/utils";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";

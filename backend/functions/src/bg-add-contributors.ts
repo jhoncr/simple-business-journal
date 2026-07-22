@@ -40,6 +40,11 @@ export const addContributor = createAuditedCallable(
       await db.runTransaction(async (transaction) => {
         const logDocRef = db.collection(JOURNAL_COLLECTION).doc(journalId);
         const logDoc = await transaction.get(logDocRef);
+
+        if (!logDoc.exists) {
+          throw new HttpsError('not-found', 'Journal not found or no access.');
+        }
+
         const logData = logDoc.data() as JournalSchemaType;
 
         if (data.operation === 'add') {

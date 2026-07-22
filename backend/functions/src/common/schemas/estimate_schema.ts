@@ -44,7 +44,7 @@ export const materialSchema = z.object({
     })
     .optional(), // Make serviceFee optional to handle legacy data
   currency: currencyCodeSchema,
-  labor: z.any().nullable(),
+  labor: z.unknown().optional(),
 });
 
 export const lineItemSchema = z.object({

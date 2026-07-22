@@ -2,7 +2,7 @@ import React from "react";
 // import the downlload icon form lucide
 import { Download } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
-import { AccessMap } from "@/../../backend/functions/src/common/schemas/common_schemas";
+import { AccessMap } from "@backend/common/schemas/common_schemas";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
 

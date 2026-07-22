@@ -158,9 +158,9 @@ export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles, he
 
 const CrossMark: React.FC<{ className: string }> = ({ className }) => (
   <div
-    className={`absolute text-xs text-black font-bold leading-none z-10 w-3 h-3 flex items-center justify-center bg-white rounded-full pointer-events-none print:text-black print:bg-white print:border-gray-400 ${className}`}
+    className={`absolute text-xs text-black font-bold leading-none z-10 w-3 h-3 flex items-center justify-center bg-white/80 rounded-full pointer-events-none ${className}`}
     style={{
-      boxShadow: "0 0 0 2px white",
+      boxShadow: "0 0 0 2px rgba(255, 255, 255, 0.8)",
     }}
   >
     <span className="relative -top-[1px] leading-none">x</span>
@@ -209,7 +209,7 @@ export const DynamicRectangle: React.FC<{ rect: RectangleData }> = ({ rect }) =>
       style={{ width: `${calculatedWidthPercentage}%`, minWidth: "160px" }}
     >
       {label && label !== groupId && (
-        <div className="w-[calc(100%-6rem)] ml-16 mr-8 text-left text-xs font-semibold text-foreground print:text-black whitespace-normal break-words print:w-[calc(100%-5rem)] print:ml-12 print:mr-8">
+        <div className="w-full text-left text-xs font-semibold text-foreground print:text-black whitespace-normal break-keep leading-snug print:w-full">
           {label}: {renderHeight} x {renderWidth}
         </div>
       )}

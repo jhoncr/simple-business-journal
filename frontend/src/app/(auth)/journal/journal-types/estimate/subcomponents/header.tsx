@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { Mail, Phone } from "lucide-react";
-import { contactInfoSchemaType } from "../../../../../../../../backend/functions/src/common/schemas/common_schemas";
+import { contactInfoSchemaType } from "@backend/common/schemas/common_schemas";
 import { useTranslations } from "next-intl";
 
 interface EstimateHeaderProps {

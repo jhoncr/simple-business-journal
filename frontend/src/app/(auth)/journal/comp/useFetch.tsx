@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { fetchOlderEntrys, useEntriesSubCol } from "@/lib/db_handler";
 import { DBentry, DBentryMap } from "../../../../lib/custom_types";
-import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap";
+import { EntryType } from "@backend/common/schemas/configmap";
 import { ENTRY_CONFIG } from "@/lib/config_shared";
 
 const FETCH_LIMIT = 20;

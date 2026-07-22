@@ -2,7 +2,7 @@
 import React, { memo } from "react";
 import { DBentry, AccessUser } from "../../../../lib/custom_types";
 import { getEntryComponent } from "../journal-types/config";
-import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap"; // Import EntryType
+import { EntryType } from "@backend/common/schemas/configmap"; // Import EntryType
 
 // --- Update Props ---
 export interface EntryProps {

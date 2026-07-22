@@ -29,7 +29,7 @@ import { toast } from "sonner"; // Import toast from sonner
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { useRouter } from "next/navigation";
 // --- Import specific types ---
-import { BusinessDetailsType } from "@/../../backend/functions/src/common/schemas/JournalSchema";
+import { BusinessDetailsType } from "@backend/common/schemas/JournalSchema";
 import { functions } from "@/lib/auth_handler"; // Use configured functions
 
 // --- Update Types for Props ---

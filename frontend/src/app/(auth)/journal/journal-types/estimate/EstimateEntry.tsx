@@ -4,11 +4,11 @@ import { EntryView } from "../../comp/EntryView";
 import {
   estimateDetailsState as EstimateDetails,
   Adjustment,
-} from "@/../../backend/functions/src/common/schemas/estimate_schema";
-import { EntryType } from "@/../../backend/functions/src/common/schemas/configmap";
+} from "@backend/common/schemas/estimate_schema";
+import { EntryType } from "@backend/common/schemas/configmap";
 // --- Import frontend types ---
 import { DBentry, AccessUser } from "@/lib/custom_types";
-import { WorkStatus } from "@/../../backend/functions/src/common/common_types";
+import { WorkStatus } from "@backend/common/common_types";
 import { formatCurrency, formattedDate } from "@/lib/utils";
 import Link from "next/link";
 import { WorkStatusBadge } from "./subcomponents/estimateStatus";

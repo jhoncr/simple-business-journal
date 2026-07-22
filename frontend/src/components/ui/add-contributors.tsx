@@ -37,7 +37,7 @@ import {
   UserSchemaType,
   AccessMap,
   pendingAccessSchemaType,
-} from "@/../../backend/functions/src/common/schemas/common_schemas";
+} from "@backend/common/schemas/common_schemas";
 import { functions } from "@/lib/auth_handler";
 
 import { SharableLink } from "@/components/ui/sharable-link";

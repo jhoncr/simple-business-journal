@@ -17,9 +17,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { FolderOpen } from "lucide-react";
 // --- Import Constants ---
-import { JOURNAL_TYPES } from "@/../../backend/functions/src/common/const";
-import { ENTRY_CONFIG } from "@/../../backend/functions/src/common/schemas/configmap"; // Import entry config
-import { BusinessDetailsType } from "@/../../backend/functions/src/common/schemas/JournalSchema"; // Import details type
+import { JOURNAL_TYPES } from "@backend/common/const";
+import { ENTRY_CONFIG } from "@backend/common/schemas/configmap"; // Import entry config
+import { BusinessDetailsType } from "@backend/common/schemas/JournalSchema"; // Import details type
 import { useTranslations } from "next-intl";
 
 // --- Renamed Component: DisplayJournalList ---
@@ -63,26 +63,22 @@ function DisplayJournalList({ journals }: { journals: Journal[] }) {
           }
         />
         {journals.map((journal) => {
-          // --- Extract props for JournalInfoCard ---
-          // Handle different journal types for extracting details
-          let cardProps: any = { id: journal.id };
+          let cardProps: React.ComponentProps<typeof JournalInfoCard>;
 
           if (journal.journalType === JOURNAL_TYPES.BUSINESS) {
             const details = journal.details as BusinessDetailsType | undefined; // Cast safely
             cardProps = {
-              ...cardProps,
+              id: journal.id,
               currency: details?.currency || "USD", // Default currency
               contactInfo: details?.contactInfo || {
                 name: journal.title,
                 address: {},
               },
               logo: details?.logo || null,
-              // --- Pass Subcollection Info (example: map config) ---
-              // get only config where entry.category="business"
               journalSubcollections: Object.entries(ENTRY_CONFIG)
-                .filter(([key, config]) => config.category === "business")
+                .filter(([_, config]) => config.category === "business")
                 .reduce((acc, [key, config]) => {
-                  acc[key] = config;
+                  acc[key] = config as any;
                   return acc;
                 }, {} as Record<string, any>),
             };

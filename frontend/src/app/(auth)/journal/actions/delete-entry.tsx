@@ -21,8 +21,8 @@ import { useTranslations } from "next-intl";
 import {
   EntryType,
   entryTypeSchema,
-} from "@/../../backend/functions/src/common/schemas/configmap"; // Import EntryType
-// import { ENTRY_CONFIG } from "@/../../backend/functions/src/common/const"; // Use backend const
+} from "@backend/common/schemas/configmap"; // Import EntryType
+// import { ENTRY_CONFIG } from "@backend/common/const"; // Use backend const
 
 // --- Updated Backend Function Call ---
 const deleteEntryFn = httpsCallable(functions, "deleteEntry", {
