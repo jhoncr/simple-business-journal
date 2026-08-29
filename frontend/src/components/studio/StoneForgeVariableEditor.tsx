@@ -4,6 +4,7 @@ import React from 'react';
 import { AssemblyTemplate } from '@backend/common/schemas/studio';
 import { Ruler, Info } from 'lucide-react';
 import { evaluateExpression } from '../../lib/evaluator';
+import { useTranslations } from 'next-intl';
 
 interface StoneForgeVariableEditorProps {
   template: AssemblyTemplate;
@@ -26,6 +27,7 @@ export const StoneForgeVariableEditor = ({
   onVariableChange,
   scrollable = true,
 }: StoneForgeVariableEditorProps) => {
+  const t = useTranslations("studio.variableEditor");
   const variables = template.variables;
 
   const currentVariables = React.useMemo(() => {
@@ -42,10 +44,9 @@ export const StoneForgeVariableEditor = ({
         <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
           <Ruler className="w-5 h-5 text-gray-400" />
         </div>
-        <p className="text-sm font-medium text-gray-700">No Variables Defined</p>
+        <p className="text-sm font-medium text-gray-700">{t("noVariablesDefined")}</p>
         <p className="text-xs text-gray-400 max-w-xs">
-          This template has no configurable variables yet. Ask the designer to add variables to
-          make this template customizable.
+          {t("noVariablesDescription")}
         </p>
       </div>
     );
@@ -56,10 +57,10 @@ export const StoneForgeVariableEditor = ({
       {/* Header */}
       <div className="p-4 border-b border-gray-100 bg-gray-50">
         <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-          <Ruler className="w-3.5 h-3.5" /> Dimensions
+          <Ruler className="w-3.5 h-3.5" /> {t("dimensions")}
         </h3>
         <p className="text-[11px] text-gray-400 mt-1">
-          Adjust the measurements below to customize this template.
+          {t("adjustMeasurements")}
         </p>
       </div>
 
@@ -74,11 +75,11 @@ export const StoneForgeVariableEditor = ({
           let errorMessage = '';
           if (minLimit !== undefined && currentValue < minLimit) {
             isError = true;
-            errorMessage = `Minimum is ${minLimit}`;
+            errorMessage = t("minLimitMessage", { min: minLimit });
           }
           if (maxLimit !== undefined && currentValue > maxLimit) {
             isError = true;
-            errorMessage = `Maximum is ${maxLimit}`;
+            errorMessage = t("maxLimitMessage", { max: maxLimit });
           }
 
           const handleBlur = () => {
@@ -101,9 +102,9 @@ export const StoneForgeVariableEditor = ({
                 </label>
                 {(minLimit !== undefined || maxLimit !== undefined) && (
                   <span className="text-[10px] text-gray-400 font-medium">
-                    {minLimit !== undefined && `Min: ${minLimit}`}
+                    {minLimit !== undefined && t("minLabel", { min: minLimit })}
                     {minLimit !== undefined && maxLimit !== undefined && ' • '}
-                    {maxLimit !== undefined && `Max: ${maxLimit}`}
+                    {maxLimit !== undefined && t("maxLabel", { max: maxLimit })}
                   </span>
                 )}
               </div>
@@ -134,7 +135,7 @@ export const StoneForgeVariableEditor = ({
                 </p>
               )}
               <p className={`text-[10px] text-gray-400 mt-1 ${isError ? 'hidden' : 'hidden group-focus-within:block'}`}>
-                Variable: <code className="bg-gray-100 px-1 rounded">{v.label}</code>
+                {t("variableLabel")} <code className="bg-gray-100 px-1 rounded">{v.label}</code>
               </p>
             </div>
           );
@@ -145,8 +146,9 @@ export const StoneForgeVariableEditor = ({
       <div className="p-3 border-t border-gray-100 bg-gray-50 flex items-start gap-2">
         <Info className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
         <p className="text-[10px] text-gray-400 leading-relaxed">
-          Changes are applied to the 3D preview in real time. Click{' '}
-          <strong className="text-gray-500">Save Template</strong> in the toolbar to persist them.
+          {t("footerPrefix")}{' '}
+          <strong className="text-gray-500">{t("saveTemplateButton")}</strong>{' '}
+          {t("footerSuffix")}
         </p>
       </div>
     </div>

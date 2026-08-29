@@ -49,7 +49,7 @@ export const ItemActionMenu = ({
           disabled={!canUpdate || item.parentId !== "root" || !!editingItem}
         >
           {editingItem?.id === item.id
-            ? "Editing..."
+            ? t("editingInProgress")
             : item.attachedTemplate
               ? t("editItemAnd3DModel")
               : t("editItem")}

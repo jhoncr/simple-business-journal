@@ -81,7 +81,7 @@ export function NewItemFormWrapper({
     templateJustSelectedRef.current = true;
     setAttachedTemplate(newAttachedTemplate);
     if (formRef.current) {
-      formRef.current.onTemplateSelected(templateDetails.name || "Template");
+      formRef.current.onTemplateSelected(templateDetails.name || t("defaultTemplateName"));
     }
     setIsGalleryOpen(false);
     setIsOpen(true);
@@ -229,7 +229,7 @@ export function NewItemFormWrapper({
                 variant="outline"
                 onClick={handleClearTemplate}
               >
-                Clear Template
+                {t("clearTemplate")}
               </Button>
             )}
             <Button
@@ -310,7 +310,7 @@ export function NewItemFormWrapper({
                 className="w-full"
                 onClick={handleClearTemplate}
               >
-                Clear Template
+                {t("clearTemplate")}
               </Button>
             )}
             <DialogClose asChild>

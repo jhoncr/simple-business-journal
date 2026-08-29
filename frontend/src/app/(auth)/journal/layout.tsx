@@ -10,6 +10,7 @@ import {
 import { JournalProvider, useJournalContext } from "@/context/JournalContext"; // Import provider and hook
 import React, { Suspense } from "react"; // Import Suspense
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 export default function JournalLayout({
   children,
@@ -17,10 +18,11 @@ export default function JournalLayout({
   children: React.ReactNode;
 }) {
   // const currentJournal = useJournalStore((state) => state.currentJournal);
+  const t = useTranslations("navigation");
 
   return (
     // Wrap with Suspense because JournalProvider uses useSearchParams
-    <Suspense fallback={<div>Loading journal context...</div>}>
+    <Suspense fallback={<div>{t("loadingContext")}</div>}>
       <JournalProvider>
         <div className="flex flex-col w-full flex-1 min-h-0 print:h-auto print:block print:overflow-visible">
           <JournalBreadcrumb /> {/* Render breadcrumbs that use the context */}
@@ -31,6 +33,7 @@ export default function JournalLayout({
   );
 }
 function JournalBreadcrumb() {
+  const t = useTranslations("navigation");
   const { journal, jtype } = useJournalContext(); // Use context hook
   if (!journal) return null; // Don't render breadcrumbs if no journal
 
@@ -42,7 +45,7 @@ function JournalBreadcrumb() {
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/">Home</Link>
+              <Link href="/">{t("home")}</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />

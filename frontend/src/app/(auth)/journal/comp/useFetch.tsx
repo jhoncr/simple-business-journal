@@ -57,10 +57,24 @@ export function useFetchEntries(journalId: string, entryType: EntryType) {
 
   // Watch latest entries
   const realtimeEntries = useEntriesSubCol(journalId, entryType);
+  const prevRealtimeKeysRef = useRef<Set<string>>(new Set());
 
-  // Merge realtime entries into allEntries
+  // Merge realtime entries into allEntries and prune removed keys
   useEffect(() => {
-    setAllEntries((prev) => ({ ...prev, ...realtimeEntries }));
+    const currentRealtimeKeys = new Set(Object.keys(realtimeEntries));
+    const prevRealtimeKeys = prevRealtimeKeysRef.current;
+
+    setAllEntries((prev) => {
+      const updated = { ...prev, ...realtimeEntries };
+      for (const key of prevRealtimeKeys) {
+        if (!currentRealtimeKeys.has(key)) {
+          delete updated[key];
+        }
+      }
+      return updated;
+    });
+
+    prevRealtimeKeysRef.current = currentRealtimeKeys;
   }, [realtimeEntries]);
 
   // Memoized sorted list
@@ -155,6 +169,7 @@ export function useFetchEntries(journalId: string, entryType: EntryType) {
     setError(null);
     lastCursorRef.current = null;
     isFetchingRef.current = false;
+    prevRealtimeKeysRef.current = new Set();
   }, [journalId, entryType]);
 
   return {

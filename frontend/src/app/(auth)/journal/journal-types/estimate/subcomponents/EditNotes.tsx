@@ -4,6 +4,7 @@ import { useState, useRef, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Check, Pencil, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface InlineEditTextareaProps {
   initialValue: string;
@@ -16,10 +17,12 @@ interface InlineEditTextareaProps {
 export function InlineEditTextarea({
   initialValue = "",
   onSave,
-  placeholder = "Enter notes...",
+  placeholder,
   className = "",
   disabled = false,
 }: InlineEditTextareaProps) {
+  const t = useTranslations("common");
+  const effectivePlaceholder = placeholder ?? t("enterNotes");
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(initialValue);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -61,7 +64,7 @@ export function InlineEditTextarea({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={placeholder}
+            placeholder={effectivePlaceholder}
             className="min-h-[100px] p-2 pr-20 w-full"
             autoFocus
           />
@@ -71,7 +74,7 @@ export function InlineEditTextarea({
               variant="ghost"
               onClick={handleCancel}
               className="h-8 w-8 print:hidden"
-              aria-label="Cancel editing"
+              aria-label={t("cancelEditing")}
             >
               <X className="h-4 w-4" />
             </Button>
@@ -79,7 +82,7 @@ export function InlineEditTextarea({
               size="icon"
               onClick={handleSave}
               className="h-8 w-8 print:hidden"
-              aria-label="Save changes"
+              aria-label={t("saveChanges")}
               variant={value ? "brutalist" : "destructive"}
             >
               <Check className="h-4 w-4" />
@@ -91,7 +94,7 @@ export function InlineEditTextarea({
           <div className="whitespace-pre-wrap pr-12">
             {value || (
               <p className="text-muted-foreground print:hidden">
-                {placeholder}
+                {effectivePlaceholder}
               </p>
             )}
           </div>
@@ -100,7 +103,7 @@ export function InlineEditTextarea({
             variant="ghost"
             onClick={handleEdit}
             className="absolute right-2 top-2 h-8 w-8 print:hidden"
-            aria-label="Edit text"
+            aria-label={t("editText")}
           >
             <Pencil className="h-4 w-4" />
           </Button>

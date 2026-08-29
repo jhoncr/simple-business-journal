@@ -79,7 +79,7 @@ export const DimensionInspector: React.FC<DimensionInspectorProps> = ({
             )
           }
           className="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 font-mono"
-          placeholder="e.g. length_a or 228"
+          placeholder={t("dimensionPlaceholder")}
         />
         <p className="text-[10px] text-gray-500 mt-1">
           {t("evaluated")}{" "}

@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { MoreVertical } from "lucide-react";
 import { EntryType } from "@backend/common/schemas/configmap"; // Import EntryType
+import { useTranslations } from "next-intl";
 
 // --- Update Props ---
 export interface EntryViewProps<T extends DBentry> {
@@ -39,6 +40,7 @@ export const EntryView = memo(function EntryView<T extends DBentry>({
   onDuplicated,
   children,
 }: EntryViewProps<T>) {
+  const t = useTranslations("common");
   return (
     // Consider adding data attributes for easier testing/styling
     <div
@@ -63,7 +65,7 @@ export const EntryView = memo(function EntryView<T extends DBentry>({
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-8 w-8">
                     <MoreVertical className="h-4 w-4" />
-                    <span className="sr-only">Open menu</span>
+                    <span className="sr-only">{t("openMenu")}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">

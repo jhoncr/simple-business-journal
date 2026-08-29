@@ -118,7 +118,7 @@ export function JournalInfoCard({
   const DeleteAction = (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <button aria-label="Delete journal" disabled={isDeleting}>
+        <button aria-label={t("deleteJournal")} disabled={isDeleting}>
           <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
         </button>
       </AlertDialogTrigger>
@@ -249,7 +249,7 @@ export function JournalInfoCard({
               trigger={
                 <button
                   onClick={() => setIsEditing(true)}
-                  aria-label="Edit"
+                  aria-label={tCommon("edit")}
                   className="p-1 hover:bg-muted rounded"
                 >
                   <PencilIcon className="h-4 w-4 text-muted-foreground" />

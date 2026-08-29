@@ -775,7 +775,7 @@ export const StoneForgeEditor = () => {
       <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-2">
           <Box className="w-5 h-5 text-indigo-600" />
-          <h1 className="font-semibold text-gray-900">StoneForge 3D</h1>
+          <h1 className="font-semibold text-gray-900">{t("brandTitle")}</h1>
           <span className="text-gray-400 mx-2">|</span>
           {viewMode === "designer" ? (
             <input
@@ -846,7 +846,6 @@ export const StoneForgeEditor = () => {
       </div>,
     );
     return () => setToolBar(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, template, isSaving, viewMode, setToolBar]);
 
   if (isLoading) {
@@ -1021,7 +1020,7 @@ export const StoneForgeEditor = () => {
                               }}
                               className="text-xs flex-1 p-1 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 bg-white"
                             >
-                              <optgroup label={t("presetStandard") || "Standard"}>
+                              <optgroup label={t("presetStandard")}>
                                 <option value="front">{t("edges.front")}</option>
                                 <option value="back">{t("edges.back")}</option>
                                 <option value="left">{t("edges.left")}</option>
@@ -1029,16 +1028,16 @@ export const StoneForgeEditor = () => {
                                 <option value="top">{t("edges.top")}</option>
                                 <option value="bottom">{t("edges.bottom")}</option>
                               </optgroup>
-                              <optgroup label={t("presetIsometric") || "Isometric"}>
-                                <option value="iso-tfr">Top Front Right (TFR)</option>
-                                <option value="iso-tfl">Top Front Left (TFL)</option>
-                                <option value="iso-tbr">Top Back Right (TBR)</option>
-                                <option value="iso-tbl">Top Back Left (TBL)</option>
-                                <option value="iso-bfr">Bottom Front Right (BFR)</option>
-                                <option value="iso-bfl">Bottom Front Left (BFL)</option>
-                                <option value="iso-bbr">Bottom Back Right (BBR)</option>
-                                <option value="iso-bbl">Bottom Back Left (BBL)</option>
-                                <option value="isometric" className="hidden">Isometric (Legacy)</option>
+                              <optgroup label={t("presetIsometric")}>
+                                <option value="iso-tfr">{t("presetIsometricOptions.isoTfr")}</option>
+                                <option value="iso-tfl">{t("presetIsometricOptions.isoTfl")}</option>
+                                <option value="iso-tbr">{t("presetIsometricOptions.isoTbr")}</option>
+                                <option value="iso-tbl">{t("presetIsometricOptions.isoTbl")}</option>
+                                <option value="iso-bfr">{t("presetIsometricOptions.isoBfr")}</option>
+                                <option value="iso-bfl">{t("presetIsometricOptions.isoBfl")}</option>
+                                <option value="iso-bbr">{t("presetIsometricOptions.isoBbr")}</option>
+                                <option value="iso-bbl">{t("presetIsometricOptions.isoBbl")}</option>
+                                <option value="isometric" className="hidden">{t("presetIsometricOptions.isoLegacy")}</option>
                               </optgroup>
                             </select>
                           </div>

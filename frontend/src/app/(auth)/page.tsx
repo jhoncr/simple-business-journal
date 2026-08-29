@@ -26,6 +26,7 @@ import { useTranslations } from "next-intl";
 // Renders the list of journals using JournalInfoCard
 function DisplayJournalList({ journals }: { journals: Journal[] }) {
   const t = useTranslations("dashboard");
+  const tNav = useTranslations("navigation");
   const { authUser } = useAuth();
 
   if (journals.length === 0) {
@@ -41,7 +42,7 @@ function DisplayJournalList({ journals }: { journals: Journal[] }) {
         <CreateNewJournal 
           trigger={
             <Button size="lg" className="gap-2">
-              <span className="text-lg">+</span> {t("navigation.newJournal") || "Create New"}
+              <span className="text-lg">+</span> {tNav("newJournal")}
             </Button>
           }
         />
@@ -59,7 +60,7 @@ function DisplayJournalList({ journals }: { journals: Journal[] }) {
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                 <span className="text-2xl text-primary">+</span>
               </div>
-              <p className="font-semibold text-lg">{t("navigation.newJournal") || "Create New"}</p>
+              <p className="font-semibold text-lg">{tNav("newJournal")}</p>
             </div>
           }
         />

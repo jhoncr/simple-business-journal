@@ -119,7 +119,6 @@ export function CreateNewJournal({
     } else if (!isEdit) {
       form.reset(defaultValues); // Reset to defaults when switching to create mode
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData, isEdit, form.reset]);
 
   // Add this effect to sync the business name and contact name

@@ -149,7 +149,6 @@ export const useStoneForgeData = (journalId: string | null, entryId: string | nu
       }
     }
     loadTemplate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [journalId, entryId]);
 
   const handleSaveTemplate = async (thumbnailBase64?: string) => {

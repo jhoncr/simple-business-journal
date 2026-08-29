@@ -16,6 +16,7 @@ import {
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import { Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface TaxFormProps {
   onSubmit: (tax: number) => void;
@@ -23,6 +24,7 @@ interface TaxFormProps {
 }
 
 export function TaxForm({ onSubmit, disabled }: TaxFormProps) {
+  const t = useTranslations("taxForm");
   const [adjustmentTax, setAdjustmentTax] = React.useState(0);
   const [isOpen, setIsOpen] = React.useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -44,12 +46,12 @@ export function TaxForm({ onSubmit, disabled }: TaxFormProps) {
       >
         <div></div>
         <Label className="text-right" htmlFor="adjustmentTax">
-          Tax:
+          {t("taxLabel")}
         </Label>
         <div className="relative">
           <Input
             className="peer  text-center"
-            placeholder="Enter tax percentage"
+            placeholder={t("placeholder")}
             id="adjustmentTax"
             type="number"
             min="0"
@@ -79,13 +81,13 @@ export function TaxForm({ onSubmit, disabled }: TaxFormProps) {
     <Drawer open={isOpen} onOpenChange={setIsOpen}>
       <DrawerTrigger asChild>
         <Button className="w-full" variant="secondary" disabled={disabled}>
-          Set Tax Rate
+          {t("setTaxRate")}
         </Button>
       </DrawerTrigger>
 
       <DrawerContent>
         <DrawerHeader>
-          <DrawerTitle>Set Tax Rate</DrawerTitle>
+          <DrawerTitle>{t("setTaxRate")}</DrawerTitle>
           <DrawerClose
           //   onClick={() => {
           //     setActiveDrawer(null);
@@ -100,10 +102,10 @@ export function TaxForm({ onSubmit, disabled }: TaxFormProps) {
             className="w-full"
             onClick={() => setIsOpen(false)}
           >
-            <Plus /> Add
+            <Plus /> {t("add")}
           </Button>
           <Button variant="outline" onClick={() => setIsOpen(false)}>
-            Cancel
+            {t("cancel")}
           </Button>
         </DrawerFooter>
       </DrawerContent>

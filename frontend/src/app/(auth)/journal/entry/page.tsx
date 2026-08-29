@@ -16,6 +16,7 @@ import {
   contactInfoSchemaType,
   allowedCurrencySchemaType,
 } from "@backend/common/schemas/common_schemas";
+import { useTranslations } from "next-intl";
 
 // Default empty contact info (useful for initialization)
 const initInfo: contactInfoSchemaType = {
@@ -27,6 +28,7 @@ const initInfo: contactInfoSchemaType = {
 
 // Renamed component to be more generic
 function EntryDetailsPageContent() {
+  const t = useTranslations("entryPage");
   const searchParams = useSearchParams();
   const router = useRouter();
   const journalId = searchParams.get("jid");
@@ -45,12 +47,12 @@ function EntryDetailsPageContent() {
     setValidationError(null);
 
     if (!journalId) {
-      setValidationError("Journal ID (jid) is missing in the URL.");
+      setValidationError(t("missingJournalId"));
       return;
     }
 
     if (entryId && !/^[a-zA-Z0-9-_]{15,}$/.test(entryId)) {
-      setValidationError("Invalid entry ID (eid) format in the URL.");
+      setValidationError(t("invalidEntryId"));
       return;
     }
 
@@ -58,7 +60,7 @@ function EntryDetailsPageContent() {
     // This also handles if jtype is null/undefined from the URL.
     if (!jtype || !["estimate", "invoice", "template"].includes(jtype)) {
       setValidationError(
-        "A valid entry type ('jtype') of 'estimate', 'invoice', or 'template' must be specified in the URL.",
+        t("invalidEntryType"),
       );
       return;
     }
@@ -89,9 +91,9 @@ function EntryDetailsPageContent() {
   if (combinedError) {
     return (
       <div className="p-4 text-center text-destructive">
-        <p>Error: {combinedError}</p>
+        <p>{t("errorPrefix", { message: combinedError })}</p>
         <Link href="/" className="text-primary underline mt-4 inline-block">
-          Go Home
+          {t("goHome")}
         </Link>
       </div>
     );
@@ -111,9 +113,9 @@ function EntryDetailsPageContent() {
   if (!journal) {
     return (
       <div className="p-4 text-center text-muted-foreground">
-        <p>Journal not found or access denied.</p>
+        <p>{t("journalNotFoundOrDenied")}</p>
         <Link href="/" className="text-primary underline mt-4 inline-block">
-          Go Home
+          {t("goHome")}
         </Link>
       </div>
     );
@@ -124,10 +126,10 @@ function EntryDetailsPageContent() {
     return (
       <div className="p-4 text-center text-destructive">
         <p>
-          Error: This entry type can only be managed within Business journals.
+          {t("businessOnlyError")}
         </p>
         <Link href="/" className="text-primary underline mt-4 inline-block">
-          Go Home
+          {t("goHome")}
         </Link>
       </div>
     );
@@ -136,12 +138,12 @@ function EntryDetailsPageContent() {
   if (!journalCurrency) {
     return (
       <div className="p-4 text-center text-destructive">
-        <p>Error: The Business journal is missing a currency setting.</p>
+        <p>{t("missingCurrencyError")}</p>
         <Link
           href={`/journal?jid=${journalId}`}
           className="text-primary underline mt-4 inline-block"
         >
-          Back to Journal
+          {t("backToJournal")}
         </Link>
       </div>
     );
@@ -151,7 +153,7 @@ function EntryDetailsPageContent() {
   if (jtype === "template") {
     return (
       <div className="w-full flex-1 min-h-0 flex flex-col">
-        <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading editor...</div>}>
+        <Suspense fallback={<div className="p-8 text-center text-gray-500">{t("loadingEditor")}</div>}>
           <StoneForgeEditor />
         </Suspense>
       </div>
@@ -175,8 +177,9 @@ function EntryDetailsPageContent() {
 
 // Renamed default export
 export default function EntryDetailsPage() {
+  const t = useTranslations("common");
   return (
-    <Suspense fallback={<div className="p-4">Loading...</div>}>
+    <Suspense fallback={<div className="p-4">{t("loading")}</div>}>
       <EntryDetailsPageContent />
     </Suspense>
   );

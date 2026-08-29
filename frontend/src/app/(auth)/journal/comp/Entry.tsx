@@ -3,6 +3,7 @@ import React, { memo } from "react";
 import { DBentry, AccessUser } from "../../../../lib/custom_types";
 import { getEntryComponent } from "../journal-types/config";
 import { EntryType } from "@backend/common/schemas/configmap"; // Import EntryType
+import { useTranslations } from "next-intl";
 
 // --- Update Props ---
 export interface EntryProps {
@@ -25,6 +26,7 @@ export const Entry = memo(function Entry({
   removeFn,
   onDuplicated,
 }: EntryProps) {
+  const t = useTranslations("journal");
   // Use updated props type
   // --- Determine Component based on entryType ---
   const ViewComponent = getEntryComponent(entryType); // Use entryType
@@ -33,7 +35,7 @@ export const Entry = memo(function Entry({
     console.warn(`No component configured for entry type: ${entryType}`);
     return (
       <div className="pl-4 text-sm text-red-500">
-        Error: Unknown entry type {entryType}
+        {t("unknownEntryType", { entryType })}
       </div>
     );
   }

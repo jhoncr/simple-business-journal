@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
+import { useTranslations } from "next-intl";
 
 export interface RectangleData {
   id: string | number;
@@ -60,6 +61,7 @@ function groupRectanglesIntoRows(
 }
 
 export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles, header }) => {
+  const t = useTranslations("draw");
   if (!rectangles || rectangles.length === 0) {
     return (
       <table className="w-full">
@@ -76,7 +78,7 @@ export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles, he
           <tr>
             <td className="p-0">
               <div className="flex justify-center items-center w-full min-h-[400px] border-2 border-dashed border-border rounded-md mt-4">
-                <p className="text-muted-foreground">No rectangles to display</p>
+                <p className="text-muted-foreground">{t("noRectanglesToDisplay")}</p>
               </div>
             </td>
           </tr>

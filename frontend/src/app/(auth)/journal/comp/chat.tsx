@@ -37,6 +37,7 @@ const MessageList = memo(function MessageList({
   removeFn,
   onDuplicated,
 }: MessageListProps) {
+  const t = useTranslations("journal");
   const [showToTopButton, setShowToTopButton] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -119,7 +120,7 @@ const MessageList = memo(function MessageList({
         }`}
         variant="outline"
         onClick={scrollToTop}
-        aria-label="Scroll to top"
+        aria-label={t("scrollToTop")}
       >
         <ChevronsUp />
       </Button>
@@ -142,7 +143,7 @@ const MessageList = memo(function MessageList({
             ? { ...creatorInfo, uid: entry.createdBy }
             : {
                 uid: entry.createdBy,
-                displayName: "Unknown User",
+                displayName: t("unknownUser"),
                 email: "",
                 role: "viewer" as const,
               };

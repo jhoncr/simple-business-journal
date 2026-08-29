@@ -11,6 +11,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { on } from "events";
+import { useTranslations } from "next-intl";
 
 /*
   * Date picker with range
@@ -32,6 +33,7 @@ export function DatePickerWithRange({
   daterange: DateRange | undefined;
   setDate: React.Dispatch<React.SetStateAction<DateRange | undefined>>;
 }) {
+  const t = useTranslations("common");
   const [selected, setSelected] = useState<DateRange | undefined>(daterange);
   const [open, setOpen] = useState(false);
 
@@ -65,13 +67,13 @@ export function DatePickerWithRange({
         />
         <div className="flex justify-end gap-2 p-2">
           <Button variant="outline" onClick={handleCancel}>
-            Cancel
+            {t("cancel")}
           </Button>
           <Button
             onClick={handleGo}
             disabled={!selected?.from || !selected?.to}
           >
-            Go
+            {t("go")}
           </Button>
         </div>
       </PopoverContent>

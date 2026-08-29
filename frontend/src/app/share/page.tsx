@@ -2,8 +2,8 @@
 import { useEffect, useState, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { redirect } from "next/navigation";
-import { useAuth } from "@/lib/auth_handler";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import { useAuth, functions } from "@/lib/auth_handler";
+import { httpsCallable } from "firebase/functions";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,7 +54,7 @@ function SharePageContent() {
     if (!journalId) return;
 
     console.log("sending accept call to the backend");
-    const acceptShare = httpsCallable(getFunctions(), "acceptShare", {
+    const acceptShare = httpsCallable(functions, "acceptShare", {
       limitedUseAppCheckTokens: true,
     });
 

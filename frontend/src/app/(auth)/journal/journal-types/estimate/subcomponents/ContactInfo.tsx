@@ -134,7 +134,7 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
                 size="icon"
                 onClick={handleCancel}
                 disabled={!contactInfoSchema.safeParse(info).success}
-                aria-label="Cancel editing"
+                aria-label={t("cancelEditing")}
                 className="print:hidden h-8 w-8 -my-2"
               >
                 <X className="h-4 w-4" />
@@ -183,7 +183,7 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
                         <FormControl>
                           <Input
                             className="peer ps-9"
-                            placeholder="email@example.com"
+                            placeholder={t("emailPlaceholder")}
                             value={field.value ?? ""}
                             onChange={field.onChange}
                             onBlur={field.onBlur}
@@ -300,7 +300,7 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
                         </div>
                         <FormControl>
                           <Input
-                            placeholder="12345"
+                            placeholder={t("zipPlaceholder")}
                             value={field.value ?? ""}
                             onChange={field.onChange}
                             onBlur={field.onBlur}
@@ -335,7 +335,7 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
                     //   form.formState.isSubmitting
                     // }
                     variant={"brutalist"}
-                    aria-label="Save changes"
+                    aria-label={t("saveChanges")}
                   >
                     {isSubmitting ? t("saving") : t("saveChanges")}
                   </Button>

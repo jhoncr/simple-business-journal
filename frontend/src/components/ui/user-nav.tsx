@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AccessUser } from "@/lib/custom_types";
+import { useTranslations } from "next-intl";
 
 export function UserNav({
   user,
@@ -19,6 +20,7 @@ export function UserNav({
   user: AccessUser;
   signOut: () => void;
 }) {
+  const t = useTranslations("navigation");
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -26,7 +28,7 @@ export function UserNav({
           <Avatar className="h-9 w-9">
             <AvatarImage
               src={user.photoURL || ""}
-              alt="User profile picture"
+              alt={t("userProfilePicture")}
               referrerPolicy="no-referrer"
             />
             <AvatarFallback>
@@ -64,7 +66,7 @@ export function UserNav({
         </DropdownMenuGroup>
         <DropdownMenuSeparator /> */}
         <DropdownMenuItem onClick={signOut}>
-          Log out
+          {t("logout")}
           <DropdownMenuShortcut>⇧⌘Q</DropdownMenuShortcut>
         </DropdownMenuItem>
       </DropdownMenuContent>

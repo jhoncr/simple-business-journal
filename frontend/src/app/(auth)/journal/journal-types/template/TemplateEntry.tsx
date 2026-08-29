@@ -5,6 +5,7 @@ import { DBentry, AccessUser } from "@/lib/custom_types";
 import { formattedDate } from "@/lib/utils";
 import Link from "next/link";
 import { Box } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface TemplateEntryProps {
   journalId: string;
@@ -25,6 +26,7 @@ export const TemplateEntry = React.memo(function TemplateEntry({
   removeFn,
   onDuplicated,
 }: TemplateEntryProps) {
+  const t = useTranslations("template");
   if (!journalId || !entry || entryType !== "template") return null;
 
   return (
@@ -46,7 +48,7 @@ export const TemplateEntry = React.memo(function TemplateEntry({
           <div className="flex-grow min-w-0 w-full">
             <div className="flex items-start justify-between gap-3 mb-1">
               <span className="font-medium break-words flex-1 min-w-0 overflow-hidden" title={entry.name}>
-                {entry.name || "Unnamed Template"}
+                {entry.name || t("unnamedTemplate")}
               </span>
             </div>
             <div className="text-sm text-muted-foreground whitespace-nowrap mt-1">

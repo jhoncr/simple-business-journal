@@ -3,17 +3,7 @@ import { getRequestConfig } from "next-intl/server";
 import enMessages from "../../messages/en.json";
 
 // Can be imported from a shared config
-export const locales = [
-  "en",
-  "es",
-  "fr",
-  "de",
-  "pt",
-  "it",
-  "ja",
-  "ko",
-  "zh",
-] as const;
+export const locales = ["en", "pt"] as const;
 export type Locale = (typeof locales)[number];
 
 export const defaultLocale: Locale = "pt";

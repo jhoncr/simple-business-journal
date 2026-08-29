@@ -118,7 +118,7 @@ export default function ListJournalPage() {
                 variant="outline"
                 className="bg-primary/10 text-primary border-primary/20 text-[10px] uppercase tracking-wider font-bold h-5 px-1.5"
               >
-                Studio
+                {t_j("studio")}
               </Badge>
             )}
             {jtypeParam === "estimate" && (
@@ -126,7 +126,7 @@ export default function ListJournalPage() {
                 variant="outline"
                 className="bg-blue-500/10 text-blue-600 border-blue-200 text-[10px] uppercase tracking-wider font-bold h-5 px-1.5"
               >
-                Estimate
+                {t_j("estimate")}
               </Badge>
             )}
           </div>
@@ -138,15 +138,15 @@ export default function ListJournalPage() {
                 setDate={setDateRange}
               />
               {displayEntryType !== "template" && <Link href={`/journal?jid=${journal.id}&jtype=template`}>
-                <Button variant="outline" size="sm" className="flex items-center gap-2 h-9" title="Open 3D Studio">
+                <Button variant="outline" size="sm" className="flex items-center gap-2 h-9" title={t_j("openStudio")}>
                   <Box size={16} />
-                  <span className="hidden lg:inline-block">Studio</span>
+                  <span className="hidden lg:inline-block">{t_j("studio")}</span>
                 </Button>
               </Link>}
               {displayEntryType === "estimate" && <Link href={`/journal/quick-print?jid=${journal.id}`} target="_blank">
-                <Button variant="outline" size="sm" className="flex items-center gap-2 h-9" title={t("quickPrint") || "Quick Print"}>
+                <Button variant="outline" size="sm" className="flex items-center gap-2 h-9" title={t("quickPrint")}>
                   <Printer size={16} />
-                  <span className="hidden lg:inline-block">{t("quickPrint") || "Quick Print"}</span>
+                  <span className="hidden lg:inline-block">{t("quickPrint")}</span>
                 </Button>
               </Link>}
               {isAdmin && (
@@ -190,7 +190,7 @@ export default function ListJournalPage() {
                     <DropdownMenuItem asChild>
                       <Link href={`/journal/quick-print?jid=${journal.id}`} target="_blank" className="flex items-center gap-2 cursor-pointer">
                         <Printer size={16} />
-                        <span>{t("quickPrint") || "Quick Print"}</span>
+                        <span>{t("quickPrint")}</span>
                       </Link>
                     </DropdownMenuItem>
                   )}

@@ -10,6 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useTranslations } from "next-intl";
 
 interface SharableLinkProps {
   link: string;
@@ -22,6 +23,7 @@ export function SharableLink({
   maxDisplayLength = 50,
   className = "",
 }: SharableLinkProps) {
+  const t = useTranslations("common");
   const [copied, setCopied] = useState(false);
 
   const displayLink =
@@ -56,7 +58,7 @@ export function SharableLink({
         variant="outline"
         size="sm"
         onClick={copyToClipboard}
-        aria-label="Copy link to clipboard"
+        aria-label={t("copyLink")}
         className="flex-shrink-0"
       >
         {copied ? (
@@ -65,7 +67,7 @@ export function SharableLink({
           <Copy className="h-4 w-4" />
         )}
         <span className="ml-2 hidden sm:inline">
-          {copied ? "Copied!" : "Copy"}
+          {copied ? t("copied") : t("copy")}
         </span>
       </Button>
       {/* </TooltipTrigger>
