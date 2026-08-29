@@ -13,7 +13,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Payment } from "@backend/common/schemas/estimate_schema";
 import { formattedDate } from "@/lib/utils";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { useTranslations } from "next-intl";
 
 interface PaymentsProps {
@@ -34,6 +34,7 @@ export const Payments = ({
   isSaving,
 }: PaymentsProps) => {
   const t = useTranslations("payments");
+  const { toast } = useToast();
   const [newPaymentAmount, setNewPaymentAmount] = useState<number | string>("");
   const [newPaymentDate, setNewPaymentDate] = useState<Date | undefined>(new Date());
   const [newPaymentMethod, setNewPaymentMethod] = useState<string>("");
@@ -41,11 +42,11 @@ export const Payments = ({
 
   const onAddPayment = () => {
     if (!newPaymentAmount || isNaN(Number(newPaymentAmount)) || Number(newPaymentAmount) <= 0) {
-      toast.error(t("errors.invalidAmount"));
+      toast({ description: t("errors.invalidAmount"), variant: "destructive" });
       return;
     }
     if (!newPaymentDate) {
-      toast.error(t("errors.dateRequired"));
+      toast({ description: t("errors.dateRequired"), variant: "destructive" });
       return;
     }
 

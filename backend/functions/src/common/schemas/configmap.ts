@@ -41,7 +41,7 @@ export const ENTRY_CONFIG = {
     category: 'business',
     sortField: 'createdAt',
     icon: 'Box',
-    allowedRoles: ['admin'],
+    allowedRoles: ['admin', 'editor'],
   },
   // invoice: {
   //   subcollection: "invoices",

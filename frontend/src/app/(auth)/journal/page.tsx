@@ -268,18 +268,18 @@ export default function ListJournalPage() {
     (newEntryId: string) => {
       // Show success toast - the real-time subscription will handle showing the new entry
       toast({
-        title: t("estimateDuplicated") || "Estimate Duplicated",
+        title: t_j("estimateDuplicated") || "Estimate Duplicated",
         description:
-          t("duplicateSuccess") ||
+          t_j("duplicateSuccess") ||
           "The estimate has been duplicated successfully.",
       });
     },
-    [toast, t],
+    [toast, t_j],
   );
 
   if (!journalId) return null;
   if (journal === undefined)
-    return <div className="text-center p-6">{t("loading")}</div>;
+    return <div className="text-center p-6">{t_j("loading")}</div>;
   if (journal === null) return <NotFound />;
 
   const isAdmin =

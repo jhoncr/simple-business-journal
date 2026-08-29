@@ -1,7 +1,7 @@
 import * as functions from 'firebase-functions';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { z } from 'zod';
-
+import { ROLES } from '../common/schemas/common_schemas';
 
 const ALLOWED = ['*']; // Adjust CORS settings as needed
 
@@ -12,7 +12,7 @@ type AuditedCallableOptions = {
 export const createAuditedCallable = <T extends z.ZodType>(
   functionName: string,
   collectionName: string,
-  allowedRoles: ('admin' | 'staff')[],
+  allowedRoles: readonly (typeof ROLES)[number][] | (typeof ROLES)[number][],
   inputSchema: T,
   handler: (request: functions.https.CallableRequest) => Promise<any>,
   options: AuditedCallableOptions = {},

@@ -4,6 +4,7 @@
     "lint": "eslint --ext .ts,.js .",
     "link:fix": "eslint --fix --ext .ts,.js .",
     "build": "tsc",
+    "test": "npm run build && node tests/test_zod_firestore_compat.js && node tests/test_update_journal.js && node tests/test_rbac_matrix.js && node tests/test_i18n_and_camera_stability.js",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",

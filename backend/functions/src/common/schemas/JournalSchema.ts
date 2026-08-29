@@ -1,9 +1,9 @@
 import * as z from 'zod';
 import {
   AccessSchema,
-  ROLES,
   allowedCurrencySchema,
   contactInfoSchema,
+  pendingAccessSchema,
 } from './common_schemas';
 import { JOURNAL_TYPES } from '../const';
 
@@ -23,8 +23,11 @@ export const JournalSchema = z
     title: z.string(),
     access: AccessSchema,
     access_array: z.array(z.string()),
-    pendingAccess: z.record(z.string().email(), z.enum(ROLES)).optional(),
+    pendingAccess: pendingAccessSchema.optional(),
     createdAt: z.coerce.date(),
+    updatedAt: z.coerce.date().optional(),
+    deletedAt: z.coerce.date().optional(),
+    deletedBy: z.string().optional(),
     journalType: journalTypeSchema,
     details: businessDetailsSchema.optional(),
     isActive: z.boolean(),

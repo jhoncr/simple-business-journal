@@ -37,6 +37,7 @@ import {
   UserSchemaType,
   AccessMap,
   pendingAccessSchemaType,
+  ROLES,
 } from "@backend/common/schemas/common_schemas";
 import { functions } from "@/lib/auth_handler";
 
@@ -72,7 +73,7 @@ export function AddContributers({
   const schema = z
     .object({
       email: z.string().email({ message: t("validEmail") }),
-      role: z.enum(["admin", "staff", "viewer"]),
+      role: z.enum(ROLES),
     })
     .strict();
 
@@ -289,6 +290,9 @@ export function AddContributers({
                           <SelectContent>
                             <SelectItem value="admin">
                               {t("roles.admin")}
+                            </SelectItem>
+                            <SelectItem value="editor">
+                              {t("roles.editor")}
                             </SelectItem>
                             <SelectItem value="staff">
                               {t("roles.staff")}

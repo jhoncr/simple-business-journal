@@ -118,6 +118,7 @@ export const useStoneForgeData = (journalId: string | null, entryId: string | nu
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   const t = useTranslations("studio");
+  const tCommon = useTranslations("common");
 
   const showToast = (message: string) => {
     toast({
@@ -139,7 +140,7 @@ export const useStoneForgeData = (journalId: string | null, entryId: string | nu
           }
         } catch (error) {
           console.error("Error fetching template:", error);
-          showToast("Failed to load existing template.");
+          showToast(t("failedToLoadTemplate"));
         } finally {
           setIsLoading(false);
         }
@@ -154,8 +155,8 @@ export const useStoneForgeData = (journalId: string | null, entryId: string | nu
   const handleSaveTemplate = async (thumbnailBase64?: string) => {
     if (!journalId) {
       toast({
-        title: "Error",
-        description: "Cannot save: No journal ID provided in URL",
+        title: tCommon("error"),
+        description: t("noJournalId"),
         variant: "destructive",
       });
       return;
@@ -224,8 +225,8 @@ export const useStoneForgeData = (journalId: string | null, entryId: string | nu
     } catch (error) {
       console.error("Error saving template:", error);
       toast({
-        title: "Error",
-        description: "Failed to save template. Please try again.",
+        title: tCommon("error"),
+        description: t("failedToSaveTemplate"),
         variant: "destructive",
       });
     } finally {
@@ -235,7 +236,7 @@ export const useStoneForgeData = (journalId: string | null, entryId: string | nu
 
   const handleDuplicateTemplate = async () => {
     if (!journalId || template.id === "temp_1") {
-      showToast("Cannot duplicate: Save the template first or provide a journal ID");
+      showToast(t("cannotDuplicateUnsaved"));
       return;
     }
     setIsSaving(true);
@@ -249,12 +250,12 @@ export const useStoneForgeData = (journalId: string | null, entryId: string | nu
 
       const newId = (response.data as any).id;
       if (newId) {
-        showToast("Template duplicated! Reloading with new design...");
+        showToast(t("duplicateSuccessReloading"));
         window.location.href = `/journal/entry?jid=${journalId}&eid=${newId}&jtype=template`;
       }
     } catch (error) {
       console.error("Error duplicating template:", error);
-      showToast("Failed to duplicate template.");
+      showToast(t("failedToDuplicateTemplate"));
     } finally {
       setIsSaving(false);
     }

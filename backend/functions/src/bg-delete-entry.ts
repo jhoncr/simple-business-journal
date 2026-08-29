@@ -42,15 +42,15 @@ export const deleteJournal = createAuditedCallable(
         throw new HttpsError('internal', 'Journal data is empty.');
       }
 
-      // --- Check permissions using ROLES_CAN_DELETE ---
+      // --- Check permissions: Only admin can delete a journal ---
       const access = journalData.access;
-      if (!access || !access[uid] || !ROLES_CAN_DELETE.has(access[uid].role)) {
+      if (!access || !access[uid] || access[uid].role !== 'admin') {
         logger.warn(
           `User ${uid} does not have permission to delete journal ${journalId}. Role: ${access?.[uid]?.role}`,
         );
         throw new HttpsError(
           'permission-denied',
-          'You do not have permission to delete this journal.',
+          'Only administrators have permission to delete this journal.',
         );
       }
 

@@ -97,7 +97,11 @@
     "moreActions": "More Actions",
     "dateFilter": "Date Filter",
     "studio": "Studio",
-    "contributors": "Contributors"
+    "contributors": "Contributors",
+    "deleteDialogTitle": "Are you absolutely sure?",
+    "deleteDialogDescription": "This action will mark the journal as deleted. This journal and all its entries will no longer be accessible.",
+    "journalDeleted": "Journal deleted",
+    "failedToDeleteJournal": "Failed to delete the journal. Please try again."
   },
   "errors": {
     "loadJournals": "Failed to load journals.",
@@ -220,7 +224,26 @@
       "editItemAnd3DModel": "Edit Item & 3D Model",
       "hasTechnicalDrawing": "Has a technical drawing item"
     },
-    "componentCutPolishList": "Cut & Polish List"
+    "componentCutPolishList": "Cut & Polish List",
+    "itemCount": "{count} item(s)",
+    "estimateSaved": "Estimate for {name} saved.",
+    "paymentSaved": "The new payment has been saved.",
+    "estimateForCustomer": "Estimate for {name}",
+    "unknownCustomer": "Unknown",
+    "errors": {
+      "correctCustomerDetails": "Please correct customer details before saving.",
+      "validateCustomerFailed": "Could not validate customer info.",
+      "invalidEstimateData": "Invalid Estimate Data: Please check the console for details.",
+      "saveFailed": "Save Failed: {message}",
+      "couldNotSave": "Could not save estimate.",
+      "incorrectFormType": "Cannot save, incorrect form type.",
+      "currencyNotSet": "Cannot save estimate, journal currency is not set.",
+      "invalidFormTypeReceived": "This form is for estimates only. Received type: {jtype}. Please check the URL or link.",
+      "journalIdMissing": "Journal ID is missing.",
+      "entryNotFound": "Estimate entry not found or access denied.",
+      "loadedDataInvalid": "Loaded estimate data is invalid.",
+      "failedToLoadDetails": "Failed to load estimate details. Please try again."
+    }
   },
   "contactInfo": {
     "notSet": "Not set",
@@ -322,6 +345,7 @@
     "editItem": "Edit Item",
     "editMode": "Edit Mode",
     "cancel": "Cancel",
+    "removeItem": "Remove Item",
     "permissionDenied": "You don't have permission to add items"
   },
   "adjustments": {
@@ -379,6 +403,7 @@
     "close": "Close",
     "roles": {
       "admin": "Admin",
+      "editor": "Editor",
       "staff": "Staff",
       "viewer": "Viewer"
     },
@@ -485,6 +510,37 @@
     "configureTemplate": "Configure the template properties.",
     "templateName": "Template Name",
     "descriptionOptional": "Description (Optional)",
-    "descriptionPlaceholder": "Add a brief description (up to 200 characters)..."
+    "descriptionPlaceholder": "Add a brief description (up to 200 characters)...",
+    "noComponentsToDisplay": "No components to display.",
+    "failedToLoadTemplate": "Failed to load existing template.",
+    "noJournalId": "Cannot save: No journal ID provided in URL",
+    "failedToSaveTemplate": "Failed to save template. Please try again.",
+    "cannotDuplicateUnsaved": "Cannot duplicate: Save the template first or provide a journal ID",
+    "duplicateSuccessReloading": "Template duplicated! Reloading with new design...",
+    "failedToDuplicateTemplate": "Failed to duplicate template."
+  },
+  "technicalDrawings": {
+    "loading": "Loading technical drawings...",
+    "failedToLoad": "Failed to load data.",
+    "noDrawingsFound": "No items with technical drawings found in this estimate.",
+    "drawingItemsCount": "{count} item(s)"
+  },
+  "templateGallery": {
+    "addFromGallery": "Add from Gallery",
+    "galleryTitle": "Template Gallery",
+    "searchTemplates": "Search templates...",
+    "failedToLoadTemplates": "Failed to load templates: {error}",
+    "noTemplatesFound": "No templates found in this journal.",
+    "createFirstTemplatePrompt": "Go to the Journal to create your first template.",
+    "noTemplatesMatch": "No templates match your search.",
+    "untitledTemplate": "Untitled Template",
+    "selectTemplate": "Select",
+    "templateNotFound": "Template no longer exists.",
+    "failedToFetchTemplate": "Failed to fetch full template."
+  },
+  "logoUpload": {
+    "svgOnlyError": "Please upload an SVG file.",
+    "companyLogoAlt": "Company logo",
+    "addLogo": "Add Logo"
   }
 }

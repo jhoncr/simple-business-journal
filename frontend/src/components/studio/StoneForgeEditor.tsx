@@ -1242,7 +1242,7 @@ export const StoneForgeEditor = () => {
                 <React.Suspense fallback={null}>
                   <Environment preset="city" />
 
-                  <Bounds fit clip observe margin={1.2}>
+                  <Bounds fit={!selectedPreviewViewId} clip observe={!selectedPreviewViewId} margin={1.2}>
                     {(() => {
                       const selectedView = template.cameraViews?.find((v) => v.id === selectedPreviewViewId);
                       if (selectedView && selectedView.preset) {

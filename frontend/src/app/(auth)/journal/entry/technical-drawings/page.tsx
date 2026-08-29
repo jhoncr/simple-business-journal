@@ -2,12 +2,14 @@
 
 import React, { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { fetchEntry, fetchJournal } from "@/lib/db_handler";
 import { estimateDetailsStateSchema } from "@backend/common/schemas/estimate_schema";
 import { TemplatePrintLayout, PrintableItem, DrawingItem } from "@/components/studio/TemplatePrintLayout";
 import { RectangleData } from "@/components/RectangleViewer";
 
 export default function TechnicalDrawingsPrintLayout() {
+  const t = useTranslations("technicalDrawings");
   const searchParams = useSearchParams();
   const journalId = searchParams.get("jid");
   const entryId = searchParams.get("eid");
@@ -64,13 +66,13 @@ export default function TechnicalDrawingsPrintLayout() {
 
   if (loading) {
     return (
-      <div className="p-10 text-center">Loading technical drawings...</div>
+      <div className="p-10 text-center">{t("loading")}</div>
     );
   }
 
   if (!estimateData || !journalData) {
     return (
-      <div className="p-10 text-center text-red-600">Failed to load data.</div>
+      <div className="p-10 text-center text-red-600">{t("failedToLoad")}</div>
     );
   }
 
@@ -115,7 +117,7 @@ export default function TechnicalDrawingsPrintLayout() {
   if (printableItems.length === 0 && drawingItems.length === 0) {
     return (
       <div className="p-10 text-center">
-        No items with technical drawings found in this estimate.
+        {t("noDrawingsFound")}
       </div>
     );
   }
@@ -130,3 +132,4 @@ export default function TechnicalDrawingsPrintLayout() {
     />
   );
 }
+

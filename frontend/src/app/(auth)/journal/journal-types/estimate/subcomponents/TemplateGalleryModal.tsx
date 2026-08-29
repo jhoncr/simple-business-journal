@@ -10,6 +10,7 @@ import { getStorage, ref, getDownloadURL } from "firebase/storage";
 import { app } from "@/lib/auth_handler";
 import { getFirestore, doc, getDoc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslations } from "next-intl";
 
 interface TemplateGalleryModalProps {
   journalId: string;
@@ -28,6 +29,8 @@ interface CacheEntry {
 
 export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled, open: controlledOpen, onOpenChange: controlledOnOpenChange }: TemplateGalleryModalProps) {
   const [internalOpen, setInternalOpen] = useState(false);
+  const t = useTranslations("templateGallery");
+  const tCommon = useTranslations("common");
 
   // Use controlled props when provided, otherwise fall back to internal state
   const isControlled = controlledOpen !== undefined;
@@ -124,16 +127,16 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled, op
         setIsOpen(false);
       } else {
         toast({
-          title: "Error",
-          description: "Template no longer exists.",
+          title: tCommon("error"),
+          description: t("templateNotFound"),
           variant: "destructive",
         });
       }
     } catch (err: any) {
       console.error("Failed to fetch full template:", err);
       toast({
-        title: "Error",
-        description: err.message || "Failed to fetch full template.",
+        title: tCommon("error"),
+        description: err.message || t("failedToFetchTemplate"),
         variant: "destructive",
       });
     } finally {
@@ -160,20 +163,20 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled, op
             disabled={disabled}
             className="w-full gap-2"
           >
-            <Box size={16} /> Add from Gallery
+            <Box size={16} /> {t("addFromGallery")}
           </Button>
         </DialogTrigger>
       )}
       <DialogContent aria-describedby={undefined} className="max-w-4xl max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Template Gallery</DialogTitle>
+          <DialogTitle>{t("galleryTitle")}</DialogTitle>
         </DialogHeader>
 
         <div className="px-4 py-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search templates..."
+              placeholder={t("searchTemplates")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
@@ -188,17 +191,17 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled, op
             </div>
           ) : error ? (
             <div className="text-center text-red-500 py-8">
-              Failed to load templates: {error}
+              {t("failedToLoadTemplates", { error })}
             </div>
           ) : Object.keys(cacheMap).length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
               <Box className="h-12 w-12 mx-auto mb-4 opacity-20" />
-              <p>No templates found in this journal.</p>
-              <p className="text-sm mt-2">Go to the Journal to create your first template.</p>
+              <p>{t("noTemplatesFound")}</p>
+              <p className="text-sm mt-2">{t("createFirstTemplatePrompt")}</p>
             </div>
           ) : filteredTemplates.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
-              <p>No templates match your search.</p>
+              <p>{t("noTemplatesMatch")}</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -215,7 +218,7 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled, op
                       imageUrls[id] ? (
                         <Image
                           src={imageUrls[id]}
-                          alt={entry.n || "Template thumbnail"}
+                          alt={entry.n || t("untitledTemplate")}
                           fill
                           className="object-cover"
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -228,7 +231,7 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled, op
                     )}
                   </div>
                   <h3 className="font-semibold text-sm truncate" title={entry.n}>
-                    {entry.n || "Untitled Template"}
+                    {entry.n || t("untitledTemplate")}
                   </h3>
                   {entry.d && (
                     <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
@@ -238,7 +241,7 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled, op
                   <div className="flex justify-end items-center mt-auto pt-2">
                     <Button size="sm" variant="secondary" className="h-7 text-xs" disabled={selectingId !== null}>
                       {selectingId === id && <Loader2 className="h-3 w-3 animate-spin mr-2" />}
-                      Select
+                      {t("selectTemplate")}
                     </Button>
                   </div>
                 </div>
@@ -249,7 +252,7 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled, op
         <DialogFooter className="sm:justify-start">
           <DialogClose asChild>
             <Button type="button" variant="outline">
-              Cancel
+              {tCommon("cancel")}
             </Button>
           </DialogClose>
         </DialogFooter>
@@ -257,3 +260,4 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled, op
     </Dialog>
   );
 }
+

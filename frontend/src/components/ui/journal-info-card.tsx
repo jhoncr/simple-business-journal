@@ -25,8 +25,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { toast } from "sonner"; // Import toast from sonner
-import { getFunctions, httpsCallable } from "firebase/functions";
+import { useToast } from "@/hooks/use-toast";
+import { useTranslations } from "next-intl";
+import { httpsCallable } from "firebase/functions";
 import { useRouter } from "next/navigation";
 // --- Import specific types ---
 import { BusinessDetailsType } from "@backend/common/schemas/JournalSchema";
@@ -52,6 +53,7 @@ interface InfoCardProps {
   // --- Updated Prop: journalSubcollections ---
   // Pass the config for subcollections relevant to *this* journal
   journalSubcollections: Record<string, SubcollectionInfo>;
+  isAdmin?: boolean;
 }
 
 const DEFAULT_TYPE = "estimates";
@@ -62,7 +64,12 @@ export function JournalInfoCard({
   contactInfo,
   logo,
   journalSubcollections,
+  isAdmin = false,
 }: InfoCardProps) {
+  const t = useTranslations("journal");
+  const tCommon = useTranslations("common");
+  const { toast } = useToast();
+
   // --- State and Hooks ---
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -97,12 +104,12 @@ export function JournalInfoCard({
       // Call deleteJournal function
       const deleteJournalFn = httpsCallable(functions, "deleteJournal"); // Use correct name
       await deleteJournalFn({ jid: id }); // Pass journalId
-      toast.info("Journal deleted");
+      toast({ title: t("journalDeleted") });
       router.push("/"); // Navigate home after delete
       router.refresh(); // Force refresh
     } catch (error: any) {
       console.error("Error deleting journal:", error);
-      toast.error("Failed to delete the journal. Please try again.");
+      toast({ title: t("failedToDeleteJournal"), variant: "destructive" });
     } finally {
       setIsDeleting(false);
     }
@@ -117,20 +124,19 @@ export function JournalInfoCard({
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+          <AlertDialogTitle>{t("deleteDialogTitle")}</AlertDialogTitle>
           <AlertDialogDescription>
-            This action will mark the journal as deleted. This journal and all
-            its entries will no longer be accessible.
+            {t("deleteDialogDescription")}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDeleteJournal}
             disabled={isDeleting}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {isDeleting ? "Deleting..." : "Delete Journal"}
+            {isDeleting ? t("deleting") : t("deleteJournal")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -230,26 +236,28 @@ export function JournalInfoCard({
             </div>
           </div>
         </Link>
-        {/* Vertical button menu - moved from header to body */}
-        <div className="flex flex-col space-y-2 ml-auto h-full">
-          <div className="p-1 hover:bg-muted rounded">{DeleteAction}</div>
+        {/* Vertical button menu - only shown for admins */}
+        {isAdmin && (
+          <div className="flex flex-col space-y-2 ml-auto h-full">
+            <div className="p-1 hover:bg-muted rounded">{DeleteAction}</div>
 
-          <CreateNewJournal
-            isEdit
-            initialData={initialEditData as any}
-            journalId={id}
-            onClose={() => setIsEditing(false)}
-            trigger={
-              <button
-                onClick={() => setIsEditing(true)}
-                aria-label="Edit"
-                className="p-1 hover:bg-muted rounded"
-              >
-                <PencilIcon className="h-4 w-4 text-muted-foreground" />
-              </button>
-            }
-          />
-        </div>
+            <CreateNewJournal
+              isEdit
+              initialData={initialEditData as any}
+              journalId={id}
+              onClose={() => setIsEditing(false)}
+              trigger={
+                <button
+                  onClick={() => setIsEditing(true)}
+                  aria-label="Edit"
+                  className="p-1 hover:bg-muted rounded"
+                >
+                  <PencilIcon className="h-4 w-4 text-muted-foreground" />
+                </button>
+              }
+            />
+          </div>
+        )}
       </div>
       {/* </CardHeader> */}
       {/* --- Footer for Subcollection Links --- */}

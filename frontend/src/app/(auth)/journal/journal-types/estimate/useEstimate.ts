@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
+import { useTranslations } from "next-intl";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/auth_handler";
 import { fetchEntry } from "@/lib/db_handler";
@@ -63,6 +64,9 @@ export const useEstimate = ({
   journalInventoryCache,
   jtype,
 }: UseEstimateProps) => {
+  const t = useTranslations("estimate");
+  const { toast } = useToast();
+
   const [confirmedItems, setConfirmedItems] = useState<LineItem[]>([]);
   const [status, setStatus] = useState<WorkStatus>(WorkStatus.DRAFT);
   const [customer, setCustomer] = useState<contactInfoSchemaType>(initInfo);
@@ -108,14 +112,14 @@ export const useEstimate = ({
           jtype,
         );
         setEntryError(
-          `This form is for estimates only. Received type: ${jtype}. Please check the URL or link.`,
+          t("errors.invalidFormTypeReceived", { jtype }),
         );
         setLoading(false);
         return;
       }
 
       if (!journalId) {
-        setEntryError("Journal ID is missing.");
+        setEntryError(t("errors.journalIdMissing"));
         setLoading(false);
         return;
       }
@@ -129,7 +133,7 @@ export const useEstimate = ({
           );
 
           if (!entry) {
-            setEntryError("Estimate entry not found or access denied.");
+            setEntryError(t("errors.entryNotFound"));
           } else if (entry.details) {
             const details = entry.details;
 
@@ -160,7 +164,7 @@ export const useEstimate = ({
                 "Fetched estimate details failed validation:",
                 validation.error.format(),
               );
-              setEntryError("Loaded estimate data is invalid.");
+              setEntryError(t("errors.loadedDataInvalid"));
             } else {
               const validData = validation.data;
               setConfirmedItems(
@@ -177,7 +181,7 @@ export const useEstimate = ({
           }
         } catch (error) {
           console.error("Error loading estimate entry:", error);
-          setEntryError("Failed to load estimate details. Please try again.");
+          setEntryError(t("errors.failedToLoadDetails"));
         } finally {
           setLoading(false);
         }
@@ -196,18 +200,24 @@ export const useEstimate = ({
     }
 
     loadEntryData();
-  }, [journalId, initialEntryId, jtype, START_STATE]);
+  }, [journalId, initialEntryId, jtype, START_STATE, t]);
 
   const validateCustomer = async () => {
     if (customerRef.current) {
       const isValid = await customerRef.current.validate();
       if (!isValid) {
-        toast.error("Please correct customer details before saving.");
+        toast({
+          description: t("errors.correctCustomerDetails"),
+          variant: "destructive",
+        });
         setIsSaving(false);
         return false;
       }
     } else {
-      toast.error("Could not validate customer info.");
+      toast({
+        description: t("errors.validateCustomerFailed"),
+        variant: "destructive",
+      });
       setIsSaving(false);
       return false;
     }
@@ -236,17 +246,19 @@ export const useEstimate = ({
         detailsValidation.error.format(),
         estimateDetailsData,
       );
-      toast.error(
-        "Invalid Estimate Data: Please check the console for details.",
-      );
+      toast({
+        description: t("errors.invalidEstimateData"),
+        variant: "destructive",
+      });
       return null;
     }
 
     return {
       jid: journalId,
       entryType: ESTIMATE_ENTRY_TYPE,
-      name: `Estimate for ${detailsValidation.data.customer.name || "Unknown"
-        }`,
+      name: t("estimateForCustomer", {
+        name: detailsValidation.data.customer.name || t("unknownCustomer"),
+      }),
       details: detailsValidation.data,
       ...(entryId && { entryId }),
     };
@@ -263,7 +275,11 @@ export const useEstimate = ({
       url.searchParams.set("eid", returnedId);
       router.replace(url.toString(), { scroll: false });
     }
-    toast.success(`Estimate for ${validatedDetails.customer.name} saved.`);
+    toast({
+      description: t("estimateSaved", {
+        name: validatedDetails.customer.name || t("unknownCustomer"),
+      }),
+    });
     setIsSaving(false);
     return true;
   };
@@ -271,8 +287,11 @@ export const useEstimate = ({
   const handleSaveError = (error: unknown) => {
     console.error("Error saving estimate:", error);
     const errorMessage =
-      error instanceof Error ? error.message : "Could not save estimate.";
-    toast.error(`Save Failed: ${errorMessage}`);
+      error instanceof Error ? error.message : t("errors.couldNotSave");
+    toast({
+      description: t("errors.saveFailed", { message: errorMessage }),
+      variant: "destructive",
+    });
     setIsSaving(false);
     return false;
   };
@@ -280,12 +299,18 @@ export const useEstimate = ({
   const handleSave = useCallback(
     async (updates: Partial<estimateDetailsState> = {}): Promise<boolean> => {
       if (jtype !== ESTIMATE_ENTRY_TYPE) {
-        toast.error("Cannot save, incorrect form type.");
+        toast({
+          description: t("errors.incorrectFormType"),
+          variant: "destructive",
+        });
         return false;
       }
       if (isSaving || !journalId || !journalCurrency) {
         if (!journalCurrency) {
-          toast.error("Cannot save estimate, journal currency is not set.");
+          toast({
+            description: t("errors.currencyNotSet"),
+            variant: "destructive",
+          });
         }
         return false;
       }
@@ -326,6 +351,7 @@ export const useEstimate = ({
       router,
       buildPayload,
       handleSaveSuccess,
+      t,
     ],
   );
 
@@ -418,7 +444,7 @@ export const useEstimate = ({
     const updatedPayments = [...payments, payment];
     setPayments(updatedPayments);
     handleSave({ payments: updatedPayments });
-    toast.success("The new payment has been saved.");
+    toast({ description: t("paymentSaved") });
   };
 
   return {

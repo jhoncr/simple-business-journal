@@ -26,6 +26,7 @@ import { useTranslations } from "next-intl";
 // Renders the list of journals using JournalInfoCard
 function DisplayJournalList({ journals }: { journals: Journal[] }) {
   const t = useTranslations("dashboard");
+  const { authUser } = useAuth();
 
   if (journals.length === 0) {
     return (
@@ -67,6 +68,9 @@ function DisplayJournalList({ journals }: { journals: Journal[] }) {
 
           if (journal.journalType === JOURNAL_TYPES.BUSINESS) {
             const details = journal.details as BusinessDetailsType | undefined; // Cast safely
+            const isAdmin = Boolean(
+              authUser?.uid && journal.access?.[authUser.uid]?.role === "admin",
+            );
             cardProps = {
               id: journal.id,
               currency: details?.currency || "USD", // Default currency
@@ -75,6 +79,7 @@ function DisplayJournalList({ journals }: { journals: Journal[] }) {
                 address: {},
               },
               logo: details?.logo || null,
+              isAdmin,
               journalSubcollections: Object.entries(ENTRY_CONFIG)
                 .filter(([_, config]) => config.category === "business")
                 .reduce((acc, [key, config]) => {

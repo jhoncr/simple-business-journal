@@ -3,8 +3,7 @@ import "./globals.css";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthUserProvider } from "@/lib/auth_handler";
-import { Toaster as SonnerToaster } from "@/components/ui/sonner";
-import { Toaster as RadixToaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/toaster";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getLocale } from "next-intl/server";
 
@@ -38,8 +37,7 @@ export default async function RootLayout({
                 {children}
               </main>
             </AuthUserProvider>
-            <SonnerToaster position="top-center" />
-            <RadixToaster />
+            <Toaster />
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>

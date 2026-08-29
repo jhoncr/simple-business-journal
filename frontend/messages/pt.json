@@ -97,7 +97,11 @@
     "moreActions": "Mais Ações",
     "dateFilter": "Filtro de Data",
     "studio": "Estúdio",
-    "contributors": "Colaboradores"
+    "contributors": "Colaboradores",
+    "deleteDialogTitle": "Tem certeza absoluta?",
+    "deleteDialogDescription": "Esta ação marcará o diário como excluído. Este diário e todas as suas entradas não estarão mais acessíveis.",
+    "journalDeleted": "Diário excluído",
+    "failedToDeleteJournal": "Falha ao excluir o diário. Tente novamente."
   },
   "errors": {
     "loadJournals": "Falha ao carregar diários.",
@@ -220,7 +224,26 @@
       "editItemAnd3DModel": "Editar Item e Modelo 3D",
       "hasTechnicalDrawing": "Possui um item de desenho técnico"
     },
-    "componentCutPolishList": "Lista de Corte e Polimento"
+    "componentCutPolishList": "Lista de Corte e Polimento",
+    "itemCount": "{count} item(ns)",
+    "estimateSaved": "Orçamento para {name} salvo.",
+    "paymentSaved": "O novo pagamento foi salvo.",
+    "estimateForCustomer": "Orçamento para {name}",
+    "unknownCustomer": "Desconhecido",
+    "errors": {
+      "correctCustomerDetails": "Por favor, corrija os detalhes do cliente antes de salvar.",
+      "validateCustomerFailed": "Não foi possível validar as informações do cliente.",
+      "invalidEstimateData": "Dados de Orçamento Inválidos: Por favor, verifique o console para detalhes.",
+      "saveFailed": "Falha ao Salvar: {message}",
+      "couldNotSave": "Não foi possível salvar o orçamento.",
+      "incorrectFormType": "Não é possível salvar, tipo de formulário incorreto.",
+      "currencyNotSet": "Não é possível salvar o orçamento, a moeda do diário não está definida.",
+      "invalidFormTypeReceived": "Este formulário é apenas para orçamentos. Tipo recebido: {jtype}. Verifique a URL ou o link.",
+      "journalIdMissing": "ID do diário ausente.",
+      "entryNotFound": "Entrada de orçamento não encontrada ou acesso negado.",
+      "loadedDataInvalid": "Os dados carregados do orçamento são inválidos.",
+      "failedToLoadDetails": "Falha ao carregar detalhes do orçamento. Tente novamente."
+    }
   },
   "contactInfo": {
     "notSet": "Não definido",
@@ -380,6 +403,7 @@
     "close": "Fechar",
     "roles": {
       "admin": "Administrador",
+      "editor": "Editor",
       "staff": "Equipe",
       "viewer": "Visualizador"
     },
@@ -486,6 +510,37 @@
     "configureTemplate": "Configure as propriedades do modelo.",
     "templateName": "Nome do Modelo",
     "descriptionOptional": "Descrição (Opcional)",
-    "descriptionPlaceholder": "Adicione uma breve descrição (até 200 caracteres)..."
+    "descriptionPlaceholder": "Adicione uma breve descrição (até 200 caracteres)...",
+    "noComponentsToDisplay": "Nenhum componente para exibir.",
+    "failedToLoadTemplate": "Falha ao carregar modelo existente.",
+    "noJournalId": "Não é possível salvar: Nenhum ID de diário fornecido na URL",
+    "failedToSaveTemplate": "Falha ao salvar o modelo. Tente novamente.",
+    "cannotDuplicateUnsaved": "Não é possível duplicar: Salve o modelo primeiro ou forneça um ID de diário",
+    "duplicateSuccessReloading": "Modelo duplicado! Recarregando com novo design...",
+    "failedToDuplicateTemplate": "Falha ao duplicar o modelo."
+  },
+  "technicalDrawings": {
+    "loading": "Carregando desenhos técnicos...",
+    "failedToLoad": "Falha ao carregar dados.",
+    "noDrawingsFound": "Nenhum item com desenhos técnicos encontrado neste orçamento.",
+    "drawingItemsCount": "{count} item(ns)"
+  },
+  "templateGallery": {
+    "addFromGallery": "Adicionar da Galeria",
+    "galleryTitle": "Galeria de Modelos",
+    "searchTemplates": "Pesquisar modelos...",
+    "failedToLoadTemplates": "Falha ao carregar modelos: {error}",
+    "noTemplatesFound": "Nenhum modelo encontrado neste diário.",
+    "createFirstTemplatePrompt": "Vá para o Diário para criar seu primeiro modelo.",
+    "noTemplatesMatch": "Nenhum modelo corresponde à sua pesquisa.",
+    "untitledTemplate": "Modelo Sem Título",
+    "selectTemplate": "Selecionar",
+    "templateNotFound": "O modelo não existe mais.",
+    "failedToFetchTemplate": "Falha ao buscar modelo completo."
+  },
+  "logoUpload": {
+    "svgOnlyError": "Por favor, envie um arquivo SVG.",
+    "companyLogoAlt": "Logo da empresa",
+    "addLogo": "Adicionar Logo"
   }
 }

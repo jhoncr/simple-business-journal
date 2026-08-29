@@ -345,7 +345,7 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
                     <div className="border rounded overflow-hidden border-gray-300 flex flex-col mt-2">
                       <div className="td-item-header bg-gray-100 px-3 py-1 flex items-center justify-between">
                         <p className="text-xs font-bold text-gray-800 uppercase tracking-wide">
-                          {drawingItems.length} item(s)
+                          {t("itemCount", { count: drawingItems.length })}
                         </p>
                         <span className="text-[11px] text-gray-700">
                           {t("quickPrintDimensions")}

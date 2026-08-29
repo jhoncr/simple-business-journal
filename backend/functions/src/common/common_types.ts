@@ -30,10 +30,10 @@ export interface EntryItf {
 // }
 
 export interface JournalUser {
-  displayName: string;
+  displayName?: string | null;
   role: (typeof ROLES)[number]; // Use ROLES type
   email: string;
-  photoURL: string;
+  photoURL?: string | null;
 }
 
 export interface JournalDocument {
