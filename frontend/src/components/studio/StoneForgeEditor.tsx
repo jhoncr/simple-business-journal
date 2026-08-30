@@ -1241,7 +1241,7 @@ export const StoneForgeEditor = () => {
                 <React.Suspense fallback={null}>
                   <Environment preset="city" />
 
-                  <Bounds fit={!selectedPreviewViewId} clip observe={!selectedPreviewViewId} margin={1.2}>
+                  <Bounds fit={!selectedPreviewViewId} clip observe={!selectedPreviewViewId} margin={1.35}>
                     {(() => {
                       const selectedView = template.cameraViews?.find((v) => v.id === selectedPreviewViewId);
                       if (selectedView && selectedView.preset) {
@@ -1251,6 +1251,8 @@ export const StoneForgeEditor = () => {
                             focusTargetId={selectedView.focusTargetId} 
                             zoomMultiplier={selectedView.zoomMultiplier} 
                             forceRenderRefreshCount={previewRefreshCount}
+                            variables={variablesMap}
+                            components={template.components}
                           />
                         );
                       }

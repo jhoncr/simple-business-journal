@@ -32,7 +32,7 @@ const evaluateVector = (
  * Computes the midpoint position and extension line endpoints for a dimension label
  * based on which edge of the parent slab it is attached to.
  */
-const getEdgeGeometry = (
+export const getEdgeGeometry = (
   label: DimensionLabel,
   L: number,
   D: number,
