@@ -54,6 +54,7 @@ export const EstimateDetails = React.memo(function EstimateDetails(
     notes,
     createdAt,
     payments,
+    grandTotal,
     loading,
     isSaving,
     entryId,
@@ -74,6 +75,10 @@ export const EstimateDetails = React.memo(function EstimateDetails(
     calculateSubtotal,
     currencyFormat,
     handleAddPayment,
+    handleUpdatePayment,
+    handleDeletePayment,
+    handleRestorePayment,
+    handlePermanentDeletePayment,
   } = useEstimate(props);
 
   // Derived state: require contact info before unlocking the rest of the form
@@ -206,17 +211,20 @@ export const EstimateDetails = React.memo(function EstimateDetails(
           (status == WorkStatus.IN_PROCESS ||
             status == WorkStatus.DELIVERED ||
             payments.length > 0) && (
-            <Card className="print:border-none print:shadow-none">
-              <CardContent className="pt-6 print:p-0">
-                <Payments
-                  payments={payments}
-                  currencyFormat={currencyFormat}
-                  isInvoiceFlow={true}
-                  handleAddPayment={handleAddPayment}
-                  isSaving={isSaving}
-                />
-              </CardContent>
-            </Card>
+            <Payments
+              payments={payments}
+              currencyFormat={currencyFormat}
+              journalCurrency={props.journalCurrency}
+              grandTotal={grandTotal}
+              isInvoiceFlow={true}
+              userRole={userRole}
+              handleAddPayment={handleAddPayment}
+              handleUpdatePayment={handleUpdatePayment}
+              handleDeletePayment={handleDeletePayment}
+              handleRestorePayment={handleRestorePayment}
+              handlePermanentDeletePayment={handlePermanentDeletePayment}
+              isSaving={isSaving}
+            />
           )}
       </div>
 

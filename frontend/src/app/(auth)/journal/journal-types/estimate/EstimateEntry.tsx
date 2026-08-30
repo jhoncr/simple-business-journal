@@ -9,7 +9,7 @@ import { EntryType } from "@backend/common/schemas/configmap";
 // --- Import frontend types ---
 import { DBentry, AccessUser } from "@/lib/custom_types";
 import { WorkStatus } from "@backend/common/common_types";
-import { formatCurrency, formattedDate } from "@/lib/utils";
+import { formatCurrency, formattedDate, cn } from "@/lib/utils";
 import Link from "next/link";
 import { WorkStatusBadge } from "./subcomponents/estimateStatus";
 import { ClipboardList } from "lucide-react"; // Icon for estimate
@@ -37,6 +37,7 @@ export const EstimateEntry = React.memo(function EstimateEntry({
   onDuplicated,
 }: EstimateEntryProps) {
   const t = useTranslations("journal");
+  const tPayments = useTranslations("payments");
 
   // --- Basic validation ---
   if (!journalId || !entry || entryType !== "estimate" || !entry.details) {
@@ -91,7 +92,13 @@ export const EstimateEntry = React.memo(function EstimateEntry({
   const taxAmount = (totalBeforeTax * taxPercentage) / 100;
   const grandTotal = totalBeforeTax + taxAmount;
 
-  const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const activePayments = payments.filter(
+    (payment) => !payment.deletedAt && !payment.isDeleted,
+  );
+  const totalPaid = activePayments.reduce(
+    (sum, payment) => sum + (payment.amount || 0),
+    0,
+  );
 
   return (
     <EntryView
@@ -156,8 +163,23 @@ export const EstimateEntry = React.memo(function EstimateEntry({
           </div>
         </div>
         <div className="flex justify-between items-center gap-2 mt-1">
-          <div className="flex items-center gap-2 justify-start">
+          <div className="flex items-center gap-2 justify-start flex-wrap">
             <WorkStatusBadge status={status} />
+
+            {activePayments.length > 0 && (
+              <span
+                className={cn(
+                  "text-2xs px-1.5 py-0.5 rounded font-medium",
+                  totalPaid >= grandTotal
+                    ? "bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300 border border-green-200 dark:border-green-800"
+                    : "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800",
+                )}
+              >
+                {totalPaid >= grandTotal
+                  ? tPayments("status.paid")
+                  : `${tPayments("status.partial")} (${formatCurrency(totalPaid, currency || "USD")})`}
+              </span>
+            )}
 
             <div className="text-sm text-muted-foreground whitespace-nowrap">
               {formattedDate(entry.createdAt)}

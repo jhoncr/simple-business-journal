@@ -65,6 +65,7 @@ export const useEstimate = ({
   jtype,
 }: UseEstimateProps) => {
   const t = useTranslations("estimate");
+  const tPayments = useTranslations("payments");
   const { toast } = useToast();
 
   const [confirmedItems, setConfirmedItems] = useState<LineItem[]>([]);
@@ -90,6 +91,19 @@ export const useEstimate = ({
   const { journal } = useJournalContext();
 
   const START_STATE = WorkStatus.DRAFT;
+
+  const parseDateField = (val: unknown): Date | null | undefined => {
+    if (!val) return val as null | undefined;
+    if (typeof (val as { toDate?: () => Date }).toDate === "function") {
+      return (val as { toDate: () => Date }).toDate();
+    }
+    if (val instanceof Date) return val;
+    if (typeof val === "string" || typeof val === "number") {
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) return d;
+    }
+    return val as any;
+  };
 
   const userRole: (typeof ROLES)[number] = useMemo(() => {
     if (!authUser || !journal || !journal.access) {
@@ -145,15 +159,13 @@ export const useEstimate = ({
             const processedDetails = {
               ...details,
               payments:
-                details.payments?.map(
-                  (payment: { date: { toDate: () => Date } }) => ({
-                    ...payment,
-                    date:
-                      payment.date && typeof payment.date.toDate === "function"
-                        ? payment.date.toDate()
-                        : payment.date,
-                  }),
-                ) || [],
+                details.payments?.map((payment: any) => ({
+                  ...payment,
+                  date: parseDateField(payment.date),
+                  createdAt: parseDateField(payment.createdAt),
+                  updatedAt: parseDateField(payment.updatedAt),
+                  deletedAt: parseDateField(payment.deletedAt),
+                })) || [],
             };
 
             const validation =
@@ -431,6 +443,59 @@ export const useEstimate = ({
     );
   }, [confirmedItems]);
 
+  const itemSubtotal = useMemo(() => calculateSubtotal(), [calculateSubtotal]);
+
+  const calculateAdjustmentAmount = useCallback(
+    (adjustment: Adjustment): number => {
+      if (!adjustment || typeof adjustment.value !== "number") return 0;
+      const value = adjustment.value;
+      const calculations = {
+        addFixed: () => value || 0,
+        addPercent: () => ((itemSubtotal || 0) * value) / 100,
+        discountFixed: () => -(value || 0),
+        discountPercent: () => -((itemSubtotal || 0) * value) / 100,
+        taxPercent: () => 0,
+      };
+      return calculations[adjustment.type]?.() ?? 0;
+    },
+    [itemSubtotal],
+  );
+
+  const totalAdjustments = useMemo(
+    () =>
+      adjustments.reduce(
+        (sum, adjustment) =>
+          sum + (calculateAdjustmentAmount(adjustment) || 0),
+        0,
+      ),
+    [adjustments, calculateAdjustmentAmount],
+  );
+
+  const { totalBeforeTax, taxAmount, grandTotal } = useMemo(() => {
+    const totalBeforeTax = (itemSubtotal || 0) + (totalAdjustments || 0);
+    const taxAmount = ((totalBeforeTax || 0) * (taxPercentage || 0)) / 100;
+    return {
+      totalBeforeTax,
+      taxAmount,
+      grandTotal: totalBeforeTax + taxAmount,
+    };
+  }, [itemSubtotal, totalAdjustments, taxPercentage]);
+
+  const activePayments = useMemo(
+    () => payments.filter((p) => !p.deletedAt && !p.isDeleted),
+    [payments],
+  );
+
+  const totalPaid = useMemo(
+    () => activePayments.reduce((sum, payment) => sum + (payment.amount || 0), 0),
+    [activePayments],
+  );
+
+  const balanceDue = useMemo(
+    () => grandTotal - totalPaid,
+    [grandTotal, totalPaid],
+  );
+
   const currencyFormat = useCallback(
     (amount: number) => {
       return journalCurrency
@@ -440,11 +505,90 @@ export const useEstimate = ({
     [journalCurrency],
   );
 
-  const handleAddPayment = (payment: Payment) => {
-    const updatedPayments = [...payments, payment];
+  const handleAddPayment = async (payment: Payment): Promise<boolean> => {
+    const newPayment: Payment = {
+      ...payment,
+      id: payment.id || crypto.randomUUID(),
+      createdAt: payment.createdAt || new Date(),
+      createdBy: authUser?.email || authUser?.uid || null,
+      isDeleted: false,
+    };
+    const updatedPayments = [...payments, newPayment];
     setPayments(updatedPayments);
-    handleSave({ payments: updatedPayments });
-    toast({ description: t("paymentSaved") });
+    const success = await handleSave({ payments: updatedPayments });
+    if (success) {
+      toast({ description: tPayments("paymentSaved") });
+    }
+    return success;
+  };
+
+  const handleUpdatePayment = async (updatedPayment: Payment): Promise<boolean> => {
+    const updatedPayments = payments.map((p) =>
+      p.id === updatedPayment.id
+        ? {
+            ...p,
+            ...updatedPayment,
+            updatedAt: new Date(),
+            updatedBy: authUser?.email || authUser?.uid || null,
+          }
+        : p,
+    );
+    setPayments(updatedPayments);
+    const success = await handleSave({ payments: updatedPayments });
+    if (success) {
+      toast({ description: tPayments("paymentUpdated") });
+    }
+    return success;
+  };
+
+  const handleDeletePayment = async (paymentId: string): Promise<boolean> => {
+    const updatedPayments = payments.map((p) =>
+      p.id === paymentId
+        ? {
+            ...p,
+            deletedAt: new Date(),
+            deletedBy: authUser?.email || authUser?.uid || null,
+            isDeleted: true,
+          }
+        : p,
+    );
+    setPayments(updatedPayments);
+    const success = await handleSave({ payments: updatedPayments });
+    if (success) {
+      toast({ description: tPayments("paymentDeleted") });
+    }
+    return success;
+  };
+
+  const handleRestorePayment = async (paymentId: string): Promise<boolean> => {
+    const updatedPayments = payments.map((p) =>
+      p.id === paymentId
+        ? {
+            ...p,
+            deletedAt: null,
+            deletedBy: null,
+            isDeleted: false,
+            updatedAt: new Date(),
+            updatedBy: authUser?.email || authUser?.uid || null,
+          }
+        : p,
+    );
+    setPayments(updatedPayments);
+    const success = await handleSave({ payments: updatedPayments });
+    if (success) {
+      toast({ description: tPayments("paymentRestored") });
+    }
+    return success;
+  };
+
+  const handlePermanentDeletePayment = async (paymentId: string): Promise<boolean> => {
+    const updatedPayments = payments.filter((p) => p.id !== paymentId);
+    setPayments(updatedPayments);
+    const success = await handleSave({ payments: updatedPayments });
+    if (success) {
+      toast({ description: tPayments("paymentPermanentlyDeleted") });
+    }
+    return success;
   };
 
   return {
@@ -457,6 +601,13 @@ export const useEstimate = ({
     taxPercentage,
     notes,
     payments,
+    activePayments,
+    totalPaid,
+    grandTotal,
+    itemSubtotal,
+    totalAdjustments,
+    taxAmount,
+    balanceDue,
     loading,
     isSaving,
     entryId,
@@ -478,5 +629,9 @@ export const useEstimate = ({
     calculateSubtotal,
     currencyFormat,
     handleAddPayment,
+    handleUpdatePayment,
+    handleDeletePayment,
+    handleRestorePayment,
+    handlePermanentDeletePayment,
   };
 };
