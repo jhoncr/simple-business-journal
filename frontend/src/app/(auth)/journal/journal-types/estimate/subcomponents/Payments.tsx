@@ -406,7 +406,7 @@ export const Payments = ({
 
                       {/* Action Menu */}
                       {canModify && (
-                        <DropdownMenu>
+                        <DropdownMenu modal={false}>
                           <DropdownMenuTrigger asChild>
                             <Button
                               variant="ghost"
@@ -422,7 +422,10 @@ export const Payments = ({
                             {!isVoided ? (
                               <>
                                 <DropdownMenuItem
-                                  onClick={() => handleOpenEdit(payment)}
+                                  onSelect={(e) => {
+                                    e.preventDefault();
+                                    handleOpenEdit(payment);
+                                  }}
                                   className="cursor-pointer gap-2"
                                 >
                                   <Pencil className="h-3.5 w-3.5" />
@@ -432,9 +435,10 @@ export const Payments = ({
                                   <>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem
-                                      onClick={() =>
-                                        handleOpenVoidConfirm(payment.id!)
-                                      }
+                                      onSelect={(e) => {
+                                        e.preventDefault();
+                                        handleOpenVoidConfirm(payment.id!);
+                                      }}
                                       className="cursor-pointer gap-2 text-destructive focus:text-destructive"
                                     >
                                       <Ban className="h-3.5 w-3.5" />
@@ -447,7 +451,10 @@ export const Payments = ({
                               <>
                                 {payment.id && handleRestorePayment && (
                                   <DropdownMenuItem
-                                    onClick={() => handleRestore(payment.id!)}
+                                    onSelect={(e) => {
+                                      e.preventDefault();
+                                      handleRestore(payment.id!);
+                                    }}
                                     className="cursor-pointer gap-2"
                                   >
                                     <RotateCcw className="h-3.5 w-3.5" />
@@ -460,11 +467,12 @@ export const Payments = ({
                                     <>
                                       <DropdownMenuSeparator />
                                       <DropdownMenuItem
-                                        onClick={() =>
+                                        onSelect={(e) => {
+                                          e.preventDefault();
                                           handleOpenPermanentDeleteConfirm(
                                             payment.id!,
-                                          )
-                                        }
+                                          );
+                                        }}
                                         className="cursor-pointer gap-2 text-destructive focus:text-destructive"
                                       >
                                         <Trash2 className="h-3.5 w-3.5" />

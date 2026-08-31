@@ -1,5 +1,9 @@
 import * as z from 'zod';
-import { contactInfoSchema, allowedCurrencySchema } from './common_schemas';
+import {
+  contactInfoSchema,
+  allowedCurrencySchema,
+  firestoreDateSchema,
+} from './common_schemas';
 import { AssemblyTemplateSchema } from './studio';
 
 // Define the schema for the attached template snapshot
@@ -21,12 +25,23 @@ export const currencySchema = z
   .nullable();
 
 export const paymentSchema = z.object({
-  id: z.string().cuid().optional(),
+  id: z.string().optional(),
   amount: z.number().positive('Payment amount must be positive.'),
-  date: z.coerce.date(),
+  date: firestoreDateSchema,
   method: z.string().optional().nullable(),
   transactionId: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
+  notes: z
+    .string()
+    .max(500, { message: 'Notes must be less than 500 characters' })
+    .optional()
+    .nullable(),
+  createdAt: firestoreDateSchema.optional().nullable(),
+  createdBy: z.string().optional().nullable(),
+  updatedAt: firestoreDateSchema.optional().nullable(),
+  updatedBy: z.string().optional().nullable(),
+  deletedAt: firestoreDateSchema.optional().nullable(),
+  deletedBy: z.string().optional().nullable(),
+  isDeleted: z.boolean().optional().nullable(),
 });
 
 export const materialSchema = z.object({

@@ -4,6 +4,7 @@ import {
   allowedCurrencySchema,
   contactInfoSchema,
   pendingAccessSchema,
+  firestoreDateSchema,
 } from './common_schemas';
 import { JOURNAL_TYPES } from '../const';
 
@@ -24,10 +25,10 @@ export const JournalSchema = z
     access: AccessSchema,
     access_array: z.array(z.string()),
     pendingAccess: pendingAccessSchema.optional(),
-    createdAt: z.coerce.date(),
-    updatedAt: z.coerce.date().optional(),
-    deletedAt: z.coerce.date().optional(),
-    deletedBy: z.string().optional(),
+    createdAt: firestoreDateSchema,
+    updatedAt: firestoreDateSchema.optional().nullable(),
+    deletedAt: firestoreDateSchema.optional().nullable(),
+    deletedBy: z.string().optional().nullable(),
     journalType: journalTypeSchema,
     details: businessDetailsSchema.optional(),
     isActive: z.boolean(),

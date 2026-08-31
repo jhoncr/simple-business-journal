@@ -74,13 +74,41 @@ export const contactInfoSchema = z.object({
   }),
 });
 
+// Firestore Date Schema: handles JS Date, Firestore Timestamp instances (.toDate()),
+// Firestore serialized objects ({ seconds, nanoseconds } or { _seconds, _nanoseconds }),
+// numeric timestamps, and ISO strings.
+export const firestoreDateSchema = z.preprocess((val: unknown) => {
+  if (val === null || val === undefined || val === '') return val;
+  if (val instanceof Date) return val;
+  if (typeof val === 'object') {
+    if (typeof (val as { toDate?: () => Date }).toDate === 'function') {
+      return (val as { toDate: () => Date }).toDate();
+    }
+    const sec =
+      (val as { seconds?: number; _seconds?: number }).seconds ??
+      (val as { _seconds?: number })._seconds;
+    const nsec =
+      (val as { nanoseconds?: number; _nanoseconds?: number }).nanoseconds ??
+      (val as { _nanoseconds?: number })._nanoseconds ??
+      0;
+    if (typeof sec === 'number') {
+      return new Date(sec * 1000 + nsec / 1000000);
+    }
+  }
+  if (typeof val === 'string' || typeof val === 'number') {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return val;
+}, z.date());
+
 export const traceSchema = z.object({
   createdBy: z.string(),
-  createdAt: z.coerce.date(),
+  createdAt: firestoreDateSchema,
   updatedBy: z.string(),
-  updatedAt: z.coerce.date(),
-  deletedBy: z.string().optional(),
-  deletedAt: z.coerce.date().optional(),
+  updatedAt: firestoreDateSchema,
+  deletedBy: z.string().optional().nullable(),
+  deletedAt: firestoreDateSchema.optional().nullable(),
 });
 
 export type contactInfoSchemaType = z.infer<typeof contactInfoSchema>;

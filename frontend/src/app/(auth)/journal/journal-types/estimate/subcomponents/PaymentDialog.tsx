@@ -109,6 +109,15 @@ export function PaymentDialog({
     }
   }, [open, paymentToEdit, balanceDue]);
 
+  useEffect(() => {
+    if (!open) {
+      const timer = setTimeout(() => {
+        document.body.style.pointerEvents = "";
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -213,7 +222,6 @@ export function PaymentDialog({
             <div className="space-y-1.5">
               <Label htmlFor="payment-date">{t("date")}</Label>
               <Popover
-                modal
                 open={datePopoverOpen}
                 onOpenChange={setDatePopoverOpen}
               >
