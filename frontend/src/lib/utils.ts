@@ -1,6 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { Timestamp } from "firebase/firestore";
 import { twMerge } from "tailwind-merge";
+import { DBentry, WorkStatus } from "./custom_types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -58,3 +59,21 @@ export const currencyToSymbol = (currency: string): string => {
     return "$";
   }
 };
+
+export function getEstimateStatus(entry: DBentry): WorkStatus {
+  if (!entry) return WorkStatus.DRAFT;
+  const validStatuses: WorkStatus[] = Object.values(WorkStatus);
+  if (
+    entry.details &&
+    typeof entry.details === "object" &&
+    "status" in entry.details &&
+    entry.details.status &&
+    validStatuses.includes(entry.details.status as WorkStatus)
+  ) {
+    return entry.details.status as WorkStatus;
+  }
+  if (entry.status && validStatuses.includes(entry.status as WorkStatus)) {
+    return entry.status as WorkStatus;
+  }
+  return WorkStatus.DRAFT;
+}

@@ -55,6 +55,8 @@ export const getStatusLabel = (
       return t("statusInProcess");
     case WorkStatus.DELIVERED:
       return t("statusDelivered");
+    default:
+      return t("statusDraft");
   }
 };
 

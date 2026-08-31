@@ -78,7 +78,6 @@ export const EstimateDetails = React.memo(function EstimateDetails(
     handleUpdatePayment,
     handleDeletePayment,
     handleRestorePayment,
-    handlePermanentDeletePayment,
   } = useEstimate(props);
 
   // Derived state: require contact info before unlocking the rest of the form
@@ -222,7 +221,6 @@ export const EstimateDetails = React.memo(function EstimateDetails(
               handleUpdatePayment={handleUpdatePayment}
               handleDeletePayment={handleDeletePayment}
               handleRestorePayment={handleRestorePayment}
-              handlePermanentDeletePayment={handlePermanentDeletePayment}
               isSaving={isSaving}
             />
           )}

@@ -27,7 +27,6 @@ import {
   Pencil,
   Ban,
   RotateCcw,
-  Trash2,
   Receipt,
   Eye,
   EyeOff,
@@ -44,7 +43,7 @@ import {
 import { cn, formattedDate, formatCurrency } from "@/lib/utils";
 import { Payment } from "@backend/common/schemas/estimate_schema";
 import { allowedCurrencySchemaType, ROLES } from "@backend/common/schemas/common_schemas";
-import { ROLES_THAT_ADD, ROLES_CAN_DELETE } from "@backend/common/const";
+import { ROLES_THAT_ADD } from "@backend/common/const";
 import { useTranslations } from "next-intl";
 import { PaymentDialog } from "./PaymentDialog";
 
@@ -59,7 +58,6 @@ interface PaymentsProps {
   handleUpdatePayment?: (payment: Payment) => Promise<boolean | void> | void;
   handleDeletePayment?: (paymentId: string) => Promise<boolean | void> | void;
   handleRestorePayment?: (paymentId: string) => Promise<boolean | void> | void;
-  handlePermanentDeletePayment?: (paymentId: string) => Promise<boolean | void> | void;
   isSaving: boolean;
 }
 
@@ -74,23 +72,17 @@ export const Payments = ({
   handleUpdatePayment,
   handleDeletePayment,
   handleRestorePayment,
-  handlePermanentDeletePayment,
   isSaving,
 }: PaymentsProps) => {
   const t = useTranslations("payments");
 
   // Permissions
   const canModify = useMemo(() => ROLES_THAT_ADD.has(userRole), [userRole]);
-  const canDeletePermanently = useMemo(
-    () => ROLES_CAN_DELETE.has(userRole),
-    [userRole],
-  );
 
   // Dialog & confirmation states
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
   const [voidDialogOpen, setVoidDialogOpen] = useState(false);
-  const [permanentDeleteDialogOpen, setPermanentDeleteDialogOpen] = useState(false);
   const [targetPaymentId, setTargetPaymentId] = useState<string | null>(null);
   const [showVoided, setShowVoided] = useState(false);
 
@@ -182,19 +174,6 @@ export const Payments = ({
     if (handleRestorePayment) {
       await handleRestorePayment(paymentId);
     }
-  };
-
-  const handleOpenPermanentDeleteConfirm = (paymentId: string) => {
-    setTargetPaymentId(paymentId);
-    setPermanentDeleteDialogOpen(true);
-  };
-
-  const handleConfirmPermanentDelete = async () => {
-    if (targetPaymentId && handlePermanentDeletePayment) {
-      await handlePermanentDeletePayment(targetPaymentId);
-    }
-    setPermanentDeleteDialogOpen(false);
-    setTargetPaymentId(null);
   };
 
   // Status badge calculation
@@ -461,25 +440,6 @@ export const Payments = ({
                                     <span>{t("restorePayment")}</span>
                                   </DropdownMenuItem>
                                 )}
-                                {canDeletePermanently &&
-                                  payment.id &&
-                                  handlePermanentDeletePayment && (
-                                    <>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem
-                                        onSelect={(e) => {
-                                          e.preventDefault();
-                                          handleOpenPermanentDeleteConfirm(
-                                            payment.id!,
-                                          );
-                                        }}
-                                        className="cursor-pointer gap-2 text-destructive focus:text-destructive"
-                                      >
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                        <span>{t("deletePermanently")}</span>
-                                      </DropdownMenuItem>
-                                    </>
-                                  )}
                               </>
                             )}
                           </DropdownMenuContent>
@@ -602,33 +562,6 @@ export const Payments = ({
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
             >
               {t("voidPayment")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Permanent Delete Confirmation Alert Dialog */}
-      <AlertDialog
-        open={permanentDeleteDialogOpen}
-        onOpenChange={setPermanentDeleteDialogOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("permanentDeleteTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("permanentDeleteDescription")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isSaving}>
-              {t("cancel")}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmPermanentDelete}
-              disabled={isSaving}
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-            >
-              {t("deletePermanently")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

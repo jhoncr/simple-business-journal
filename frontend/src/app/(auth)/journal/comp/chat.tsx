@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo, useRef } from "react";
+import React, { useState, useEffect, useCallback, memo, useMemo, useRef } from "react";
 import { DBentry } from "../../../../lib/custom_types";
 import { AccessMap } from "@backend/common/schemas/common_schemas";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { useAuth } from "@/lib/auth_handler";
 import { useTranslations } from "next-intl";
 import { useToast } from "@/hooks/use-toast";
 import { EntryType } from "@backend/common/schemas/configmap";
+import { WorkStatus } from "@backend/common/common_types";
+import { getEstimateStatus } from "@/lib/utils";
 
 interface MessageListProps {
   messages: DBentry[];
@@ -19,6 +21,7 @@ interface MessageListProps {
   error?: string | null;
   hasMore: boolean;
   role: string;
+  hasActiveFilters?: boolean;
   onLoadMore: () => void;
   removeFn: (entry: DBentry) => void;
   onDuplicated?: (newEntryId: string) => void;
@@ -33,6 +36,7 @@ const MessageList = memo(function MessageList({
   error,
   hasMore,
   role,
+  hasActiveFilters,
   onLoadMore,
   removeFn,
   onDuplicated,
@@ -101,6 +105,10 @@ const MessageList = memo(function MessageList({
         ) : loading ? (
           <p className="text-center text-sm text-muted-foreground">
             {t("loading")}
+          </p>
+        ) : messages.length === 0 && hasActiveFilters ? (
+          <p className="text-center text-sm text-muted-foreground">
+            {t("noMatchingEntries")}
           </p>
         ) : !hasMore ? (
           <p className="text-center text-sm text-muted-foreground">
@@ -181,6 +189,7 @@ interface ChatBoxProps {
   hasFilter: boolean;
   removeFilterEntry: (entry: DBentry) => void;
   onDuplicated?: (newEntryId: string) => void;
+  selectedStatuses?: WorkStatus[];
 }
 
 export function ChatBox({
@@ -192,6 +201,7 @@ export function ChatBox({
   hasFilter,
   removeFilterEntry,
   onDuplicated,
+  selectedStatuses = [],
 }: ChatBoxProps) {
   const { loading, error, list, hasMore, fetchMore, removeEntry } =
     useFetchEntries(journalId, entryType);
@@ -199,6 +209,21 @@ export function ChatBox({
   const viewerRole = (authUser && access[authUser.uid]?.role) || "viewer";
   const { toast } = useToast();
   const t = useTranslations("journal");
+
+  const isEstimate = entryType === "estimate";
+  const hasStatusFilter = isEstimate && selectedStatuses.length > 0;
+  const hasActiveFilters = hasFilter || hasStatusFilter;
+
+  // Filter messages based on status filters if active
+  const displayedMessages = useMemo(() => {
+    const baseList = hasFilter ? filterList : list;
+    if (hasStatusFilter) {
+      return baseList.filter((entry) =>
+        selectedStatuses.includes(getEstimateStatus(entry)),
+      );
+    }
+    return baseList;
+  }, [hasFilter, filterList, list, hasStatusFilter, selectedStatuses]);
 
   // Display error toast when fetch fails
   useEffect(() => {
@@ -215,7 +240,7 @@ export function ChatBox({
     <div className="relative flex flex-col space-y-1 md:max-w-2xl w-full mx-auto h-full overflow-hidden">
       {authUser && (
         <MessageList
-          messages={hasFilter ? filterList : list}
+          messages={displayedMessages}
           journalId={journalId}
           entryType={entryType}
           access={access}
@@ -223,6 +248,7 @@ export function ChatBox({
           error={error}
           hasMore={hasMore}
           role={viewerRole}
+          hasActiveFilters={hasActiveFilters}
           onLoadMore={fetchMore}
           removeFn={hasFilter ? removeFilterEntry : removeEntry}
           onDuplicated={onDuplicated}
@@ -237,3 +263,4 @@ export function ChatBox({
     </div>
   );
 }
+

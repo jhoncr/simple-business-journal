@@ -581,16 +581,6 @@ export const useEstimate = ({
     return success;
   };
 
-  const handlePermanentDeletePayment = async (paymentId: string): Promise<boolean> => {
-    const updatedPayments = payments.filter((p) => p.id !== paymentId);
-    setPayments(updatedPayments);
-    const success = await handleSave({ payments: updatedPayments });
-    if (success) {
-      toast({ description: tPayments("paymentPermanentlyDeleted") });
-    }
-    return success;
-  };
-
   return {
     confirmedItems,
     status,
@@ -632,6 +622,5 @@ export const useEstimate = ({
     handleUpdatePayment,
     handleDeletePayment,
     handleRestorePayment,
-    handlePermanentDeletePayment,
   };
 };
