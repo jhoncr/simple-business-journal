@@ -31,5 +31,7 @@ module.exports = {
     "object-curly-spacing": ["error", "always"],
     // "estimate-props": ["error", "as-needed"],
     "valid-jsdoc": "off",
+    "@typescript-eslint/no-explicit-any": "off",
+    // "@typescript-eslint/no-unused-vars": "off",
   },
 };

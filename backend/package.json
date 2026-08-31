@@ -1,7 +1,8 @@
 {
   "name": "backend",
   "scripts": {
-    "dev": "firebase --version;firebase emulators:start --project=demo-dummy",
-    "test": "echo \"No tests specified\" && exit 0"
+    "dev": "firebase --version;firebase emulators:start --project=demo-dummy --import=./emulators-data",
+    "test": "echo \"No tests specified\" && exit 0",
+    "save-emulators": "firebase emulators:export ./emulators-data --project=demo-dummy"
   }
 }

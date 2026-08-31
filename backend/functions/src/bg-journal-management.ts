@@ -9,6 +9,7 @@ import {
 } from './common/schemas/JournalSchema';
 import * as z from 'zod';
 import { createAuditedCallable } from './helpers/audited-function';
+import { flattenToDotNotation } from './helpers/object-utils';
 
 if (getApps().length === 0) {
   initializeApp();
@@ -23,6 +24,9 @@ const _CreateJournalPayloadSchema = JournalSchema.omit({
   access_array: true,
   pendingAccess: true,
   createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+  deletedBy: true,
   isActive: true,
 }).extend({
   details: businessDetailsSchema,
@@ -94,15 +98,11 @@ export const createJournal = createAuditedCallable(
   { isCreateOperation: true },
 );
 
-const UpdateJournalPayloadSchema = _CreateJournalPayloadSchema
-  .extend({
-    id: z.string().min(1),
-    details: businessDetailsSchema.partial().optional(),
-  })
-  .partial();
-// .refine(
-
-// type UpdateJournalPayloadType = z.infer<typeof UpdateJournalPayloadSchema>;
+const UpdateJournalPayloadSchema = z.object({
+  jid: z.string().min(1),
+  title: z.string().min(1).optional(),
+  details: businessDetailsSchema.deepPartial().optional(),
+});
 
 export const updateJournal = createAuditedCallable(
   'updateJournal',
@@ -110,14 +110,17 @@ export const updateJournal = createAuditedCallable(
   ['admin'],
   UpdateJournalPayloadSchema,
   async (request) => {
-    const { id: journalId, title, details } = request.data;
+    const { jid: journalId, title, details } = request.data;
 
     try {
       const docRef = db.collection(JOURNAL_COLLECTION).doc(journalId);
 
       const updateData: Record<string, any> = {};
       if (title !== undefined) updateData.title = title;
-      if (details !== undefined) updateData.details = details;
+      if (details !== undefined) {
+        const flattenedDetails = flattenToDotNotation(details, 'details');
+        Object.assign(updateData, flattenedDetails);
+      }
 
       if (Object.keys(updateData).length > 0) {
         updateData.updatedAt = FieldValue.serverTimestamp();

@@ -6,7 +6,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenu,
 } from "@/components/ui/dropdown-menu";
-import { WorkStatus } from "@/../../backend/functions/src/common/common_types";
+import { WorkStatus } from "@backend/common/common_types";
 import { useTranslations } from "next-intl";
 
 const statusStyles: Record<WorkStatus, string> = {
@@ -55,6 +55,8 @@ export const getStatusLabel = (
       return t("statusInProcess");
     case WorkStatus.DELIVERED:
       return t("statusDelivered");
+    default:
+      return t("statusDraft");
   }
 };
 

@@ -3,7 +3,7 @@ import "./globals.css";
 import { Inter } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthUserProvider } from "@/lib/auth_handler";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getLocale } from "next-intl/server";
 
@@ -33,11 +33,11 @@ export default async function RootLayout({
             disableTransitionOnChange
           >
             <AuthUserProvider>
-              <main className="container mx-auto px-1 sm:px-6 lg:px-8 py-2">
+              <main className="mx-auto px-1 sm:px-6 lg:px-8 py-2 print:p-0 print:m-0 print:max-w-none print:w-full">
                 {children}
               </main>
             </AuthUserProvider>
-            <Toaster position="top-center" />
+            <Toaster />
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>

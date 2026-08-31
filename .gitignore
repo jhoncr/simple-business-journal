@@ -1,5 +1,13 @@
+
+TODO.md
+
+.agents
+
 .vscode
 simple-biz_flat.txt
+
+# npm_output.log
+npm_output.log
 
 # exclude .chace files
 **/*.chace
@@ -16,3 +24,12 @@ simple-biz_flat.txt
 
 # ignore .env
 **/.env*
+
+# ignore to-migrate-and-delete/
+/to-migrate-and-delete
+
+# ignore node_modules
+/node_modules
+
+# ignore faq
+faq/

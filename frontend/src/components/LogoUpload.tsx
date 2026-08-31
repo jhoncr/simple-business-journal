@@ -3,19 +3,23 @@
 import { useState } from "react";
 import Image from "next/image";
 import { MinusCircle, UploadCloud } from "lucide-react";
-import { toast } from "sonner"; // Import toast from sonner
+import { useToast } from "@/hooks/use-toast";
+import { useTranslations } from "next-intl";
+
 interface LogoUploadProps {
   setLogo?: (logo: string | null) => void;
   logo?: string | null;
 }
 
 export function LogoUpload({ setLogo, logo }: LogoUploadProps) {
+  const t = useTranslations("logoUpload");
+  const { toast } = useToast();
+
   const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       if (file.type !== "image/svg+xml") {
-        // alert("Please upload an SVG file"); // Old alert
-        toast.error("Please upload an SVG file.");
+        toast({ title: t("svgOnlyError"), variant: "destructive" });
         return;
       }
       const reader = new FileReader();
@@ -37,7 +41,7 @@ export function LogoUpload({ setLogo, logo }: LogoUploadProps) {
         <div className="relative w-full h-full">
           <Image
             src={logo}
-            alt="Company logo"
+            alt={t("companyLogoAlt")}
             fill
             className="object-contain"
           />
@@ -51,7 +55,7 @@ export function LogoUpload({ setLogo, logo }: LogoUploadProps) {
       ) : (
         <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer bg-gray-50 hover:bg-gray-100">
           <UploadCloud className="h-6 w-6 text-gray-400" />
-          <span className="text-xs text-gray-500">Add Logo</span>
+          <span className="text-xs text-gray-500">{t("addLogo")}</span>
           <input
             type="file"
             className="hidden"
@@ -63,3 +67,4 @@ export function LogoUpload({ setLogo, logo }: LogoUploadProps) {
     </div>
   );
 }
+

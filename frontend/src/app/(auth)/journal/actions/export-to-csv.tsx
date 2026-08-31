@@ -2,7 +2,7 @@ import React from "react";
 // import the downlload icon form lucide
 import { Download } from "lucide-react";
 import { Timestamp } from "firebase/firestore";
-import { AccessMap } from "@/../../backend/functions/src/common/schemas/common_schemas";
+import { AccessMap } from "@backend/common/schemas/common_schemas";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
 
@@ -25,7 +25,7 @@ const dataToCSV = (entry_list: DataObject[], access: AccessMap) => {
         // if details, return the keys of details (e.g. details.date, details.description, details.value)
         // else return the header
         if (header.startsWith("details")) {
-          let details = entry_list[0].details;
+          let details = entry_list[0]?.details || {};
           return Object.keys(details).map(
             (detailKey) => `details.${detailKey}`,
           );
@@ -39,22 +39,26 @@ const dataToCSV = (entry_list: DataObject[], access: AccessMap) => {
     // base date as Dec 30, 1899 in UTC time
     entry_list.forEach((object) => {
       const values = headers.map((header) => {
-        if (header === "createdBy") {
-          return access?.[object[header]]?.email || object[header];
-        }
         let v;
-        if (header.startsWith("details.")) {
+        if (header === "createdBy") {
+          v = access?.[object[header]]?.email || object[header] || "";
+        } else if (header.startsWith("details.")) {
           const detailKey = header.split(".")[1];
           v = object.details ? object.details[detailKey] : "";
         } else {
           v = object[header];
         }
-        if (v instanceof Timestamp) {
-          return v.toDate().toISOString();
+
+        if (v === null || v === undefined) {
+          return '""';
         }
-        v = v.toString();
-        v.replaceAll('"', '""');
-        return `"${v}"`;
+
+        if (v instanceof Timestamp) {
+          return `"${v.toDate().toISOString()}"`;
+        }
+
+        const strVal = String(v).replaceAll('"', '""');
+        return `"${strVal}"`;
       });
       csv.push(values.join(","));
     });

@@ -8,6 +8,7 @@
     "strict": true,
     "target": "es2017",
     "baseUrl": "./src",
+    "skipLibCheck": true,
     "paths": {
       "@shared/*": ["../../shared/*"]
     }

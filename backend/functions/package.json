@@ -4,6 +4,7 @@
     "lint": "eslint --ext .ts,.js .",
     "link:fix": "eslint --fix --ext .ts,.js .",
     "build": "tsc",
+    "test": "npm run build && node tests/test_zod_firestore_compat.js && node tests/test_update_journal.js && node tests/test_rbac_matrix.js && node tests/test_i18n_and_camera_stability.js && node tests/test_milestone1_stress.js && node tests/test_tier1_features.js && node tests/test_tier2_boundaries.js && node tests/test_tier3_combinations.js && node tests/test_tier4_scenarios.js && node tests/test_tier5_adversarial.js && node tests/test_payment_feature.js && node tests/test_status_filtering.js",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
@@ -20,16 +21,18 @@
     "firebase-admin": "^12.7.0",
     "firebase-functions": "^6.4.0",
     "nodemailer": "^6.9.16",
+    "uuid": "^13.0.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.12.0",
-    "@typescript-eslint/parser": "^5.12.0",
-    "eslint": "^8.9.0",
+    "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-import": "^2.25.4",
     "firebase-functions-test": "^3.1.0",
-    "typescript": "^4.9.0"
+    "typescript": "~5.5.4"
   },
   "private": true
 }

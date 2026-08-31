@@ -1,9 +1,8 @@
 import * as functions from 'firebase-functions';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { z } from 'zod';
+import { ROLES } from '../common/schemas/common_schemas';
 
-
-const db = getFirestore();
 const ALLOWED = ['*']; // Adjust CORS settings as needed
 
 type AuditedCallableOptions = {
@@ -13,7 +12,7 @@ type AuditedCallableOptions = {
 export const createAuditedCallable = <T extends z.ZodType>(
   functionName: string,
   collectionName: string,
-  allowedRoles: ('admin' | 'staff')[],
+  allowedRoles: readonly (typeof ROLES)[number][] | (typeof ROLES)[number][],
   inputSchema: T,
   handler: (request: functions.https.CallableRequest) => Promise<any>,
   options: AuditedCallableOptions = {},
@@ -22,6 +21,7 @@ export const createAuditedCallable = <T extends z.ZodType>(
     cors: ALLOWED,
     enforceAppCheck: true,
   }, async (request) => {
+    const db = getFirestore();
     // 1. Authentication Check
     if (!request.auth) {
       throw new functions.https.HttpsError(
@@ -41,36 +41,36 @@ export const createAuditedCallable = <T extends z.ZodType>(
     }
 
     const data = validationResult.data as any;
-    const baseId = data.id;
+    const baseId = data.jid;
 
     // If allowedRoles is not empty, we require a baseId and role check.
     if (allowedRoles.length > 0 && !options.isCreateOperation) {
       if (!baseId) {
         throw new functions.https.HttpsError(
           'invalid-argument',
-          'Business ID is required for this operation.',
+          'Journal ID is required for this operation.',
         );
       }
 
-      const businessRef = db.collection(collectionName).doc(baseId);
-      const businessDoc = await businessRef.get();
+      const journalRef = db.collection(collectionName).doc(baseId);
+      const journalDoc = await journalRef.get();
 
-      if (!businessDoc.exists) {
+      if (!journalDoc.exists) {
         throw new functions.https.HttpsError(
           'not-found',
-          'Business not found.',
+          'Journal not found.',
         );
       }
 
       // 3. Authorization (RBAC) Check
-      const businessData = businessDoc.data();
-      if (businessData?.isActive === false) {
+      const journalData = journalDoc.data();
+      if (journalData?.isActive === false) {
         throw new functions.https.HttpsError(
           'permission-denied',
-          'This business is not active.',
+          'This journal is not active.',
         );
       }
-      const userRole = businessData?.access[request.auth.uid]?.role;
+      const userRole = journalData?.access?.[request.auth.uid]?.role;
       const isAuthorized = userRole && allowedRoles.includes(userRole);
       if (!isAuthorized) {
         throw new functions.https.HttpsError(
@@ -85,7 +85,6 @@ export const createAuditedCallable = <T extends z.ZodType>(
 
     // 5. Log Audit Event for non-creation functions
     if (id) {
-      const db = getFirestore();
       const docRef = db.collection(collectionName).doc(id);
       const eventRef = docRef.collection('events').doc();
       await eventRef.set({

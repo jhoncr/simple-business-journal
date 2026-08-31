@@ -12,64 +12,100 @@ import { useAuth } from "@/lib/auth_handler";
 // import { getJournalIcon } from "./journal/journal-types/config";
 import { useToolbar } from "./nav_tool_handler";
 import { useEffect, useState } from "react";
-import { JournalInfoCard } from "@/components/ui/journal-info-card"; // Import the card
+import { JournalInfoCard } from "@/components/ui/journal-info-card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { FolderOpen } from "lucide-react";
 // --- Import Constants ---
-import { JOURNAL_TYPES } from "@/../../backend/functions/src/common/const";
-import { ENTRY_CONFIG } from "@/../../backend/functions/src/common/schemas/configmap"; // Import entry config
-import { BusinessDetailsType } from "@/../../backend/functions/src/common/schemas/JournalSchema"; // Import details type
+import { JOURNAL_TYPES } from "@backend/common/const";
+import { ENTRY_CONFIG } from "@backend/common/schemas/configmap"; // Import entry config
+import { BusinessDetailsType } from "@backend/common/schemas/JournalSchema"; // Import details type
 import { useTranslations } from "next-intl";
 
 // --- Renamed Component: DisplayJournalList ---
 // Renders the list of journals using JournalInfoCard
 function DisplayJournalList({ journals }: { journals: Journal[] }) {
   const t = useTranslations("dashboard");
+  const tNav = useTranslations("navigation");
+  const { authUser } = useAuth();
+
   if (journals.length === 0) {
-    return <p className="text-muted-foreground mt-4">{t("noJournals")}</p>;
+    return (
+      <div className="w-full flex flex-col items-center justify-center p-12 mt-10 rounded-xl border border-dashed bg-muted/20 text-center animate-in fade-in zoom-in duration-500">
+        <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-6">
+          <FolderOpen className="w-10 h-10 text-muted-foreground" />
+        </div>
+        <h2 className="text-2xl font-semibold tracking-tight mb-2">{t("noJournals")}</h2>
+        <p className="text-muted-foreground max-w-sm mb-8">
+          {t("emptyStateDesc")}
+        </p>
+        <CreateNewJournal 
+          trigger={
+            <Button size="lg" className="gap-2">
+              <span className="text-lg">+</span> {tNav("newJournal")}
+            </Button>
+          }
+        />
+      </div>
+    );
   }
 
   return (
-    <div className="w-full flex flex-wrap gap-4 justify-center md:justify-start">
-      {" "}
-      {/* Use justify-center on small screens */}
-      {journals.map((journal) => {
-        // --- Extract props for JournalInfoCard ---
-        // Handle different journal types for extracting details
-        let cardProps: any = { id: journal.id };
+    <div className="w-full flex flex-col items-center md:items-start gap-4">
+      <div className="w-full flex flex-wrap gap-4 justify-center md:justify-start">
+        {/* The "Create New" Card */}
+        <CreateNewJournal 
+          trigger={
+            <div className="flex flex-col gap-3 items-center justify-center w-full sm:w-[320px] max-w-full h-[200px] border-2 border-dashed rounded-lg hover:bg-muted/50 transition-colors cursor-pointer shrink-0">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <span className="text-2xl text-primary">+</span>
+              </div>
+              <p className="font-semibold text-lg">{tNav("newJournal")}</p>
+            </div>
+          }
+        />
+        {journals.map((journal) => {
+          let cardProps: React.ComponentProps<typeof JournalInfoCard>;
 
-        if (journal.journalType === JOURNAL_TYPES.BUSINESS) {
-          const details = journal.details as BusinessDetailsType | undefined; // Cast safely
-          cardProps = {
-            ...cardProps,
-            currency: details?.currency || "USD", // Default currency
-            contactInfo: details?.contactInfo || {
-              name: journal.title,
-              address: {},
-            },
-            logo: details?.logo || null,
-            // --- Pass Subcollection Info (example: map config) ---
-            // get only config where entry.category="business"
-            journalSubcollections: Object.entries(ENTRY_CONFIG)
-              .filter(([key, config]) => config.category === "business")
-              .reduce((acc, [key, config]) => {
-                acc[key] = config;
-                return acc;
-              }, {} as Record<string, any>),
-          };
-        } else {
-          // Handle other types or skip rendering
-          console.warn(
-            "Unsupported journal type for display:",
-            journal.journalType,
+          if (journal.journalType === JOURNAL_TYPES.BUSINESS) {
+            const details = journal.details as BusinessDetailsType | undefined; // Cast safely
+            const isAdmin = Boolean(
+              authUser?.uid && journal.access?.[authUser.uid]?.role === "admin",
+            );
+            cardProps = {
+              id: journal.id,
+              currency: details?.currency || "USD", // Default currency
+              contactInfo: details?.contactInfo || {
+                name: journal.title,
+                address: {},
+              },
+              logo: details?.logo || null,
+              isAdmin,
+              journalSubcollections: Object.entries(ENTRY_CONFIG)
+                .filter(([_, config]) => config.category === "business")
+                .reduce((acc, [key, config]) => {
+                  acc[key] = config as any;
+                  return acc;
+                }, {} as Record<string, any>),
+            };
+          } else {
+            // Handle other types or skip rendering
+            console.warn(
+              "Unsupported journal type for display:",
+              journal.journalType,
+            );
+            return null; // Don't render unsupported types
+          }
+
+          return (
+            // --- Render JournalInfoCard ---
+            // Ensure JournalInfoCard props match what's passed
+            <div key={journal.id} className="w-full sm:w-[320px] shrink-0">
+              <JournalInfoCard {...cardProps} />
+            </div>
           );
-          return null; // Don't render unsupported types
-        }
-
-        return (
-          // --- Render JournalInfoCard ---
-          // Ensure JournalInfoCard props match what's passed
-          <JournalInfoCard key={journal.id} {...cardProps} />
-        );
-      })}
+        })}
+      </div>
     </div>
   );
 }
@@ -128,9 +164,12 @@ export default function Home() {
         {/* Use max-w-6xl */}
         {/* --- Loading and Error States --- */}
         {loading && (
-          <p className="text-muted-foreground mt-8">
-            {t("dashboard.loadingJournals")}
-          </p>
+           <div className="w-full flex flex-wrap gap-4 justify-center md:justify-start mt-4">
+             <Skeleton className="w-full sm:w-[320px] max-w-full h-[200px] rounded-lg shrink-0" />
+             <Skeleton className="w-full sm:w-[320px] max-w-full h-[200px] rounded-lg shrink-0 hidden sm:block" />
+             <Skeleton className="w-full sm:w-[320px] max-w-full h-[200px] rounded-lg shrink-0 hidden md:block" />
+             <Skeleton className="w-full sm:w-[320px] max-w-full h-[200px] rounded-lg shrink-0 hidden lg:block" />
+           </div>
         )}
         {error && (
           <p className="text-destructive mt-8">
@@ -139,13 +178,6 @@ export default function Home() {
         )}
         {/* --- Display Journal List --- */}
         {!loading && !error && <DisplayJournalList journals={journals} />}
-        {/* --- Create New Button (should be the refactored version) --- */}
-        {/* Positioned at bottom right or similar */}
-        <div className="mt-auto pt-10">
-          {" "}
-          {/* Push to bottom */}
-          <CreateNewJournal />
-        </div>
       </div>
     </div>
   );

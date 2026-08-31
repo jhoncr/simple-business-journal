@@ -21,8 +21,8 @@ import { useTranslations } from "next-intl";
 import {
   EntryType,
   entryTypeSchema,
-} from "@/../../backend/functions/src/common/schemas/configmap"; // Import EntryType
-// import { ENTRY_CONFIG } from "@/../../backend/functions/src/common/const"; // Use backend const
+} from "@backend/common/schemas/configmap"; // Import EntryType
+// import { ENTRY_CONFIG } from "@backend/common/const"; // Use backend const
 
 // --- Updated Backend Function Call ---
 const deleteEntryFn = httpsCallable(functions, "deleteEntry", {
@@ -32,7 +32,7 @@ const deleteEntryFn = httpsCallable(functions, "deleteEntry", {
 
 // --- Updated Zod Schema ---
 const deleteEntrySchema = z.object({
-  journalId: z.string().min(1), // Use journalId for clarity
+  jid: z.string().min(1), // Use journalId for clarity
   entryId: z.string().min(1),
   entryType: entryTypeSchema, // Validate against known entry types
 });
@@ -65,7 +65,7 @@ export function DeleteEntryBtn({
     );
     setPending(true);
 
-    const payload: DeletePayload = { journalId, entryId, entryType };
+    const payload: DeletePayload = { jid: journalId, entryId, entryType };
 
     // --- Validate payload client-side (optional but good practice) ---
     const validation = deleteEntrySchema.safeParse(payload);

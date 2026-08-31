@@ -8,6 +8,8 @@ import * as z from 'zod';
 // } from "./BabySchema"; // Updated import path // TODO: Fix missing BabySchema.ts or BABY_ENTRY_TYPES export and re-enable baby entry types.
 import { estimateDetailsStateSchema } from './estimate_schema';
 // import { invoiceDetailsSchema } from "./invoice_schema";
+import { AssemblyTemplateSchema } from './studio';
+import { ROLES } from './common_schemas';
 
 // Define an interface for entry configuration
 interface EntryConfig<T extends z.ZodTypeAny> {
@@ -15,8 +17,9 @@ interface EntryConfig<T extends z.ZodTypeAny> {
   schema: T;
   displayName?: string; // Optional human-readable name
   icon?: string; // Optional icon identifier
-  category: 'business';
+  category: 'business' | 'baby'; // Added baby for now if ever enabled
   sortField?: string; // Optional sort field
+  allowedRoles: readonly (typeof ROLES)[number][];
 }
 
 // Map EntryType -> EntryConfig
@@ -29,6 +32,16 @@ export const ENTRY_CONFIG = {
     category: 'business',
     sortField: 'createdAt', // Add sortField
     icon: 'ClipboardList', // Added icon
+    allowedRoles: ['staff', 'admin', 'editor'],
+  },
+  template: {
+    subcollection: 'templates',
+    schema: AssemblyTemplateSchema,
+    displayName: 'Template',
+    category: 'business',
+    sortField: 'createdAt',
+    icon: 'Box',
+    allowedRoles: ['admin', 'editor'],
   },
   // invoice: {
   //   subcollection: "invoices",
@@ -43,7 +56,7 @@ export const ENTRY_CONFIG = {
 // Helper functions to filter entries by category
 export const getBusinessEntries = () =>
   Object.entries(ENTRY_CONFIG)
-    .filter(([_, config]) => config.category === 'business')
+    .filter(([, config]) => config.category === 'business')
     .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
 
 // TODO: Uncomment or adjust getBabyEntries when baby entry types are re-enabled.
@@ -70,11 +83,12 @@ export type EntryType = keyof typeof ENTRY_CONFIG;
 
 export const entrySchema = z.object({
   entryId: z.string().optional(),
-  journalId: z.string(),
+  jid: z.string(),
   entryType: entryTypeSchema,
   name: z
     .string()
     .min(3, { message: 'Name must be at least 3 characters.' })
     .max(254, { message: 'Name cannot exceed 254 characters.' }),
   details: z.unknown(), // Will be validated based on entryType
+  thumbnailBase64: z.string().optional(), // Top-level field for the upload
 });

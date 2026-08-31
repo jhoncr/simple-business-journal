@@ -3,6 +3,7 @@ import { useState, useEffect, forwardRef, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 interface NumericInputProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange"> {
@@ -47,6 +48,7 @@ export const NumericInput = forwardRef<HTMLInputElement, NumericInputProps>(
     },
     ref,
   ) => {
+    const t = useTranslations("common");
     const [displayValue, setDisplayValue] = useState("");
     const [localError, setLocalError] = useState<string>("");
 
@@ -75,15 +77,15 @@ export const NumericInput = forwardRef<HTMLInputElement, NumericInputProps>(
         if (isNaN(numValue)) return null;
 
         if (min !== undefined && numValue < min) {
-          return `Value must be at least ${min}`;
+          return t("valueMinError", { min });
         }
         if (max !== undefined && numValue > max) {
-          return `Value must be at most ${max}`;
+          return t("valueMaxError", { max });
         }
 
         return null;
       },
-      [min, max],
+      [min, max, t],
     );
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

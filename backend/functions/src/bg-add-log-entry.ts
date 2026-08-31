@@ -1,16 +1,20 @@
 // backend/functions/src/bg-add-log-entry.ts
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp, getApps } from 'firebase-admin/app';
-import { JOURNAL_COLLECTION, ROLES_THAT_ADD } from './common/const';
+import { getStorage } from 'firebase-admin/storage';
+
+import * as z from 'zod';
+import { JOURNAL_COLLECTION } from './common/const';
 import {
   ENTRY_CONFIG,
   entrySchema,
   EntryType,
 } from './common/schemas/configmap';
-import { ALLOWED, handleSchemaValidationError } from './lib/bg-consts';
+import { handleSchemaValidationError } from './lib/bg-consts';
 import { EntryItf } from './common/common_types';
+import { createAuditedCallable } from './helpers/audited-function';
 
 if (getApps().length === 0) {
   initializeApp();
@@ -18,42 +22,24 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 
-export const addLogFn = onCall(
-  {
-    cors: ALLOWED,
-    enforceAppCheck: true,
-  },
+export const addLogFn = createAuditedCallable(
+  'addLogFn',
+  JOURNAL_COLLECTION,
+  [], // Custom role check below
+  entrySchema,
   async (request) => {
     try {
       logger.info('addLogFn called');
-      if (!request.auth) {
-        throw new HttpsError(
-          'unauthenticated',
-          'You must be signed in to add an entry',
-        );
-      }
-
-      const requestResult = entrySchema.safeParse(request.data);
-      if (!requestResult.success) {
-        // Use format() for better error logging
-        logger.error(
-          'Invalid request data format:',
-          requestResult.error.format(),
-        );
-        throw new HttpsError(
-          'invalid-argument',
-          `Invalid request data: ${requestResult.error.message}`,
-        );
-      }
-
       const {
-        journalId,
+        jid: journalId,
         entryType,
         name,
         details: rawDetails,
         entryId,
-      } = requestResult.data;
-      const uid = request.auth.uid;
+        thumbnailBase64,
+      } = request.data as z.infer<typeof entrySchema>;
+
+      const uid = request.auth!.uid;
 
       // Get the main journal document to check access and journalType
       const journalDocRef = db.collection(JOURNAL_COLLECTION).doc(journalId);
@@ -64,16 +50,6 @@ export const addLogFn = onCall(
       const journalData = journalDoc.data() || {};
       const journalType = journalData.journalType;
 
-      if (
-        !Object.getOwnPropertyDescriptor(journalData?.access ?? {}, uid) ||
-        !ROLES_THAT_ADD.has(journalData?.access?.[uid]?.role)
-      ) {
-        throw new HttpsError(
-          'permission-denied',
-          'No access to add entries to this journal.',
-        );
-      }
-
       const config = ENTRY_CONFIG[entryType as EntryType];
       if (!config) {
         throw new HttpsError(
@@ -81,12 +57,22 @@ export const addLogFn = onCall(
           `Unsupported entryType: ${entryType}`,
         );
       }
-      const { subcollection: targetSubcollectionName, schema: detailsSchema } =
+      const { subcollection: targetSubcollectionName, schema: detailsSchema, allowedRoles } =
         config;
+
+      if (
+        !Object.getOwnPropertyDescriptor(journalData?.access ?? {}, uid) ||
+        !allowedRoles.includes(journalData?.access?.[uid]?.role)
+      ) {
+        throw new HttpsError(
+          'permission-denied',
+          'No access to add entries to this journal.',
+        );
+      }
 
       logger.info(
         `Processing entryType '${entryType}' for journal ${journalId} (type: ${journalType}).` +
-          ` Target subcollection: ${targetSubcollectionName}`,
+        ` Target subcollection: ${targetSubcollectionName}`,
       );
       const detailsResult = detailsSchema.safeParse(rawDetails);
       if (!detailsResult.success) {
@@ -96,6 +82,39 @@ export const addLogFn = onCall(
       const validatedDetails = detailsResult.data;
 
       logger.info(`Entry details for ${entryType} validated successfully.`);
+
+      const entriesColRef = journalDocRef.collection(targetSubcollectionName);
+      const actualEntryId = entryId || entriesColRef.doc().id;
+
+      if (thumbnailBase64 && entryType === 'template') {
+        try {
+          const bucket = getStorage().bucket();
+
+          // Dynamically detect the format (e.g., image/webp, image/jpeg, image/png)
+          const mimeMatch = thumbnailBase64.match(/^data:(image\/\w+);base64,/);
+          const contentType = mimeMatch ? mimeMatch[1] : 'image/png';
+          const ext = contentType.split('/')[1] || 'png';
+
+          const filePath = `journals/${journalId}/templates/${actualEntryId}/thumbnail.${ext}`;
+          const file = bucket.file(filePath);
+
+          // Strip the data URL prefix dynamically based on the matched content type
+          const base64Data = thumbnailBase64.replace(/^data:image\/\w+;base64,/, '');
+          const buffer = Buffer.from(base64Data, 'base64');
+
+          await file.save(buffer, {
+            metadata: {
+              contentType: contentType, // Use the dynamically detected type
+              cacheControl: 'public, max-age=31536000', // Optional: heavily caches thumbnails in the browser
+            },
+          });
+
+          (validatedDetails as any).thumbnailUrl = `/${filePath}`;
+          logger.info(`Thumbnail uploaded successfully for template ${actualEntryId}`);
+        } catch (uploadError) {
+          logger.error('Error uploading thumbnail:', uploadError);
+        }
+      }
 
       // Construct the base entry object (timestamps and details added below)
       const baseEntry: Omit<
@@ -107,20 +126,20 @@ export const addLogFn = onCall(
         // createdBy will be set based on context (add vs update)
       };
 
-      const entriesColRef = journalDocRef.collection(targetSubcollectionName);
-
       if (entryId) {
-        return await _updateEntry(
+        const res = await _updateEntry(
           db,
           entriesColRef,
-          entryId,
+          actualEntryId,
           baseEntry,
           validatedDetails,
           targetSubcollectionName,
         );
+        return { id: journalId, response: res };
       } else {
-        return await _addEntry(
-          entriesColRef,
+        const docRef = entriesColRef.doc(actualEntryId);
+        const res = await _addEntry(
+          docRef,
           baseEntry,
           validatedDetails,
           uid,
@@ -128,6 +147,7 @@ export const addLogFn = onCall(
           journalId,
           targetSubcollectionName,
         );
+        return { id: journalId, response: res };
       }
     } catch (error) {
       logger.error('Error in addLogFn: ', error);
@@ -145,7 +165,7 @@ export const addLogFn = onCall(
 // --- Helper function to add a new entry ---
 /**
  * Adds a new entry to the specified journal.
- * @param entriesColRef - The Firestore collection reference for the journal's entries.
+ * @param docRef - The Firestore document reference for the new entry.
  * @param baseEntry - The base entry data (excluding timestamps and details).
  * @param validatedDetails - The validated details for the entry.
  * @param uid - The user ID of the entry creator.
@@ -155,19 +175,19 @@ export const addLogFn = onCall(
  * @returns A promise that resolves with the result of the add operation.
  */
 async function _addEntry(
-  entriesColRef: FirebaseFirestore.CollectionReference,
+  docRef: FirebaseFirestore.DocumentReference,
   baseEntry: Omit<
     EntryItf,
     'createdAt' | 'updatedAt' | 'details' | 'createdBy'
   >,
-  validatedDetails: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  validatedDetails: Record<string, unknown>,
   uid: string,
   entryType: string, // For logging
   journalId: string, // For logging
   targetSubcollectionName: string, // For logging
 ) {
   try {
-    const docRef = await entriesColRef.add({
+    await docRef.set({
       ...baseEntry,
       createdBy: uid, // Set creator on add
       details: validatedDetails,
@@ -210,7 +230,7 @@ async function _updateEntry(
     EntryItf,
     'createdAt' | 'updatedAt' | 'details' | 'createdBy'
   >,
-  validatedDetails: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  validatedDetails: Record<string, unknown>,
   targetSubcollectionName: string, // For logging
 ) {
   try {

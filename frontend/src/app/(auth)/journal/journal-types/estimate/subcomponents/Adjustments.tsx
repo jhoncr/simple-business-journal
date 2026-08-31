@@ -6,10 +6,10 @@ import { AdjustmentForm, Adjustment } from "./AdjustmentForm";
 import { Button } from "@/components/ui/button";
 import { MinusCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { allowedCurrencySchemaType } from "@/../../backend/functions/src/common/schemas/common_schemas";
-import { ROLES_THAT_ADD } from "@/../../backend/functions/src/common/const"; // Import ROLES_THAT_ADD
-import { ROLES } from "@/../../backend/functions/src/common/schemas/common_schemas"; // Import ROLES type
-import { Payment } from "@/../../backend/functions/src/common/schemas/estimate_schema";
+import { allowedCurrencySchemaType } from "@backend/common/schemas/common_schemas";
+import { ROLES_THAT_ADD } from "@backend/common/const"; // Import ROLES_THAT_ADD
+import { ROLES } from "@backend/common/schemas/common_schemas"; // Import ROLES type
+import { Payment } from "@backend/common/schemas/estimate_schema";
 
 interface InvoiceBottomLinesProps {
   itemSubtotal: number;
@@ -90,9 +90,14 @@ export function InvoiceBottomLines({
     };
   }, [itemSubtotal, totalAdjustments, taxPercentage]);
 
-  const totalPayments = React.useMemo(
-    () => payments.reduce((sum, payment) => sum + (payment.amount || 0), 0),
+  const activePayments = React.useMemo(
+    () => payments.filter((p) => !p.deletedAt && !p.isDeleted),
     [payments],
+  );
+
+  const totalPayments = React.useMemo(
+    () => activePayments.reduce((sum, payment) => sum + (payment.amount || 0), 0),
+    [activePayments],
   );
 
   const balanceDue = React.useMemo(
@@ -217,7 +222,7 @@ export function InvoiceBottomLines({
             {currencyFormat(grandTotal, currency)}
           </h2>
         </div>
-        {payments.length > 0 && (
+        {activePayments.length > 0 && (
           <>
             <div className="flex justify-between items-center pt-1 border-t">
               <span className="font-medium text-muted-foreground">

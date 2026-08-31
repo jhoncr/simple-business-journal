@@ -13,10 +13,8 @@ import {
   orderBy,
   limit,
   startAfter,
-  // endBefore, // Not currently used
-  Firestore,
   DocumentData,
-  Timestamp, // Import Timestamp
+  QueryConstraint,
 } from "firebase/firestore";
 import { app, emulatorIP } from "@/lib/auth_handler";
 import { DBentry, DBentryMap, Journal } from "./custom_types"; // Use updated types
@@ -27,18 +25,6 @@ import {
   EntryType,
 } from "@/lib/config_shared"; // Updated imports
 
-// --- Define Frontend ENTRY_CONFIG (or import if possible/preferred) --- // This comment block is now removed
-// This avoids direct dependency if backend changes often, but requires duplication
-// const FE_ENTRY_CONFIG = {
-//   cashflow: { subcollection: "cashflow_entries", sortField: "details.date" },
-//   inventory: { subcollection: "inventory_items", sortField: "createdAt" },
-//   estimate: { subcollection: "estimates", sortField: "createdAt" },
-//   nap: { subcollection: "naps", sortField: "details.start" },
-//   diaper: { subcollection: "diapers", sortField: "details.time" },
-//   feed: { subcollection: "feeds", sortField: "details.time" },
-//   growth: { subcollection: "growth_entries", sortField: "details.date" },
-// } as const;
-// --- End Frontend ENTRY_CONFIG --- // This comment block is now removed
 
 export const db = getFirestore(app);
 
@@ -57,6 +43,50 @@ function getEntryConfig(entryType: EntryType) {
   return config;
 }
 
+// Frontend parsing helpers to enforce strict types and validate data without `any`.
+export function parseDBEntry(id: string, entryType: EntryType, data: DocumentData): DBentry {
+  const config = getEntryConfig(entryType);
+  if (config && config.schema) {
+    const parsedValidDetails = config.schema.safeParse(data.details);
+    if (!parsedValidDetails.success) {
+      console.warn(`Validation failed for details of ${entryType} entry ${id}:`, parsedValidDetails.error);
+    }
+  }
+
+  // Construct standard DBentry
+  const entry: DBentry = {
+    id,
+    entryType: entryType,
+    name: String(data.name || ""),
+    isActive: Boolean(data.isActive),
+    createdBy: String(data.createdBy || ""),
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
+    details: data.details, 
+  };
+  
+  if (data.deletedAt !== undefined) entry.deletedAt = data.deletedAt;
+  if (data.deletedBy !== undefined) entry.deletedBy = String(data.deletedBy);
+  if (data.status !== undefined) entry.status = data.status;
+  
+  return entry;
+}
+
+export function parseJournalDoc(id: string, data: DocumentData): Journal {
+  return {
+    id,
+    title: String(data.title || ""),
+    journalType: data.journalType,
+    details: data.details,
+    access: data.access || {},
+    access_array: Array.isArray(data.access_array) ? data.access_array : [],
+    pendingAccess: data.pendingAccess,
+    createdAt: data.createdAt,
+    updatedAt: data.updatedAt,
+    isActive: Boolean(data.isActive),
+  } as Journal;
+}
+
 // --- fetchDateRangeEntries ---
 // Now requires entryType and assumes the sort field exists in details
 export async function fetchDateRangeEntries(
@@ -65,7 +95,6 @@ export async function fetchDateRangeEntries(
   from: Date | undefined,
   to: Date | undefined,
 ): Promise<DBentry[]> {
-  // Return type updated
   if (!journalId || !from || !to) {
     return [];
   }
@@ -74,13 +103,11 @@ export async function fetchDateRangeEntries(
   if (
     !config ||
     !config.sortField
-    // || !config.sortField.startsWith("details.")
   ) {
-    // Added null check for sortField
     console.error(
       `Date range fetch not supported or configured (or sortField missing/invalid) for entryType: ${entryType}`,
     );
-    return []; // Or throw error
+    return [];
   }
   const subcollectionName = config.subcollection;
   const dateSortField = config.sortField; // e.g., "details.date"
@@ -99,17 +126,14 @@ export async function fetchDateRangeEntries(
       collection(db, colPath),
       where("isActive", "==", true),
       orderBy(dateSortField, "desc"), // Use dynamic sort field
-      // orderBy("createdAt", "desc"), // Secondary sort
       where(dateSortField, ">=", from),
       where(dateSortField, "<=", to),
     );
 
     const querySnapshot = await getDocs(q);
-    const docsList: DBentry[] = querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      entryType: entryType, // Add entryType to result if needed
-      ...(doc.data() as any), // Cast needed as data structure varies
-    }));
+    const docsList: DBentry[] = querySnapshot.docs.map((doc) =>
+      parseDBEntry(doc.id, entryType, doc.data())
+    );
     console.log(
       `Fetched ${docsList.length} ${entryType} entries for date range.`,
     );
@@ -144,7 +168,7 @@ export async function fetchOlderEntrys(
     const colPath = `${JOURNAL_COLLECTION}/${journalId}/${subcollectionName}`;
     // Ensure oldestEntry has the required sort fields
     const primarySortValue = primarySortField.startsWith("details.")
-      ? (oldestEntry.details as any)?.[primarySortField.split(".")[1]]
+      ? oldestEntry.details?.[primarySortField.split(".")[1]]
       : oldestEntry[primarySortField as keyof DBentry];
 
     // Assuming createdAt is always present for secondary sort, if not, this might need adjustment
@@ -163,7 +187,7 @@ export async function fetchOlderEntrys(
       return {};
     }
 
-    const queryConstraints: any[] = [
+    const queryConstraints: QueryConstraint[] = [
       where("isActive", "==", true),
       orderBy(primarySortField, "desc"),
       limit(past_k),
@@ -178,11 +202,7 @@ export async function fetchOlderEntrys(
     const querySnapshot = await getDocs(q);
     const docsDict: DBentryMap = {};
     querySnapshot.forEach((doc) => {
-      docsDict[doc.id] = {
-        id: doc.id,
-        entryType: entryType, // Add entryType
-        ...(doc.data() as any),
-      } as DBentry;
+      docsDict[doc.id] = parseDBEntry(doc.id, entryType, doc.data());
     });
     console.log(
       `Fetched ${Object.keys(docsDict).length} older ${entryType} entries.`,
@@ -233,7 +253,6 @@ export function useEntriesSubCol(
         collection(db, colPath),
         where("isActive", "==", true),
         orderBy(primarySortField, "desc"),
-        // orderBy("createdAt", "desc"),
         limit(FETCH_LIMIT),
       );
 
@@ -244,11 +263,7 @@ export function useEntriesSubCol(
             const newDocs = { ...prevDocs };
             let changed = false;
             snapshot.docChanges().forEach((change) => {
-              const docData = {
-                id: change.doc.id,
-                entryType: entryType,
-                ...change.doc.data(),
-              } as DBentry;
+              const docData = parseDBEntry(change.doc.id, entryType, change.doc.data());
               if (change.type === "added" || change.type === "modified") {
                 if (
                   JSON.stringify(newDocs[change.doc.id]) !==
@@ -365,10 +380,7 @@ export function useWatchJournal(journalId: string | null) {
   return { journal, loading };
 }
 
-// Doc type might be redundant now with Journal type
-// export interface Doc extends DocumentData {
-//   id: string;
-// }
+
 
 // --- fetchJournals ---
 // Query simplified, filtering by type happens client-side if needed
@@ -384,10 +396,9 @@ export async function fetchJournals(userID: string): Promise<Journal[]> {
     );
 
     const querySnapshot = await getDocs(q);
-    const journals: Journal[] = querySnapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as any), // Cast needed
-    }));
+    const journals: Journal[] = querySnapshot.docs.map((doc) =>
+      parseJournalDoc(doc.id, doc.data())
+    );
 
     console.log("Journals fetched:", journals.length);
     return journals;
@@ -416,11 +427,7 @@ export async function fetchEntry(
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
-      return {
-        id: docSnap.id,
-        entryType: entryType, // Add entryType
-        ...(docSnap.data() as any),
-      } as DBentry;
+      return parseDBEntry(docSnap.id, entryType, docSnap.data());
     } else {
       console.log(`No such entry document: ${docPath}`);
       return null;

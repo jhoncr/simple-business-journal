@@ -4,8 +4,7 @@ import { addContributor } from './bg-add-contributors';
 import { acceptShare } from './bg-accept-share';
 import { deleteJournal, deleteEntry } from './bg-delete-entry'; // Import new functions
 import { createJournal, updateJournal } from './bg-journal-management'; // Updated import path
-import { duplicateEstimate } from './bg-duplicate-estimate'; // Import duplicate estimate function
-
+import { duplicateEntry } from './bg-duplicate-entry'; // Import generic duplicate function
 if (getApps().length === 0) {
   initializeApp();
 }
@@ -17,4 +16,5 @@ exports.addContributor = addContributor;
 exports.acceptShare = acceptShare;
 exports.deleteJournal = deleteJournal; // Export new function
 exports.deleteEntry = deleteEntry; // Export new function
-exports.duplicateEstimate = duplicateEstimate; // Export duplicate estimate function
+exports.duplicateEntry = duplicateEntry; // Export generic duplicate function
+export * from './bg-template-cache';

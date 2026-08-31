@@ -1,0 +1,26 @@
+
+> simplelog@0.1.0 dev
+> next dev
+
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /app/package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles:
+   * /app/frontend/package-lock.json
+
+▲ Next.js 16.1.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+- Environments: .env.development
+
+✓ Starting...
+✓ Ready in 791ms
+node_env: development -- hitting local auth and firestore emulators
+testing locally -- hitting local auth and firestore emulators
+Firestore connected to emulator
+ GET /journal/entry?jid=test_journal_123&eid=temp_1&jtype=template&mode=designer 200 in 1816ms (compile: 555ms, render: 1261ms)
+ GET /journal/entry?jid=test_journal_123&eid=temp_1&jtype=template&mode=designer 200 in 189ms (compile: 7ms, render: 182ms)
+Browserslist: browsers data (caniuse-lite) is 15 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme

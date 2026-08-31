@@ -2,13 +2,19 @@
 "use client";
 
 import React from "react";
-import { ChevronLeft, Printer } from "lucide-react";
+import { ChevronLeft, MoreHorizontal, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   contactInfoSchemaType,
   allowedCurrencySchemaType,
-} from "@/../../backend/functions/src/common/schemas/common_schemas";
-import { EntryItf } from "@/../../backend/functions/src/common/common_types";
+} from "@backend/common/schemas/common_schemas";
+import { EntryItf } from "@backend/common/common_types";
 import { EstimateHeader } from "./subcomponents/header";
 import Link from "next/link";
 import { useEstimate } from "./useEstimate"; // Import the new hook
@@ -16,12 +22,13 @@ import { ContactInfo } from "./subcomponents/ContactInfo";
 import { ItemsList } from "./subcomponents/ItemsList";
 import { InvoiceDetails } from "./subcomponents/InvoiceDetails";
 import { Payments } from "./subcomponents/Payments";
-import { InvoiceBottomLines } from "./subcomponents/Adjustments";
 import { InlineEditTextarea } from "./subcomponents/EditNotes";
-import { NewItemForm } from "./subcomponents/NewItemForm";
+import { NewItemFormWrapper } from "./subcomponents/NewItemFormWrapper";
+import { InvoiceBottomLines } from "./subcomponents/Adjustments";
 import { Label } from "@/components/ui/label";
-import { WorkStatus } from "@/../../backend/functions/src/common/common_types";
+import { WorkStatus } from "@backend/common/common_types";
 import { useTranslations } from "next-intl";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface EstimateDetailsProps {
   journalId: string;
@@ -47,6 +54,7 @@ export const EstimateDetails = React.memo(function EstimateDetails(
     notes,
     createdAt,
     payments,
+    grandTotal,
     loading,
     isSaving,
     entryId,
@@ -67,7 +75,14 @@ export const EstimateDetails = React.memo(function EstimateDetails(
     calculateSubtotal,
     currencyFormat,
     handleAddPayment,
+    handleUpdatePayment,
+    handleDeletePayment,
+    handleRestorePayment,
   } = useEstimate(props);
+
+  // Derived state: require contact info before unlocking the rest of the form
+  const isContactInfoValid = Boolean(customer?.name?.trim());
+  const isFormEnabled = canUpdate && isContactInfoValid;
 
   if (loading) {
     return <div className="text-center p-10">{t("loadingDetails")}</div>;
@@ -103,9 +118,9 @@ export const EstimateDetails = React.memo(function EstimateDetails(
           handleStatusChange={canUpdate ? handleStatusChange : undefined}
         />
 
-        <div>
-          <h3 className="font-semibold mt-4">{t("client")}</h3>
+        <div className="mb-4">
           <ContactInfo
+            title={t("client")}
             ref={customerRef}
             info={customer}
             setInfo={setCustomer}
@@ -114,98 +129,180 @@ export const EstimateDetails = React.memo(function EstimateDetails(
         </div>
 
         {canUpdate && (
-          <fieldset
-            disabled={!canUpdate}
-            className={!canUpdate ? "opacity-50" : ""}
-          >
-            <h3 className="font-semibold pt-4">{t("items")}</h3>
-            <div className="border rounded-md p-2">
-              <ItemsList
-                confirmedItems={confirmedItems}
-                removeConfirmedItem={removeConfirmedItem}
-                editItem={editItem}
-                editingItem={editingItem}
-                currencyFormat={currencyFormat}
-                isSaving={isSaving}
-                canUpdate={canUpdate}
-              />
-              <div className="print:hidden">
-                <NewItemForm
-                  onAddItem={addConfirmedItem}
-                  currency={props.journalCurrency}
-                  inventoryCache={props.journalInventoryCache}
-                  userRole={userRole}
-                  editingItem={editingItem}
-                  onCancelEdit={cancelEdit}
-                  confirmedItems={confirmedItems}
-                />
+          <>
+            {!isContactInfoValid && (
+              <div className="bg-secondary/50 text-secondary-foreground p-3 rounded-md text-sm text-center print:hidden border border-border">
+                {t("unlockFormPrompt")}
               </div>
-              <InvoiceBottomLines
-                itemSubtotal={calculateSubtotal()}
-                adjustments={adjustments}
-                setAdjustments={(newAdjustments) => {
-                  setAdjustments(newAdjustments);
-                  handleSave({ adjustments: newAdjustments });
-                }}
-                taxPercentage={taxPercentage}
-                setTaxPercentage={(newTaxPercentage) => {
-                  setTaxPercentage(newTaxPercentage);
-                  handleSave({ taxPercentage: newTaxPercentage });
-                }}
-                currency={props.journalCurrency}
-                userRole={userRole}
-                payments={payments}
-              />
-            </div>
-            <div>
-              <h3 className="font-semibold mt-4">{t("notes")}</h3>
-              <InlineEditTextarea
-                initialValue={notes}
-                onSave={(value) => {
-                  setNotes(value);
-                  handleSave({ notes: value });
-                }}
-                placeholder={t("addNotesPlaceholder")}
-                disabled={isSaving}
-              />
-            </div>
-          </fieldset>
+            )}
+
+            <fieldset
+              disabled={!isFormEnabled}
+              className={!isFormEnabled ? "opacity-50 space-y-4 pointer-events-none select-none" : "space-y-4"}
+            >
+              <Card className="print:border-none print:shadow-none">
+                <CardHeader className="p-4 pb-2 print:p-0">
+                  <CardTitle className="text-base">{t("items")}</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 print:p-0">
+                  <ItemsList
+                    confirmedItems={confirmedItems}
+                    removeConfirmedItem={removeConfirmedItem}
+                    editItem={editItem}
+                    editingItem={editingItem}
+                    currencyFormat={currencyFormat}
+                    isSaving={isSaving}
+                    canUpdate={canUpdate}
+                  />
+                  <div className="print:hidden mt-4">
+                    <NewItemFormWrapper
+                      onAddItem={addConfirmedItem}
+                      currency={props.journalCurrency}
+                      inventoryCache={props.journalInventoryCache}
+                      userRole={userRole}
+                      editingItem={editingItem}
+                      onCancelEdit={cancelEdit}
+                      confirmedItems={confirmedItems}
+                    />
+                  </div>
+                  <div className="mt-4">
+                    <InvoiceBottomLines
+                      itemSubtotal={calculateSubtotal()}
+                      adjustments={adjustments}
+                      setAdjustments={(newAdjustments) => {
+                        setAdjustments(newAdjustments);
+                        handleSave({ adjustments: newAdjustments });
+                      }}
+                      taxPercentage={taxPercentage}
+                      setTaxPercentage={(newTaxPercentage) => {
+                        setTaxPercentage(newTaxPercentage);
+                        handleSave({ taxPercentage: newTaxPercentage });
+                      }}
+                      currency={props.journalCurrency}
+                      userRole={userRole}
+                      payments={payments}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="print:border-none print:shadow-none bg-secondary/5">
+                <CardHeader className="p-4 pb-2 print:p-0">
+                  <CardTitle className="text-base">{t("notes")}</CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 pt-0 print:p-0">
+                  <InlineEditTextarea
+                    initialValue={notes}
+                    onSave={(value) => {
+                      setNotes(value);
+                      handleSave({ notes: value });
+                    }}
+                    placeholder={t("addNotesPlaceholder")}
+                    disabled={isSaving}
+                  />
+                </CardContent>
+              </Card>
+            </fieldset>
+          </>
         )}
 
-        {canUpdate &&
+        {isFormEnabled &&
           (status == WorkStatus.IN_PROCESS ||
             status == WorkStatus.DELIVERED ||
             payments.length > 0) && (
             <Payments
               payments={payments}
               currencyFormat={currencyFormat}
+              journalCurrency={props.journalCurrency}
+              grandTotal={grandTotal}
               isInvoiceFlow={true}
+              userRole={userRole}
               handleAddPayment={handleAddPayment}
+              handleUpdatePayment={handleUpdatePayment}
+              handleDeletePayment={handleDeletePayment}
+              handleRestorePayment={handleRestorePayment}
               isSaving={isSaving}
             />
           )}
       </div>
 
-      <div
-        id="estimate-actions-bar"
-        className="print:hidden flex justify-between items-center mt-6 px-2 md:px-4 sticky bottom-0 py-2 bg-background/90 backdrop-blur-sm border-t"
-      >
-        <Button variant="brutalist" asChild size="sm" disabled={isSaving}>
-          <Link href={`/journal?jid=${props.journalId}&type=estimate`}>
-            <ChevronLeft className="h-4 w-4 mr-2" /> {t("back")}
-          </Link>
-        </Button>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="brutalist"
-            size="sm"
-            onClick={() => window.print()}
-            disabled={isSaving}
+      {(() => {
+        const hasTechnicalDrawings = confirmedItems.some(
+          (item) =>
+            !!item.attachedTemplate ||
+            item.itemCategory === "window-sill" ||
+            item.itemCategory === "tile-edge",
+        );
+        const technicalDrawingsHref = `/journal/entry/technical-drawings?jid=${props.journalId}&eid=${entryId}`;
+
+        return (
+          <div
+            id="estimate-actions-bar"
+            className="print:hidden flex justify-between items-center mt-6 px-2 md:px-4 sticky bottom-0 py-2 bg-background/90 backdrop-blur-sm border-t"
           >
-            <Printer className="h-4 w-4 mr-2" /> {t("print")}
-          </Button>
-        </div>
-      </div>
+            <Button variant="brutalist" asChild size="sm" disabled={isSaving}>
+              <Link href={`/journal?jid=${props.journalId}&jtype=estimate`}>
+                <ChevronLeft className="h-4 w-4 mr-2" /> {t("back")}
+              </Link>
+            </Button>
+
+            {/* Desktop: all buttons visible */}
+            <div className="hidden sm:flex items-center space-x-2">
+              {hasTechnicalDrawings && (
+                <Button variant="outline" asChild size="sm" disabled={isSaving}>
+                  <Link href={technicalDrawingsHref} target="_blank">
+                    <Printer className="h-4 w-4 mr-2" />
+                    {t("printTechnicalDrawings")}
+                  </Link>
+                </Button>
+              )}
+              <Button
+                variant="brutalist"
+                size="sm"
+                onClick={() => window.print()}
+                disabled={isSaving}
+              >
+                <Printer className="h-4 w-4 mr-2" /> {t("print")}
+              </Button>
+            </div>
+
+            {/* Mobile: primary print + dropdown for secondary actions */}
+            <div className="flex sm:hidden items-center gap-2">
+              <Button
+                variant="brutalist"
+                size="sm"
+                onClick={() => window.print()}
+                disabled={isSaving}
+              >
+                <Printer className="h-4 w-4 mr-2" /> {t("print")}
+              </Button>
+
+              {hasTechnicalDrawings && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="shrink-0"
+                      aria-label={t("moreActions")}
+                    >
+                      <MoreHorizontal className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem asChild>
+                      <Link href={technicalDrawingsHref} target="_blank">
+                        <Printer className="mr-2 h-4 w-4" />
+                        <span>{t("printTechnicalDrawings")}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 });

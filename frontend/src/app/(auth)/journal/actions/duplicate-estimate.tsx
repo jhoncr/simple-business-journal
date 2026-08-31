@@ -9,27 +9,28 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslations } from "next-intl";
 
 // Backend function call
-const duplicateEstimateFn = httpsCallable(functions, "duplicateEstimate", {
+const duplicateEstimateFn = httpsCallable(functions, "duplicateEntry", {
   limitedUseAppCheckTokens: true,
 });
 
 // Zod schema for validation
 const duplicateEstimateSchema = z.object({
-  journalId: z.string().min(1),
+  jid: z.string().min(1),
   entryId: z.string().min(1),
+  entryType: z.literal("estimate"),
 });
 
 type DuplicatePayload = z.infer<typeof duplicateEstimateSchema>;
 
 interface DuplicateEstimateBtnProps {
-  journalId: string;
+  jid: string;
   entryId: string;
   entryName?: string;
   onDuplicated: (newEntryId: string) => void;
 }
 
 export function DuplicateEstimateBtn({
-  journalId,
+  jid,
   entryId,
   entryName = "",
   onDuplicated,
@@ -39,12 +40,13 @@ export function DuplicateEstimateBtn({
   const t = useTranslations("journal");
 
   const onDuplicate = async () => {
-    console.log(`Duplicating estimate ${entryId} in journal ${journalId}`);
+    console.log(`Duplicating estimate ${entryId} in journal ${jid}`);
     setPending(true);
 
     const payload: DuplicatePayload = {
-      journalId,
+      jid,
       entryId,
+      entryType: "estimate",
     };
 
     // Validate payload client-side

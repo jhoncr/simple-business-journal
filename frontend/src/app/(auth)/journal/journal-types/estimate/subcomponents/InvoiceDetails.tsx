@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
 import { WorkStatusDropdown, getStatusLabel } from "./estimateStatus";
-import { WorkStatus } from "@/../../backend/functions/src/common/common_types";
+import { WorkStatus } from "@backend/common/common_types";
 import { useTranslations } from "next-intl";
 
 interface InvoiceDetailsProps {

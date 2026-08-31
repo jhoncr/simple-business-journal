@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
+import { useTranslations } from "next-intl";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/auth_handler";
 import { fetchEntry } from "@/lib/db_handler";
@@ -11,16 +12,16 @@ import {
   estimateDetailsState,
   estimateDetailsStateSchema,
   Payment,
-} from "@/../../backend/functions/src/common/schemas/estimate_schema";
+} from "@backend/common/schemas/estimate_schema";
 import {
   contactInfoSchemaType,
   allowedCurrencySchemaType,
   ROLES,
-} from "@/../../backend/functions/src/common/schemas/common_schemas";
+} from "@backend/common/schemas/common_schemas";
 import {
   WorkStatus,
   EntryItf,
-} from "@/../../backend/functions/src/common/common_types";
+} from "@backend/common/common_types";
 import { useAuth } from "@/lib/auth_handler";
 import { useJournalContext } from "@/context/JournalContext";
 import { ContactInfoRef } from "./subcomponents/ContactInfo";
@@ -63,6 +64,10 @@ export const useEstimate = ({
   journalInventoryCache,
   jtype,
 }: UseEstimateProps) => {
+  const t = useTranslations("estimate");
+  const tPayments = useTranslations("payments");
+  const { toast } = useToast();
+
   const [confirmedItems, setConfirmedItems] = useState<LineItem[]>([]);
   const [status, setStatus] = useState<WorkStatus>(WorkStatus.DRAFT);
   const [customer, setCustomer] = useState<contactInfoSchemaType>(initInfo);
@@ -87,6 +92,19 @@ export const useEstimate = ({
 
   const START_STATE = WorkStatus.DRAFT;
 
+  const parseDateField = (val: unknown): Date | null | undefined => {
+    if (!val) return val as null | undefined;
+    if (typeof (val as { toDate?: () => Date }).toDate === "function") {
+      return (val as { toDate: () => Date }).toDate();
+    }
+    if (val instanceof Date) return val;
+    if (typeof val === "string" || typeof val === "number") {
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) return d;
+    }
+    return val as any;
+  };
+
   const userRole: (typeof ROLES)[number] = useMemo(() => {
     if (!authUser || !journal || !journal.access) {
       return "viewer";
@@ -108,14 +126,14 @@ export const useEstimate = ({
           jtype,
         );
         setEntryError(
-          `This form is for estimates only. Received type: ${jtype}. Please check the URL or link.`,
+          t("errors.invalidFormTypeReceived", { jtype }),
         );
         setLoading(false);
         return;
       }
 
       if (!journalId) {
-        setEntryError("Journal ID is missing.");
+        setEntryError(t("errors.journalIdMissing"));
         setLoading(false);
         return;
       }
@@ -129,7 +147,7 @@ export const useEstimate = ({
           );
 
           if (!entry) {
-            setEntryError("Estimate entry not found or access denied.");
+            setEntryError(t("errors.entryNotFound"));
           } else if (entry.details) {
             const details = entry.details;
 
@@ -141,15 +159,13 @@ export const useEstimate = ({
             const processedDetails = {
               ...details,
               payments:
-                details.payments?.map(
-                  (payment: { date: { toDate: () => Date } }) => ({
-                    ...payment,
-                    date:
-                      payment.date && typeof payment.date.toDate === "function"
-                        ? payment.date.toDate()
-                        : payment.date,
-                  }),
-                ) || [],
+                details.payments?.map((payment: any) => ({
+                  ...payment,
+                  date: parseDateField(payment.date),
+                  createdAt: parseDateField(payment.createdAt),
+                  updatedAt: parseDateField(payment.updatedAt),
+                  deletedAt: parseDateField(payment.deletedAt),
+                })) || [],
             };
 
             const validation =
@@ -160,7 +176,7 @@ export const useEstimate = ({
                 "Fetched estimate details failed validation:",
                 validation.error.format(),
               );
-              setEntryError("Loaded estimate data is invalid.");
+              setEntryError(t("errors.loadedDataInvalid"));
             } else {
               const validData = validation.data;
               setConfirmedItems(
@@ -177,7 +193,7 @@ export const useEstimate = ({
           }
         } catch (error) {
           console.error("Error loading estimate entry:", error);
-          setEntryError("Failed to load estimate details. Please try again.");
+          setEntryError(t("errors.failedToLoadDetails"));
         } finally {
           setLoading(false);
         }
@@ -196,18 +212,24 @@ export const useEstimate = ({
     }
 
     loadEntryData();
-  }, [journalId, initialEntryId, jtype, START_STATE]);
+  }, [journalId, initialEntryId, jtype, START_STATE, t]);
 
   const validateCustomer = async () => {
     if (customerRef.current) {
       const isValid = await customerRef.current.validate();
       if (!isValid) {
-        toast.error("Please correct customer details before saving.");
+        toast({
+          description: t("errors.correctCustomerDetails"),
+          variant: "destructive",
+        });
         setIsSaving(false);
         return false;
       }
     } else {
-      toast.error("Could not validate customer info.");
+      toast({
+        description: t("errors.validateCustomerFailed"),
+        variant: "destructive",
+      });
       setIsSaving(false);
       return false;
     }
@@ -236,35 +258,40 @@ export const useEstimate = ({
         detailsValidation.error.format(),
         estimateDetailsData,
       );
-      toast.error(
-        "Invalid Estimate Data: Please check the console for details.",
-      );
+      toast({
+        description: t("errors.invalidEstimateData"),
+        variant: "destructive",
+      });
       return null;
     }
 
     return {
-      journalId: journalId,
+      jid: journalId,
       entryType: ESTIMATE_ENTRY_TYPE,
-      name: `Estimate for ${
-        detailsValidation.data.customer.name || "Unknown"
-      }`,
+      name: t("estimateForCustomer", {
+        name: detailsValidation.data.customer.name || t("unknownCustomer"),
+      }),
       details: detailsValidation.data,
       ...(entryId && { entryId }),
     };
   };
 
   const handleSaveSuccess = (
-    result: any,
+    result: { data?: { id?: string } } | unknown,
     validatedDetails: estimateDetailsState,
   ) => {
-    const returnedId = (result.data as { id: string })?.id;
+    const returnedId = (result as { data?: { id?: string } })?.data?.id;
     if (returnedId && !entryId) {
       setEntryId(returnedId);
       const url = new URL(window.location.href);
       url.searchParams.set("eid", returnedId);
       router.replace(url.toString(), { scroll: false });
     }
-    toast.success(`Estimate for ${validatedDetails.customer.name} saved.`);
+    toast({
+      description: t("estimateSaved", {
+        name: validatedDetails.customer.name || t("unknownCustomer"),
+      }),
+    });
     setIsSaving(false);
     return true;
   };
@@ -272,8 +299,11 @@ export const useEstimate = ({
   const handleSaveError = (error: unknown) => {
     console.error("Error saving estimate:", error);
     const errorMessage =
-      error instanceof Error ? error.message : "Could not save estimate.";
-    toast.error(`Save Failed: ${errorMessage}`);
+      error instanceof Error ? error.message : t("errors.couldNotSave");
+    toast({
+      description: t("errors.saveFailed", { message: errorMessage }),
+      variant: "destructive",
+    });
     setIsSaving(false);
     return false;
   };
@@ -281,12 +311,18 @@ export const useEstimate = ({
   const handleSave = useCallback(
     async (updates: Partial<estimateDetailsState> = {}): Promise<boolean> => {
       if (jtype !== ESTIMATE_ENTRY_TYPE) {
-        toast.error("Cannot save, incorrect form type.");
+        toast({
+          description: t("errors.incorrectFormType"),
+          variant: "destructive",
+        });
         return false;
       }
       if (isSaving || !journalId || !journalCurrency) {
         if (!journalCurrency) {
-          toast.error("Cannot save estimate, journal currency is not set.");
+          toast({
+            description: t("errors.currencyNotSet"),
+            variant: "destructive",
+          });
         }
         return false;
       }
@@ -327,6 +363,7 @@ export const useEstimate = ({
       router,
       buildPayload,
       handleSaveSuccess,
+      t,
     ],
   );
 
@@ -401,10 +438,63 @@ export const useEstimate = ({
       (sum, item) =>
         sum +
         (item.quantity || 0) *
-          (item.material?.unitPrice ? Number(item.material.unitPrice) : 0),
+        (item.material?.unitPrice ? Number(item.material.unitPrice) : 0),
       0,
     );
   }, [confirmedItems]);
+
+  const itemSubtotal = useMemo(() => calculateSubtotal(), [calculateSubtotal]);
+
+  const calculateAdjustmentAmount = useCallback(
+    (adjustment: Adjustment): number => {
+      if (!adjustment || typeof adjustment.value !== "number") return 0;
+      const value = adjustment.value;
+      const calculations = {
+        addFixed: () => value || 0,
+        addPercent: () => ((itemSubtotal || 0) * value) / 100,
+        discountFixed: () => -(value || 0),
+        discountPercent: () => -((itemSubtotal || 0) * value) / 100,
+        taxPercent: () => 0,
+      };
+      return calculations[adjustment.type]?.() ?? 0;
+    },
+    [itemSubtotal],
+  );
+
+  const totalAdjustments = useMemo(
+    () =>
+      adjustments.reduce(
+        (sum, adjustment) =>
+          sum + (calculateAdjustmentAmount(adjustment) || 0),
+        0,
+      ),
+    [adjustments, calculateAdjustmentAmount],
+  );
+
+  const { totalBeforeTax, taxAmount, grandTotal } = useMemo(() => {
+    const totalBeforeTax = (itemSubtotal || 0) + (totalAdjustments || 0);
+    const taxAmount = ((totalBeforeTax || 0) * (taxPercentage || 0)) / 100;
+    return {
+      totalBeforeTax,
+      taxAmount,
+      grandTotal: totalBeforeTax + taxAmount,
+    };
+  }, [itemSubtotal, totalAdjustments, taxPercentage]);
+
+  const activePayments = useMemo(
+    () => payments.filter((p) => !p.deletedAt && !p.isDeleted),
+    [payments],
+  );
+
+  const totalPaid = useMemo(
+    () => activePayments.reduce((sum, payment) => sum + (payment.amount || 0), 0),
+    [activePayments],
+  );
+
+  const balanceDue = useMemo(
+    () => grandTotal - totalPaid,
+    [grandTotal, totalPaid],
+  );
 
   const currencyFormat = useCallback(
     (amount: number) => {
@@ -415,11 +505,80 @@ export const useEstimate = ({
     [journalCurrency],
   );
 
-  const handleAddPayment = (payment: Payment) => {
-    const updatedPayments = [...payments, payment];
+  const handleAddPayment = async (payment: Payment): Promise<boolean> => {
+    const newPayment: Payment = {
+      ...payment,
+      id: payment.id || crypto.randomUUID(),
+      createdAt: payment.createdAt || new Date(),
+      createdBy: authUser?.email || authUser?.uid || null,
+      isDeleted: false,
+    };
+    const updatedPayments = [...payments, newPayment];
     setPayments(updatedPayments);
-    handleSave({ payments: updatedPayments });
-    toast.success("The new payment has been saved.");
+    const success = await handleSave({ payments: updatedPayments });
+    if (success) {
+      toast({ description: tPayments("paymentSaved") });
+    }
+    return success;
+  };
+
+  const handleUpdatePayment = async (updatedPayment: Payment): Promise<boolean> => {
+    const updatedPayments = payments.map((p) =>
+      p.id === updatedPayment.id
+        ? {
+            ...p,
+            ...updatedPayment,
+            updatedAt: new Date(),
+            updatedBy: authUser?.email || authUser?.uid || null,
+          }
+        : p,
+    );
+    setPayments(updatedPayments);
+    const success = await handleSave({ payments: updatedPayments });
+    if (success) {
+      toast({ description: tPayments("paymentUpdated") });
+    }
+    return success;
+  };
+
+  const handleDeletePayment = async (paymentId: string): Promise<boolean> => {
+    const updatedPayments = payments.map((p) =>
+      p.id === paymentId
+        ? {
+            ...p,
+            deletedAt: new Date(),
+            deletedBy: authUser?.email || authUser?.uid || null,
+            isDeleted: true,
+          }
+        : p,
+    );
+    setPayments(updatedPayments);
+    const success = await handleSave({ payments: updatedPayments });
+    if (success) {
+      toast({ description: tPayments("paymentDeleted") });
+    }
+    return success;
+  };
+
+  const handleRestorePayment = async (paymentId: string): Promise<boolean> => {
+    const updatedPayments = payments.map((p) =>
+      p.id === paymentId
+        ? {
+            ...p,
+            deletedAt: null,
+            deletedBy: null,
+            isDeleted: false,
+            updatedAt: new Date(),
+            updatedBy: authUser?.email || authUser?.uid || null,
+          }
+        : p,
+    );
+    setPayments(updatedPayments);
+    const success = await handleSave({ payments: updatedPayments });
+    if (success) {
+      toast({ description: tPayments("paymentRestored") });
+    }
+    return success;
   };
 
   return {
@@ -432,6 +591,13 @@ export const useEstimate = ({
     taxPercentage,
     notes,
     payments,
+    activePayments,
+    totalPaid,
+    grandTotal,
+    itemSubtotal,
+    totalAdjustments,
+    taxAmount,
+    balanceDue,
     loading,
     isSaving,
     entryId,
@@ -453,5 +619,8 @@ export const useEstimate = ({
     calculateSubtotal,
     currencyFormat,
     handleAddPayment,
+    handleUpdatePayment,
+    handleDeletePayment,
+    handleRestorePayment,
   };
 };

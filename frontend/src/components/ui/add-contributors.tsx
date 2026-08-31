@@ -37,7 +37,8 @@ import {
   UserSchemaType,
   AccessMap,
   pendingAccessSchemaType,
-} from "@/../../backend/functions/src/common/schemas/common_schemas";
+  ROLES,
+} from "@backend/common/schemas/common_schemas";
 import { functions } from "@/lib/auth_handler";
 
 import { SharableLink } from "@/components/ui/sharable-link";
@@ -55,10 +56,16 @@ export function AddContributers({
   journalId,
   access,
   pendingAccess,
+  externalOpen,
+  onExternalOpenChange,
 }: {
   journalId: string | undefined;
   access: AccessMap;
   pendingAccess: pendingAccessSchemaType;
+  /** When provided, the dialog open state is controlled externally (used by mobile dropdown). */
+  externalOpen?: boolean;
+  /** Callback for externally controlled open state changes. */
+  onExternalOpenChange?: (open: boolean) => void;
 }) {
   const t = useTranslations("contributors");
 
@@ -66,16 +73,25 @@ export function AddContributers({
   const schema = z
     .object({
       email: z.string().email({ message: t("validEmail") }),
-      role: z.enum(["admin", "staff", "viewer"]),
+      role: z.enum(ROLES),
     })
     .strict();
 
   type PersonType = z.infer<typeof schema>;
 
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const [people, setPeople] = useState([] as AccessList[]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Support external or internal control
+  const isOpen = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setIsOpen = (open: boolean) => {
+    if (onExternalOpenChange) {
+      onExternalOpenChange(open);
+    }
+    setInternalOpen(open);
+  };
 
   const form = useForm<PersonType>({
     resolver: zodResolver(schema),
@@ -157,7 +173,7 @@ export function AddContributers({
           email,
           role: form.getValues().role,
           operation: "add",
-          journalId,
+          jid: journalId,
         })
           .then((result) => {
             if (result) {
@@ -189,7 +205,7 @@ export function AddContributers({
       email: people[idx].email,
       role: people[idx].role,
       operation: "remove",
-      journalId,
+      jid: journalId,
     })
       .then((result) => {
         if (result) {
@@ -210,11 +226,15 @@ export function AddContributers({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenHandler}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="icon" disabled={!journalId}>
-          <UserPlus2 className="h-5 w-5" />
-        </Button>
-      </DialogTrigger>
+      {/* Hide trigger when controlled externally (mobile dropdown opens the dialog) */}
+      {externalOpen === undefined && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" className="flex items-center gap-2 h-9" disabled={!journalId}>
+            <UserPlus2 size={16} />
+            <span className="hidden lg:inline-block">{t("title")}</span>
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="" onCloseAutoFocus={onClose}>
         <DialogHeader>
           <DialogTitle>{t("title")}</DialogTitle>
@@ -270,6 +290,9 @@ export function AddContributers({
                           <SelectContent>
                             <SelectItem value="admin">
                               {t("roles.admin")}
+                            </SelectItem>
+                            <SelectItem value="editor">
+                              {t("roles.editor")}
                             </SelectItem>
                             <SelectItem value="staff">
                               {t("roles.staff")}

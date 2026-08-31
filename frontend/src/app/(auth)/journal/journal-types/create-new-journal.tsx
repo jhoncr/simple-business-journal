@@ -30,15 +30,15 @@ import { functions, useAuth } from "@/lib/auth_handler";
 import {
   allowedCurrencySchema,
   contactInfoSchema,
-} from "@/../../backend/functions/src/common/schemas/common_schemas"; // Use common_schemas for currency/contact
+} from "@backend/common/schemas/common_schemas"; // Use common_schemas for currency/contact
 import {
   // JournalGroupSchema, // Removed
   businessDetailsSchema, // Import specific details schema
-} from "@/../../backend/functions/src/common/schemas/JournalSchema"; // Update path if needed
-import { JOURNAL_TYPES } from "@/../../backend/functions/src/common/const"; // Import JOURNAL_TYPES
+} from "@backend/common/schemas/JournalSchema"; // Update path if needed
+import { JOURNAL_TYPES } from "@backend/common/const"; // Import JOURNAL_TYPES
 import { LogoUpload } from "@/components/LogoUpload";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner"; // Import toast from sonner
+import { useToast } from "@/hooks/use-toast";
 import { useTranslations } from "next-intl";
 
 // --- Define Frontend Schema for the Form ---
@@ -82,6 +82,7 @@ export function CreateNewJournal({
   const router = useRouter();
   const t = useTranslations("newJournal");
   const tCommon = useTranslations("common");
+  const { toast } = useToast();
 
   // --- Initialize Form ---
   // Setup default values, mapping from potentially different initialData structure if needed
@@ -118,7 +119,6 @@ export function CreateNewJournal({
     } else if (!isEdit) {
       form.reset(defaultValues); // Reset to defaults when switching to create mode
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData, isEdit, form.reset]);
 
   // Add this effect to sync the business name and contact name
@@ -145,7 +145,7 @@ export function CreateNewJournal({
     };
 
     if (isEdit && journalId) {
-      payload.id = journalId;
+      payload.jid = journalId;
       // Optionally: Only send changed fields for updates?
       // This requires comparing 'data' with 'initialData'
     } else {
@@ -165,12 +165,12 @@ export function CreateNewJournal({
       const result = await callable(payload);
       console.log(`${functionName} successful:`, result.data);
 
-      toast.success(
-        t("successMessage", {
+      toast({
+        title: t("successMessage", {
           businessName: data.title,
           action: isEdit ? t("updated") : t("created"),
         }),
-      );
+      });
 
       form.reset(defaultValues); // Reset form to defaults after success
       setIsOpen(false);
@@ -186,12 +186,13 @@ export function CreateNewJournal({
       }
     } catch (error: any) {
       console.error(`${functionName} failed:`, error);
-      toast.error(
-        t("errorMessage", {
+      toast({
+        title: t("errorMessage", {
           action: isEdit ? t("updating") : t("creatingVerb"),
           error: error.message || t("unexpectedError"),
         }),
-      );
+        variant: "destructive",
+      });
     } finally {
       setPending(false);
     }

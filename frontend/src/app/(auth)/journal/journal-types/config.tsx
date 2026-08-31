@@ -1,7 +1,9 @@
-import { PencilRuler } from "lucide-react";
+import { PencilRuler, Box } from "lucide-react";
 import React from "react";
 import { AddNewEstimateBtn } from "./estimate/addEstimate";
 import { EstimateEntry } from "./estimate/EstimateEntry";
+import { AddNewTemplateBtn } from "./template/addTemplate";
+import { TemplateEntry } from "./template/TemplateEntry";
 import { DBentry } from "@/lib/custom_types";
 import { EntryViewProps } from "../comp/EntryView";
 
@@ -18,6 +20,12 @@ const JOURNAL_CONFIG: {
     title: "Estimates",
     entryComponent: EstimateEntry,
     addEntryForm: AddNewEstimateBtn,
+  },
+  template: {
+    icon: <Box className="h-4 w-4" />,
+    title: "Templates",
+    entryComponent: TemplateEntry,
+    addEntryForm: AddNewTemplateBtn,
   },
 };
 

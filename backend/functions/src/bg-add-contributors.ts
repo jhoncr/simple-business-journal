@@ -1,12 +1,12 @@
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
 import * as z from 'zod';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { JOURNAL_COLLECTION } from './common/const';
-import { JournalSchemaType } from './common/schemas/JournalSchema';
-import { ALLOWED } from './lib/bg-consts';
 import { ROLES } from './common/schemas/common_schemas';
+import { JournalSchemaType } from './common/schemas/JournalSchema';
+import { createAuditedCallable } from './helpers/audited-function';
 
 if (getApps().length === 0) {
   initializeApp();
@@ -14,104 +14,62 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 
-const SHARE_ROLES = new Set(['admin']);
 
 const updateShareRequest = z
   .object({
     email: z.string().email(),
     role: z.enum(ROLES),
     operation: z.enum(['add', 'remove']),
-    journalId: z.string(),
+    jid: z.string(),
   })
   .strict();
 
-interface Contributor {
-  role: string;
-  email: string;
-  displayName: string;
-  photoURL: string;
-  uid?: string;
-}
 
-// allow cors for all origins
-export const addContributor = onCall(
-  {
-    cors: ALLOWED,
-    enforceAppCheck: true,
-  },
+export const addContributor = createAuditedCallable(
+  'addContributor',
+  JOURNAL_COLLECTION,
+  ['admin'],
+  updateShareRequest,
   async (request) => {
     try {
       logger.info('addContributor called');
-      // return error if not authenticated
-      if (!request.auth) {
-        throw new HttpsError(
-          'unauthenticated',
-          'You must be signed in to add a message',
-        );
-      }
 
-      // check if the request.data is valid
-      const result = updateShareRequest.safeParse(request.data);
-      if (!result.success) {
-        throw new HttpsError(
-          'invalid-argument',
-          result.error.message, // Simplified error message
-        );
-      }
+      const data = request.data as z.infer<typeof updateShareRequest>;
+      const journalId = data.jid;
 
-      // get the journalId from the request
-      const journalId = result.data.journalId;
-      const uid = request.auth.uid;
-
-      // transaction to add the people to logDoc.access map
       await db.runTransaction(async (transaction) => {
-        // get the log document
         const logDocRef = db.collection(JOURNAL_COLLECTION).doc(journalId);
         const logDoc = await transaction.get(logDocRef);
 
-        // check if the log document exists
         if (!logDoc.exists) {
-          throw new HttpsError(
-            'not-found',
-            'The log document does not exist or you do not have access to it.',
-          );
+          throw new HttpsError('not-found', 'Journal not found or no access.');
         }
 
-        // check if the user is allowed to share a log entry
-        const logData = logDoc.data();
+        const logData = logDoc.data() as JournalSchemaType;
 
-        const hasAccess: { [uid: string]: Contributor } = logData?.access ?? {};
-        if (!(uid in hasAccess) || !SHARE_ROLES.has(hasAccess[uid].role)) {
-          throw new HttpsError(
-            'permission-denied',
-            'You do not have permission to add or remove contributors to this log entry.',
-          );
-        }
-
-        logger.info('User is allowed to share this journal');
-        logger.debug('logData', logData);
-        logger.debug('result.data.', result.data);
-
-        if (result.data.operation === 'add') {
+        if (data.operation === 'add') {
           handleAddOperation(
             transaction,
             logDocRef,
-            result.data,
-            logData as JournalSchemaType,
+            data,
+            logData,
           );
-        } else if (result.data.operation === 'remove') {
+        } else if (data.operation === 'remove') {
           handleRemoveOperation(
             transaction,
             logDocRef,
-            result.data,
-            logData as JournalSchemaType,
+            data,
+            logData,
           );
         }
       });
-      // return success
+
+      return {
+        id: journalId,
+        response: { result: 'ok', message: 'operation completed successfully' },
+      };
     } catch (error) {
       logger.log('Error adding contributors', error);
-      // check if errors is a https error
       if (error instanceof HttpsError) {
         throw error;
       }
@@ -120,13 +78,10 @@ export const addContributor = onCall(
         'Error adding contributors. Please try again later.',
       );
     }
-
-    // return ok
-    return { result: 'ok', message: 'operation completed successfully' };
   },
 );
 
-const handleAddOperation = async (
+const handleAddOperation = (
   transaction: FirebaseFirestore.Transaction,
   logDocRef: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>,
   data: z.infer<typeof updateShareRequest>,
@@ -135,7 +90,7 @@ const handleAddOperation = async (
   // check if the email is already in the access map, if so, only update the role
   const access = logData?.access ?? {};
 
-  const cur = Object.entries(access).find(([key, value]) => {
+  const cur = Object.entries(access).find(([, value]) => {
     return value.email === data.email;
   });
   if (cur) {
@@ -161,7 +116,7 @@ const handleAddOperation = async (
   const pendingAccess = logData?.pendingAccess ?? {};
   // Avoid overwriting if email already in pendingAccess, update role instead
   if (pendingAccess[escapedEmail] && pendingAccess[escapedEmail] !== data.role) {
-     logger.info(`Updating role for ${data.email} in pendingAccess to ${data.role}.`);
+    logger.info(`Updating role for ${data.email} in pendingAccess to ${data.role}.`);
   } else if (!pendingAccess[escapedEmail]) {
     logger.info(`Adding ${data.email} to pendingAccess with role ${data.role}.`);
   }
@@ -170,7 +125,7 @@ const handleAddOperation = async (
   });
 };
 
-const handleRemoveOperation = async (
+const handleRemoveOperation = (
   transaction: FirebaseFirestore.Transaction,
   logDocRef: FirebaseFirestore.DocumentReference<FirebaseFirestore.DocumentData>,
   data: z.infer<typeof updateShareRequest>,
@@ -179,7 +134,7 @@ const handleRemoveOperation = async (
   // Check if the email is in the access map (active contributor)
   const access = logData?.access ?? {};
   const contributorEntry = Object.entries(access).find(
-    ([_, value]) => value.email === data.email,
+    ([, value]) => value.email === data.email,
   );
 
   if (contributorEntry) {

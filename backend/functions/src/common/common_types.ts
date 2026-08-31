@@ -1,6 +1,5 @@
-import { AccessMap } from './schemas/common_schemas';
+import { AccessMap, ROLES } from './schemas/common_schemas';
 import { Timestamp } from 'firebase-admin/firestore';
-import { ROLES } from './schemas/common_schemas'; // Import ROLES
 
 export enum WorkStatus {
   DRAFT = 'DRAFT',
@@ -31,10 +30,10 @@ export interface EntryItf {
 // }
 
 export interface JournalUser {
-  displayName: string;
+  displayName?: string | null;
   role: (typeof ROLES)[number]; // Use ROLES type
   email: string;
-  photoURL: string;
+  photoURL?: string | null;
 }
 
 export interface JournalDocument {

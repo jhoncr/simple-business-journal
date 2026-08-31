@@ -14,12 +14,14 @@ interface JournalContextProps {
   journal: Journal | null | undefined; // undefined while loading, null if not found
   loading: boolean;
   error: string | null; // Add basic error state
+  jtype: string | null; // Current view type (estimate, template, etc.)
 }
 
 const JournalContext = createContext<JournalContextProps>({
   journal: undefined,
   loading: true,
   error: null,
+  jtype: null,
 });
 
 export const useJournalContext = () => useContext(JournalContext);
@@ -35,6 +37,7 @@ export const JournalProvider: React.FC<JournalProviderProps> = ({
 }) => {
   const searchParams = useSearchParams();
   const journalId = searchParams.get("jid"); // Read journalId from URL
+  const jtype = searchParams.get("jtype"); // Read jtype from URL
   const { journal: watchedJournal, loading: watchLoading } =
     useWatchJournal(journalId);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +55,7 @@ export const JournalProvider: React.FC<JournalProviderProps> = ({
     journal: watchedJournal,
     loading: watchLoading,
     error: error,
+    jtype: jtype,
   };
 
   return (

@@ -8,10 +8,9 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { JournalProvider, useJournalContext } from "@/context/JournalContext"; // Import provider and hook
-import { useSearchParams } from "next/navigation";
 import React, { Suspense } from "react"; // Import Suspense
 import Link from "next/link";
-import { Journal } from "@/lib/custom_types";
+import { useTranslations } from "next-intl";
 
 export default function JournalLayout({
   children,
@@ -19,22 +18,26 @@ export default function JournalLayout({
   children: React.ReactNode;
 }) {
   // const currentJournal = useJournalStore((state) => state.currentJournal);
+  const t = useTranslations("navigation");
 
   return (
     // Wrap with Suspense because JournalProvider uses useSearchParams
-    <Suspense fallback={<div>Loading journal context...</div>}>
+    <Suspense fallback={<div>{t("loadingContext")}</div>}>
       <JournalProvider>
-        <div className="flex flex-col w-full">
+        <div className="flex flex-col w-full flex-1 min-h-0 print:h-auto print:block print:overflow-visible">
           <JournalBreadcrumb /> {/* Render breadcrumbs that use the context */}
-          <div className="flex-grow">{children}</div>
+          <div className="flex-1 min-h-0 flex flex-col print:h-auto print:block print:overflow-visible">{children}</div>
         </div>
       </JournalProvider>
     </Suspense>
   );
 }
 function JournalBreadcrumb() {
-  const { journal } = useJournalContext(); // Use context hook
+  const t = useTranslations("navigation");
+  const { journal, jtype } = useJournalContext(); // Use context hook
   if (!journal) return null; // Don't render breadcrumbs if no journal
+
+  const journalLink = `/journal?jid=${journal.id}${jtype ? `&jtype=${jtype}` : ""}`;
 
   return (
     <div className="print:hidden">
@@ -42,19 +45,15 @@ function JournalBreadcrumb() {
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="/">Home</Link>
+              <Link href="/">{t("home")}</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
-          <BreadcrumbItem className="truncate">
+          <BreadcrumbItem className="truncate max-w-[150px] sm:max-w-[300px]">
             <BreadcrumbLink asChild>
-              <Link href={`/journal?jid=${journal.id}`}>{journal.title}</Link>
+              <Link href={journalLink}>{journal.title}</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
-          {/* <BreadcrumbSeparator />
-          <BreadcrumbItem className="truncate flex items-center space-x-1">
-            <span className="truncate">{journal.title}</span>
-          </BreadcrumbItem> */}
         </BreadcrumbList>
       </Breadcrumb>
     </div>

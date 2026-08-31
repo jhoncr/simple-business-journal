@@ -1,5 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# npm_output.log
+npm_output.log
+
 # dependencies
 /node_modules
 /.pnp
@@ -44,4 +47,4 @@ certificates
 .vscode/
 
 # remove .config.json
-**config.json
+src/lib/config.json
