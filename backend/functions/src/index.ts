@@ -5,6 +5,7 @@ import { acceptShare } from './bg-accept-share';
 import { deleteJournal, deleteEntry } from './bg-delete-entry'; // Import new functions
 import { createJournal, updateJournal } from './bg-journal-management'; // Updated import path
 import { duplicateEntry } from './bg-duplicate-entry'; // Import generic duplicate function
+import { mutatePayments } from './bg-payments'; // Import transactional payments function
 if (getApps().length === 0) {
   initializeApp();
 }
@@ -17,4 +18,5 @@ exports.acceptShare = acceptShare;
 exports.deleteJournal = deleteJournal; // Export new function
 exports.deleteEntry = deleteEntry; // Export new function
 exports.duplicateEntry = duplicateEntry; // Export generic duplicate function
+exports.mutatePayments = mutatePayments; // Export transactional payments function
 export * from './bg-template-cache';

@@ -1,15 +1,18 @@
 import { HttpsError } from 'firebase-functions/https';
 import type { SafeParseError } from 'zod';
 
-// TODO: CORS configuration should be made more restrictive for production environments.
-// Currently, it allows all origins. For production, specify allowed origins explicitly.
-const ALLOWED = ['*'];
-// The conditional addition of "http://localhost:3000" for development is redundant
-// if "*" is already present, as "*" includes localhost.
-// If specific origins are needed for production and localhost for development,
-// this logic should be:
+const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
 
-export { ALLOWED };
+/**
+ * CORS origins for callable functions.
+ *
+ * Production: only Firebase Hosting's default domains. If a custom domain is
+ * ever attached to hosting, add it here explicitly. The emulator allows
+ * localhost so local development keeps working.
+ */
+export const ALLOWED_ORIGINS: (string | RegExp)[] = isEmulator ?
+  [/^https?:\/\/localhost(:\d+)?$/, /^https?:\/\/127\.0\.0\.1(:\d+)?$/] :
+  [/\.web\.app$/, /\.firebaseapp\.com$/];
 
 /**
  * Handles a schema validation error by throwing an HttpsError with detailed information.
