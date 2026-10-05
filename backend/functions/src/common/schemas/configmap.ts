@@ -90,5 +90,14 @@ export const entrySchema = z.object({
     .min(3, { message: 'Name must be at least 3 characters.' })
     .max(254, { message: 'Name cannot exceed 254 characters.' }),
   details: z.unknown(), // Will be validated based on entryType
-  thumbnailBase64: z.string().optional(), // Top-level field for the upload
+  thumbnailBase64: z
+    .string()
+    .max(700_000, {
+      message: 'Thumbnail is too large (max ~500KB image).',
+    })
+    .optional(), // Top-level field for the upload
+  // Optimistic-concurrency guard for updates: the client sends the updatedAt
+  // (in millis) it loaded; the server rejects the write when the document has
+  // changed since, instead of silently overwriting with stale data.
+  expectedUpdatedAtMillis: z.number().int().positive().optional(),
 });
