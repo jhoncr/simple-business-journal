@@ -226,6 +226,7 @@
     "errors": {
       "correctCustomerDetails": "Por favor, corrija os detalhes do cliente antes de salvar.",
       "couldNotSave": "Não foi possível salvar o orçamento.",
+      "entryChangedElsewhere": "Alguém modificou este orçamento. Ele foi recarregado com as alterações mais recentes.",
       "currencyNotSet": "Não é possível salvar o orçamento, a moeda do diário não está definida.",
       "entryNotFound": "Entrada de orçamento não encontrada ou acesso negado.",
       "failedToLoadDetails": "Falha ao carregar detalhes do orçamento. Tente novamente.",
@@ -493,6 +494,7 @@
     "paymentRestored": "Pagamento restaurado com sucesso.",
     "paymentSaved": "Pagamento registrado com sucesso.",
     "paymentUpdated": "Pagamento atualizado com sucesso.",
+    "paymentFailed": "Falha no pagamento. Tente novamente.",
     "permanentDeleteDescription": "Esta ação não pode ser desfeita. O registro de pagamento será completamente removido.",
     "permanentDeleteTitle": "Excluir permanentemente este pagamento?",
     "pickDate": "Escolha uma data",
