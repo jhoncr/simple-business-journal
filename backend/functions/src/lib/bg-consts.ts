@@ -12,7 +12,7 @@ const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
  */
 export const ALLOWED_ORIGINS: (string | RegExp)[] = isEmulator ?
   [/^https?:\/\/localhost(:\d+)?$/, /^https?:\/\/127\.0\.0\.1(:\d+)?$/] :
-  [/\.web\.app$/, /\.firebaseapp\.com$/];
+  [/\.web\.app$/, /\.firebaseapp\.com$/, /\.j3cordeiro\.com$/];
 
 /**
  * Handles a schema validation error by throwing an HttpsError with detailed information.
