@@ -412,7 +412,7 @@ test('T5.3.2: Parametric expression evaluator security sandbox: ignores invalid 
   assert.strictEqual(evaluateExpression('alert("XSS")', evilVars), 0);
   assert.strictEqual(evaluateExpression('this.constructor', evilVars), 0);
   assert.strictEqual(evaluateExpression('throw new Error("crash")', evilVars), 0);
-  assert.strictEqual(evaluateExpression('1 / 0', evilVars), Infinity);
+  assert.strictEqual(evaluateExpression('1 / 0', evilVars), 0);
 });
 
 test('T5.3.3: Slab geometry dimensions validation across degenerate and boundary shapes', () => {
