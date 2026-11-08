@@ -226,6 +226,7 @@
     "errors": {
       "correctCustomerDetails": "Please correct customer details before saving.",
       "couldNotSave": "Could not save estimate.",
+      "entryChangedElsewhere": "Someone else modified this estimate. It has been reloaded with the latest changes.",
       "currencyNotSet": "Cannot save estimate, journal currency is not set.",
       "entryNotFound": "Estimate entry not found or access denied.",
       "failedToLoadDetails": "Failed to load estimate details. Please try again.",
@@ -493,6 +494,7 @@
     "paymentRestored": "Payment restored successfully.",
     "paymentSaved": "Payment recorded successfully.",
     "paymentUpdated": "Payment updated successfully.",
+    "paymentFailed": "Payment failed. Please try again.",
     "permanentDeleteDescription": "This action cannot be undone. The payment record will be completely removed.",
     "permanentDeleteTitle": "Permanently delete this payment?",
     "pickDate": "Pick a date",

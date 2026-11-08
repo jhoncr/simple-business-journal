@@ -9,6 +9,10 @@ service cloud.firestore {
     }
     
      // Function to check if a document is active (handles null case) at the document level
+    function entryIsActive() {
+       return !('isActive' in resource.data) || resource.data.isActive == true || resource.data.isActive == null;
+    }
+
     function isDocumentActive(docData) {
        return docData.isActive == true || docData.isActive == null;
     }
@@ -17,9 +21,21 @@ service cloud.firestore {
       allow read: if request.auth.uid in resource.data.access_array && 
                     (resource.data.isActive == true || resource.data.isActive == null);
 
-      match /{subcol}/{entryID} {
-        // Check if the user has access to the parent log, the parent log is active, AND entry is active.
-        allow read: if hasAccessAndIsActive(journalId) && (!('isActive' in resource.data) || resource.data.isActive == true || resource.data.isActive == null);
+      // Explicit per-subcollection rules. NOTE: security rules are OR-ed
+      // across matching blocks, so a wildcard matcher (e.g.
+      // /{subcol}/{entryID}) would ALSO match /events and re-grant access.
+      // The audit trail under /events must stay client-inaccessible (events
+      // contain full request payloads), so there is intentionally NO rule
+      // for /events: deny by default, backend writes via the Admin SDK.
+      match /estimates/{entryID} {
+        allow read: if hasAccessAndIsActive(journalId) && entryIsActive();
+      }
+      match /templates/{templateID} {
+        allow read: if hasAccessAndIsActive(journalId) && entryIsActive();
+      }
+      // Template gallery cache, read directly by the frontend.
+      match /fast-cache/{cacheDoc} {
+        allow read: if hasAccessAndIsActive(journalId);
       }
     }
   }

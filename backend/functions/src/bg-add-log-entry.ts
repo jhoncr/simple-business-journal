@@ -37,6 +37,7 @@ export const addLogFn = createAuditedCallable(
         details: rawDetails,
         entryId,
         thumbnailBase64,
+        expectedUpdatedAtMillis,
       } = request.data as z.infer<typeof entrySchema>;
 
       const uid = request.auth!.uid;
@@ -134,6 +135,7 @@ export const addLogFn = createAuditedCallable(
           baseEntry,
           validatedDetails,
           targetSubcollectionName,
+          expectedUpdatedAtMillis,
         );
         return { id: journalId, response: res };
       } else {
@@ -197,10 +199,13 @@ async function _addEntry(
     logger.info(
       `${entryType} entry successfully added to ${targetSubcollectionName} in journal ${journalId}`,
     );
+    // Read back so the client can seed its optimistic-concurrency version.
+    const snap = await docRef.get();
     return {
       result: 'ok',
       message: 'Entry added successfully',
       id: docRef.id,
+      updatedAtMillis: snap.data()?.updatedAt?.toMillis?.() ?? null,
     };
   } catch (error) {
     logger.error('Error adding entry: ', error);
@@ -232,6 +237,7 @@ async function _updateEntry(
   >,
   validatedDetails: Record<string, unknown>,
   targetSubcollectionName: string, // For logging
+  expectedUpdatedAtMillis?: number | null,
 ) {
   try {
     await db.runTransaction(async (transaction) => {
@@ -242,6 +248,23 @@ async function _updateEntry(
           'not-found',
           `Entry ${entryId} not found in ${targetSubcollectionName}.`,
         );
+      }
+      // Optimistic-concurrency guard: when the client tells us which version
+      // it loaded, refuse to overwrite a newer server version instead of
+      // silently dropping the other writer's changes (last-writer-wins).
+      if (expectedUpdatedAtMillis != null) {
+        const currentMillis = existingEntryDoc
+          .data()
+          ?.updatedAt?.toMillis?.();
+        if (
+          typeof currentMillis === 'number' &&
+          currentMillis !== expectedUpdatedAtMillis
+        ) {
+          throw new HttpsError(
+            'failed-precondition',
+            'This entry was modified by someone else. Please reload and try again.',
+          );
+        }
       }
       // Consider adding check if user is allowed to edit (e.g., createdBy === uid or role allows)
 
@@ -255,10 +278,13 @@ async function _updateEntry(
     logger.info(
       `Entry ${entryId} in ${targetSubcollectionName} updated successfully`,
     );
+    // Read back the new version so the client can keep its guard in sync.
+    const snap = await entriesColRef.doc(entryId).get();
     return {
       result: 'ok',
       message: 'Entry updated successfully',
       id: entryId,
+      updatedAtMillis: snap.data()?.updatedAt?.toMillis?.() ?? null,
     };
   } catch (error) {
     logger.error('Transaction failed during update: ', error);

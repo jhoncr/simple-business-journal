@@ -45,6 +45,29 @@ const addLogFn = httpsCallable(functions, ADD_LOG_FN_NAME, {
   limitedUseAppCheckTokens: true,
 });
 
+// Transactional payment mutations (see backend/functions/src/bg-payments.ts).
+// Unlike the generic addLogFn path, this mutates ONLY the payments array
+// inside a server transaction, so concurrent writers can't clobber payments.
+const mutatePaymentsFn = httpsCallable(functions, "mutatePayments", {
+  limitedUseAppCheckTokens: true,
+});
+
+interface ServerPayment {
+  id?: string;
+  amount?: number | null;
+  date?: number | null;
+  method?: string | null;
+  transactionId?: string | null;
+  notes?: string | null;
+  createdAt?: number | null;
+  createdBy?: string | null;
+  updatedAt?: number | null;
+  updatedBy?: string | null;
+  deletedAt?: number | null;
+  deletedBy?: string | null;
+  isDeleted?: boolean | null;
+}
+
 interface UseEstimateProps {
   journalId: string;
   entryId?: string | null;
@@ -82,6 +105,11 @@ export const useEstimate = ({
   const [entryId, setEntryId] = useState<string | null | undefined>(
     initialEntryId,
   );
+  // Version the client last saw, for the server's optimistic-concurrency guard
+  // (expectedUpdatedAtMillis). Refreshed on load, save, and payment mutation.
+  const [entryUpdatedAtMillis, setEntryUpdatedAtMillis] = useState<
+    number | null
+  >(null);
   const [entryError, setEntryError] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<LineItem | null>(null);
 
@@ -113,10 +141,7 @@ export const useEstimate = ({
       "viewer") as (typeof ROLES)[number];
   }, [authUser, journal]);
 
-  useEffect(() => {
-    setEntryId(initialEntryId);
-
-    async function loadEntryData() {
+  const loadEntryData = useCallback(async () => {
       setLoading(true);
       setEntryError(null);
 
@@ -155,6 +180,9 @@ export const useEstimate = ({
               ? entry.createdAt.toDate()
               : null;
             setCreatedAt(newCreatedAt);
+            setEntryUpdatedAtMillis(
+              entry.updatedAt ? entry.updatedAt.toMillis() : null,
+            );
             console.log("Fetched estimate entry createdAt:", newCreatedAt);
             const processedDetails = {
               ...details,
@@ -208,11 +236,19 @@ export const useEstimate = ({
         setLoading(false);
         setCanUpdate(true); // Allow creating a new estimate
         setCreatedAt(new Date()); // Set created date for new estimate
+        setEntryUpdatedAtMillis(null);
       }
-    }
+  }, [journalId, initialEntryId, jtype, t]);
 
+  useEffect(() => {
+    setEntryId(initialEntryId);
     loadEntryData();
-  }, [journalId, initialEntryId, jtype, START_STATE, t]);
+  }, [loadEntryData, initialEntryId]);
+
+  // Reload the entry from the server (used after a version-conflict rejection).
+  const reloadEntry = useCallback(async () => {
+    await loadEntryData();
+  }, [loadEntryData]);
 
   const validateCustomer = async () => {
     if (customerRef.current) {
@@ -273,19 +309,28 @@ export const useEstimate = ({
       }),
       details: detailsValidation.data,
       ...(entryId && { entryId }),
+      // Optimistic-concurrency guard: the server rejects the write when the
+      // entry changed since we loaded it, instead of silently overwriting.
+      ...(entryId && entryUpdatedAtMillis != null
+        ? { expectedUpdatedAtMillis: entryUpdatedAtMillis }
+        : {}),
     };
   };
 
   const handleSaveSuccess = (
-    result: { data?: { id?: string } } | unknown,
+    result: { data?: { id?: string; updatedAtMillis?: number | null } } | unknown,
     validatedDetails: estimateDetailsState,
   ) => {
-    const returnedId = (result as { data?: { id?: string } })?.data?.id;
+    const data = (result as { data?: { id?: string; updatedAtMillis?: number | null } })?.data;
+    const returnedId = data?.id;
     if (returnedId && !entryId) {
       setEntryId(returnedId);
       const url = new URL(window.location.href);
       url.searchParams.set("eid", returnedId);
       router.replace(url.toString(), { scroll: false });
+    }
+    if (typeof data?.updatedAtMillis === "number") {
+      setEntryUpdatedAtMillis(data.updatedAtMillis);
     }
     toast({
       description: t("estimateSaved", {
@@ -298,6 +343,18 @@ export const useEstimate = ({
 
   const handleSaveError = (error: unknown) => {
     console.error("Error saving estimate:", error);
+    const code = (error as { code?: string } | null)?.code;
+    if (code === "failed-precondition") {
+      // Version conflict: someone else modified the entry. Reload so the
+      // user sees the latest state instead of unknowingly overwriting it.
+      toast({
+        description: t("errors.entryChangedElsewhere"),
+        variant: "destructive",
+      });
+      setIsSaving(false);
+      reloadEntry();
+      return false;
+    }
     const errorMessage =
       error instanceof Error ? error.message : t("errors.couldNotSave");
     toast({
@@ -505,80 +562,206 @@ export const useEstimate = ({
     [journalCurrency],
   );
 
-  const handleAddPayment = async (payment: Payment): Promise<boolean> => {
-    const newPayment: Payment = {
-      ...payment,
-      id: payment.id || crypto.randomUUID(),
-      createdAt: payment.createdAt || new Date(),
-      createdBy: authUser?.email || authUser?.uid || null,
-      isDeleted: false,
-    };
-    const updatedPayments = [...payments, newPayment];
+  const applyServerPayments = useCallback((serverPayments: ServerPayment[]) => {
+    setPayments(
+      serverPayments.map(
+        (p) =>
+          ({
+            ...p,
+            date: parseDateField(p.date),
+            createdAt: parseDateField(p.createdAt),
+            updatedAt: parseDateField(p.updatedAt),
+            deletedAt: parseDateField(p.deletedAt),
+          }) as Payment,
+      ),
+    );
+  }, []);
+
+  /**
+   * Runs a payment mutation through the transactional `mutatePayments`
+   * callable and syncs canonical server state back. No optimistic local
+   * writes: the server is the source of truth for the payments array.
+   */
+  const runPaymentMutation = useCallback(
+    async (
+      op: {
+        add?: Array<Record<string, unknown>>;
+        update?: Array<Record<string, unknown>>;
+        void?: string[];
+        restore?: string[];
+      },
+      successKey: string,
+    ): Promise<boolean> => {
+      if (!entryId || !journalId) return false;
+      try {
+        const res = await mutatePaymentsFn({ jid: journalId, entryId, ...op });
+        const data = (
+          res as {
+            data?: {
+              payments?: ServerPayment[];
+              updatedAtMillis?: number | null;
+            };
+          }
+        ).data;
+        if (!data || !Array.isArray(data.payments)) {
+          throw new Error("Invalid response from mutatePayments");
+        }
+        applyServerPayments(data.payments);
+        if (typeof data.updatedAtMillis === "number") {
+          setEntryUpdatedAtMillis(data.updatedAtMillis);
+        }
+        toast({ description: tPayments(successKey) });
+        return true;
+      } catch (error) {
+        console.error("Payment mutation failed:", error);
+        const code = (error as { code?: string } | null)?.code;
+        if (code === "failed-precondition") {
+          toast({
+            description: t("errors.entryChangedElsewhere"),
+            variant: "destructive",
+          });
+          reloadEntry();
+        } else {
+          toast({
+            description: tPayments("paymentFailed"),
+            variant: "destructive",
+          });
+        }
+        return false;
+      }
+    },
+    [
+      entryId,
+      journalId,
+      applyServerPayments,
+      reloadEntry,
+      tPayments,
+      t,
+      toast,
+    ],
+  );
+
+  // Legacy path for not-yet-saved estimates: apply locally and persist via
+  // the full estimate save (which creates the entry). Reverts local state
+  // when the save fails.
+  const legacySavePayments = async (
+    updatedPayments: Payment[],
+    successKey: string,
+  ): Promise<boolean> => {
+    const previous = payments;
     setPayments(updatedPayments);
     const success = await handleSave({ payments: updatedPayments });
     if (success) {
-      toast({ description: tPayments("paymentSaved") });
+      toast({ description: tPayments(successKey) });
+    } else {
+      setPayments(previous);
     }
     return success;
   };
 
-  const handleUpdatePayment = async (updatedPayment: Payment): Promise<boolean> => {
-    const updatedPayments = payments.map((p) =>
-      p.id === updatedPayment.id
-        ? {
-            ...p,
-            ...updatedPayment,
-            updatedAt: new Date(),
-            updatedBy: authUser?.email || authUser?.uid || null,
-          }
-        : p,
-    );
-    setPayments(updatedPayments);
-    const success = await handleSave({ payments: updatedPayments });
-    if (success) {
-      toast({ description: tPayments("paymentUpdated") });
+  // Strips server-managed fields the client must not send for new payments.
+  const toNewPaymentInput = (payment: Payment): Record<string, unknown> => {
+    const input: Record<string, unknown> = {
+      ...(payment as unknown as Record<string, unknown>),
+    };
+    delete input.id;
+    delete input.createdAt;
+    delete input.createdBy;
+    delete input.updatedAt;
+    delete input.updatedBy;
+    delete input.deletedAt;
+    delete input.deletedBy;
+    delete input.isDeleted;
+    if (input.date instanceof Date) {
+      input.date = input.date.toISOString();
     }
-    return success;
+    return input;
+  };
+
+  const handleAddPayment = async (payment: Payment): Promise<boolean> => {
+    // Legacy path for not-yet-saved estimates: bundle the payment into the
+    // full estimate save (which creates the entry).
+    const addLocally = async (): Promise<boolean> => {
+      const newPayment: Payment = {
+        ...payment,
+        id: payment.id || crypto.randomUUID(),
+        createdAt: payment.createdAt || new Date(),
+        createdBy: authUser?.email || authUser?.uid || null,
+        isDeleted: false,
+      };
+      return legacySavePayments([...payments, newPayment], "paymentSaved");
+    };
+    if (!entryId) return addLocally();
+    return runPaymentMutation(
+      { add: [toNewPaymentInput(payment)] },
+      "paymentSaved",
+    );
+  };
+
+  const handleUpdatePayment = async (
+    updatedPayment: Payment,
+  ): Promise<boolean> => {
+    if (!entryId) {
+      const updatedPayments = payments.map((p) =>
+        p.id === updatedPayment.id
+          ? {
+              ...p,
+              ...updatedPayment,
+              updatedAt: new Date(),
+              updatedBy: authUser?.email || authUser?.uid || null,
+            }
+          : p,
+      );
+      return legacySavePayments(updatedPayments, "paymentUpdated");
+    }
+    if (!updatedPayment.id) return false;
+    const { id, ...rest } = updatedPayment as Record<string, unknown> & {
+      id: string;
+    };
+    const patch: Record<string, unknown> = { id };
+    for (const key of ["amount", "date", "method", "transactionId", "notes"]) {
+      if (rest[key] !== undefined) patch[key] = rest[key];
+    }
+    if (patch.date instanceof Date) {
+      patch.date = (patch.date as Date).toISOString();
+    }
+    return runPaymentMutation({ update: [patch] }, "paymentUpdated");
   };
 
   const handleDeletePayment = async (paymentId: string): Promise<boolean> => {
-    const updatedPayments = payments.map((p) =>
-      p.id === paymentId
-        ? {
-            ...p,
-            deletedAt: new Date(),
-            deletedBy: authUser?.email || authUser?.uid || null,
-            isDeleted: true,
-          }
-        : p,
-    );
-    setPayments(updatedPayments);
-    const success = await handleSave({ payments: updatedPayments });
-    if (success) {
-      toast({ description: tPayments("paymentDeleted") });
+    if (!entryId) {
+      const updatedPayments = payments.map((p) =>
+        p.id === paymentId
+          ? {
+              ...p,
+              deletedAt: new Date(),
+              deletedBy: authUser?.email || authUser?.uid || null,
+              isDeleted: true,
+            }
+          : p,
+      );
+      return legacySavePayments(updatedPayments, "paymentDeleted");
     }
-    return success;
+    return runPaymentMutation({ void: [paymentId] }, "paymentDeleted");
   };
 
   const handleRestorePayment = async (paymentId: string): Promise<boolean> => {
-    const updatedPayments = payments.map((p) =>
-      p.id === paymentId
-        ? {
-            ...p,
-            deletedAt: null,
-            deletedBy: null,
-            isDeleted: false,
-            updatedAt: new Date(),
-            updatedBy: authUser?.email || authUser?.uid || null,
-          }
-        : p,
-    );
-    setPayments(updatedPayments);
-    const success = await handleSave({ payments: updatedPayments });
-    if (success) {
-      toast({ description: tPayments("paymentRestored") });
+    if (!entryId) {
+      const updatedPayments = payments.map((p) =>
+        p.id === paymentId
+          ? {
+              ...p,
+              deletedAt: null,
+              deletedBy: null,
+              isDeleted: false,
+              updatedAt: new Date(),
+              updatedBy: authUser?.email || authUser?.uid || null,
+            }
+          : p,
+      );
+      return legacySavePayments(updatedPayments, "paymentRestored");
     }
-    return success;
+    return runPaymentMutation({ restore: [paymentId] }, "paymentRestored");
   };
 
   return {

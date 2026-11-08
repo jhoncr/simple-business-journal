@@ -3,7 +3,24 @@ import { z } from 'zod';
 export const CutoutShapeSchema = z.enum(['rectangular', 'circular', 'oval']);
 export type CutoutShape = z.infer<typeof CutoutShapeSchema>;
 
-export const ExpressionSchema = z.union([z.string(), z.number()]);
+// Allowlist for template expressions: numbers, identifiers, whitespace and the
+// arithmetic operators + - * / with parentheses only. This is the server-side
+// line of defense (expressions are also evaluated with a sandboxed parser on
+// the client, see frontend/src/lib/evaluator.ts). Anything else — quotes,
+// semicolons, braces, backticks — is rejected so stored expressions can never
+// smuggle executable JavaScript to other collaborators' browsers.
+const SAFE_EXPRESSION_RE = /^[\w$+\-*/().\s]+$/;
+
+export const ExpressionSchema = z.union([
+  z.number(),
+  z
+    .string()
+    .max(500, 'Expression is too long')
+    .regex(
+      SAFE_EXPRESSION_RE,
+      'Expression contains unsupported characters. Only numbers, variable names and + - * / ( ) are allowed.',
+    ),
+]);
 export type Expression = z.infer<typeof ExpressionSchema>;
 
 export const EdgeTypeSchema = z.enum(['front', 'back', 'left', 'right']);
