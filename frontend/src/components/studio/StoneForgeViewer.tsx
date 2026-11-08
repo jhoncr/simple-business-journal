@@ -9,12 +9,14 @@ import { evaluateExpression } from "../../lib/evaluator";
 import { Slab3D } from "./Slab3D";
 import { useTranslations } from "next-intl";
 
-interface StoneForgeViewerProps {
+export interface StoneForgeViewerProps {
   components: SlabComponent[];
   variables: Record<string, number>;
   printMode?: boolean;
   fixedCameraView?: CameraView;
   focusTargetName?: string;
+  onSnapshot?: (dataUrl: string) => void;
+  onSnapshotReady?: (dataUrl: string) => void;
 }
 
 const CameraController = ({ focusTargetName, variables, components }: { focusTargetName?: string, variables: any, components: any }) => {
@@ -409,19 +411,139 @@ const calculateMinY = (
   return minY;
 };
 
+/**
+ * Component running inside R3F <Canvas> that forces immediate WebGL context disposal
+ * when unmounting in print mode, releasing hardware context back to browser pool.
+ */
+function WebGLContextDisposer({ printMode }: { printMode?: boolean }) {
+  const { gl } = useThree();
+
+  useEffect(() => {
+    return () => {
+      if (printMode) {
+        try {
+          // Native Three.js forceContextLoss invokes WEBGL_lose_context extension
+          (gl as any).forceContextLoss?.();
+        } catch {
+          // fallback
+        }
+        try {
+          const ext = gl.getContext()?.getExtension("WEBGL_lose_context");
+          ext?.loseContext();
+        } catch {
+          // fallback
+        }
+        try {
+          gl.dispose?.();
+        } catch {
+          // fallback
+        }
+      }
+    };
+  }, [gl, printMode]);
+
+  return null;
+}
+
+/**
+ * Component running inside R3F <Canvas> and <Suspense> that captures a clean frame
+ * after PresetCameraFitter has positioned the camera and R3F renders.
+ */
+function SnapshotCapture({
+  onSnapshot,
+}: {
+  onSnapshot: (dataUrl: string) => void;
+}) {
+  const { gl, scene, camera, size } = useThree();
+  const capturedRef = useRef(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    let frameCount = 0;
+    let animId: number;
+
+    const checkAndCapture = () => {
+      if (!isMounted || capturedRef.current) return;
+
+      if (!size.width || !size.height) {
+        animId = requestAnimationFrame(checkAndCapture);
+        return;
+      }
+
+      frameCount++;
+      // Wait at least 3 animation frames for camera positioning and scene settle
+      if (frameCount < 3) {
+        animId = requestAnimationFrame(checkAndCapture);
+        return;
+      }
+
+      try {
+        gl.render(scene, camera);
+        const dataUrl = gl.domElement.toDataURL("image/png");
+        capturedRef.current = true;
+        onSnapshot(dataUrl);
+      } catch (err) {
+        console.error("Snapshot capture failed:", err);
+        capturedRef.current = true;
+        onSnapshot("");
+      }
+    };
+
+    // 100ms baseline timeout to allow camera positioning effect to execute
+    const timer = setTimeout(() => {
+      animId = requestAnimationFrame(checkAndCapture);
+    }, 100);
+
+    // 3s safety timeout to ensure queue never hangs
+    const safetyTimer = setTimeout(() => {
+      if (isMounted && !capturedRef.current) {
+        try {
+          gl.render(scene, camera);
+          const dataUrl = gl.domElement.toDataURL("image/png");
+          capturedRef.current = true;
+          onSnapshot(dataUrl);
+        } catch {
+          capturedRef.current = true;
+          onSnapshot("");
+        }
+      }
+    }, 3000);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+      clearTimeout(safetyTimer);
+      cancelAnimationFrame(animId);
+    };
+  }, [gl, scene, camera, size.width, size.height, onSnapshot]);
+
+  return null;
+}
+
 export const StoneForgeViewer = ({
   components,
   variables,
   printMode = false,
   fixedCameraView,
   focusTargetName,
+  onSnapshot,
+  onSnapshotReady,
 }: StoneForgeViewerProps) => {
   const t = useTranslations("studio");
+  const handleSnapshotCallback = onSnapshotReady || onSnapshot;
+
   const minY = useMemo(() => {
     return calculateMinY(components, variables);
   }, [components, variables]);
 
   const hasFocusTarget = Boolean(focusTargetName || fixedCameraView?.focusTargetId);
+
+  // If no components exist, fire snapshot callback immediately so queue does not stall
+  useEffect(() => {
+    if ((!components || components.length === 0) && handleSnapshotCallback) {
+      handleSnapshotCallback("");
+    }
+  }, [components, handleSnapshotCallback]);
 
   if (!components || components.length === 0) {
     return (
@@ -440,6 +562,7 @@ export const StoneForgeViewer = ({
         gl={{ antialias: true, preserveDrawingBuffer: true }}
         dpr={printMode ? [2, 4] : [1, 2]}
       >
+        <WebGLContextDisposer printMode={printMode} />
         <React.Suspense fallback={null}>
           <Environment preset="city" />
           <Bounds fit={!hasFocusTarget && !fixedCameraView} observe={!hasFocusTarget && !fixedCameraView} margin={1.35}>
@@ -469,6 +592,9 @@ export const StoneForgeViewer = ({
               />
             ))}
           </Bounds>
+          {printMode && handleSnapshotCallback && (
+            <SnapshotCapture onSnapshot={handleSnapshotCallback} />
+          )}
         </React.Suspense>
 
         <OrbitControls

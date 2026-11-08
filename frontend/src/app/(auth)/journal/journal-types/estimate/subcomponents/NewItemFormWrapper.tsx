@@ -48,7 +48,7 @@ export function NewItemFormWrapper({
   const [isOpen, setIsOpen] = useState(false);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const templateJustSelectedRef = useRef(false);
-  const isDesktop = useMediaQuery("(min-width: 1340px)");
+  const isDesktop = useMediaQuery("(min-width: 1280px)");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const params = useParams();
   const searchParams = useSearchParams();
