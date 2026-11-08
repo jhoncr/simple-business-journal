@@ -142,19 +142,34 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
     }
   }, [items.length, drawingItems.length, isReady, onReadyToPrint]);
 
-  // Fallback safety timeout so print dialog is never blocked indefinitely
+  // Fallback safety timeout scaled dynamically with view count so print dialog is never blocked indefinitely
   useEffect(() => {
     if ((items.length > 0 || drawingItems.length > 0) && allViewKeys.length > 0) {
+      const timeoutDuration = Math.max(10000, allViewKeys.length * 3500);
       const timer = setTimeout(() => {
         if (!onReadyCalledRef.current) {
           console.warn("Print ready fallback triggered after timeout");
           onReadyCalledRef.current = true;
           onReadyToPrint?.();
         }
-      }, 7000);
+      }, timeoutDuration);
       return () => clearTimeout(timer);
     }
   }, [items.length, drawingItems.length, allViewKeys.length, onReadyToPrint]);
+
+  // Inactivity watchdog timer: triggers fallback only if no view progress is made for 5000ms
+  useEffect(() => {
+    if ((items.length > 0 || drawingItems.length > 0) && allViewKeys.length > 0 && !isReady) {
+      const watchdogTimer = setTimeout(() => {
+        if (!onReadyCalledRef.current) {
+          console.warn("Print ready watchdog triggered after 5000ms inactivity");
+          onReadyCalledRef.current = true;
+          onReadyToPrint?.();
+        }
+      }, 5000);
+      return () => clearTimeout(watchdogTimer);
+    }
+  }, [items.length, drawingItems.length, allViewKeys.length, activeQueueIndex, isReady, onReadyToPrint]);
 
   const renderViewCard = (
     key: string,
@@ -166,7 +181,14 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
     const snapshotUrl = snapshots[key];
     const isActive = key === activeKey;
 
-    if (snapshotUrl) {
+    if (snapshotUrl !== undefined) {
+      if (snapshotUrl === "") {
+        return (
+          <div className="flex items-center justify-center h-full text-xs text-muted-foreground italic">
+            View unavailable
+          </div>
+        );
+      }
       return (
         // eslint-disable-next-line @next/next/no-img-element
         <img
