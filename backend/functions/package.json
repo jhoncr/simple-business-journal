@@ -4,7 +4,7 @@
     "lint": "eslint --ext .ts,.js .",
     "link:fix": "eslint --fix --ext .ts,.js .",
     "build": "tsc",
-    "test": "npm run build && node --test tests/test_audit_sanitize.js tests/test_expression_schema.js tests/test_payment_math.js tests/test_safe_evaluator.js tests/test_duplicate_entry.js",
+    "test": "npm run build && node --test tests/test_audit_sanitize.js tests/test_expression_schema.js tests/test_payment_math.js tests/test_safe_evaluator.js tests/test_duplicate_entry.js tests/test_labor_type_schema.js tests/test_postal_code_schema.js tests/test_financial_math.js tests/test_csv_export_formatting.js",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",

@@ -10,6 +10,7 @@ import { EntryType } from "@backend/common/schemas/configmap";
 import { DBentry, AccessUser } from "@/lib/custom_types";
 import { WorkStatus } from "@backend/common/common_types";
 import { formatCurrency, formattedDate, cn } from "@/lib/utils";
+import { calculateEstimateFinancials } from "@/lib/financials";
 import Link from "next/link";
 import { WorkStatusBadge } from "./subcomponents/estimateStatus";
 import { ClipboardList } from "lucide-react"; // Icon for estimate
@@ -61,44 +62,12 @@ export const EstimateEntry = React.memo(function EstimateEntry({
     taxPercentage = 0, // Destructure taxPercentage, default to 0
   } = details;
 
-  // Calculate item subtotal
-  const itemSubtotal = confirmedItems.reduce(
-    (sum, item) => sum + item.quantity * (item.material?.unitPrice || 0),
-    0,
-  );
-
-  // Calculate adjustment amount (following InvoiceBottomLines logic)
-  const calculateAdjustmentAmount = (adjustment: Adjustment): number => {
-    if (!adjustment || typeof adjustment.value !== "number") return 0;
-    const value = adjustment.value;
-    const calculations = {
-      addFixed: () => value || 0,
-      addPercent: () => ((itemSubtotal || 0) * value) / 100,
-      discountFixed: () => -(value || 0),
-      discountPercent: () => -((itemSubtotal || 0) * value) / 100,
-      taxPercent: () => 0, // this is a tax percentage, not an adjustment
-    };
-    return calculations[adjustment.type]?.() ?? 0;
-  };
-
-  // Calculate total adjustments
-  const totalAdjustments = adjustments.reduce(
-    (sum, adjustment) => sum + (calculateAdjustmentAmount(adjustment) || 0),
-    0,
-  );
-
-  // Calculate grand total (following InvoiceBottomLines logic)
-  const totalBeforeTax = itemSubtotal + totalAdjustments;
-  const taxAmount = (totalBeforeTax * taxPercentage) / 100;
-  const grandTotal = totalBeforeTax + taxAmount;
-
-  const activePayments = payments.filter(
-    (payment) => !payment.deletedAt && !payment.isDeleted,
-  );
-  const totalPaid = activePayments.reduce(
-    (sum, payment) => sum + (payment.amount || 0),
-    0,
-  );
+  const { grandTotal, activePayments, totalPaid } = calculateEstimateFinancials({
+    items: confirmedItems,
+    adjustments,
+    taxPercentage,
+    payments,
+  });
 
   return (
     <EntryView

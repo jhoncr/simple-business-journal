@@ -24,6 +24,8 @@ export const allowedCurrencySchema = z.enum(['USD', 'BRL'], {
 
 export type allowedCurrencySchemaType = z.infer<typeof allowedCurrencySchema>;
 
+export const POSTAL_CODE_REGEX = /^(\d{5}(-\d{4})?|\d{5}-?\d{3}|\d{9})$/;
+
 export const contactInfoSchema = z.object({
   name: z
     .string()
@@ -65,8 +67,8 @@ export const contactInfoSchema = z.object({
       .or(z.literal('')),
     zipCode: z
       .string()
-      .regex(/^\d{5}(-\d{0,4})?$/, {
-        message: 'Please enter a valid ZIP code',
+      .regex(POSTAL_CODE_REGEX, {
+        message: 'Please enter a valid ZIP code or CEP',
       })
       .optional()
       .nullable()

@@ -8,10 +8,9 @@ import { ItemTypeSelector } from "./ItemTypeSelector";
 import { DimensionsInput } from "./DimensionsInput";
 import { LaborInput } from "./LaborInput";
 import { formatCurrency } from "@/lib/utils";
-import { LineItem } from "@backend/common/schemas/estimate_schema";
+import { LineItem, LaborType, AttachedTemplate } from "@backend/common/schemas/estimate_schema";
 import { allowedCurrencySchemaType, ROLES } from "@backend/common/schemas/common_schemas";
 import { ROLES_THAT_ADD } from "@backend/common/const";
-import { AttachedTemplate } from "@backend/common/schemas/estimate_schema";
 
 export interface NewItemFormRootProps {
   onAddItem: (items: LineItem[]) => Promise<boolean>;
@@ -70,27 +69,45 @@ export const NewItemForm = forwardRef<NewItemFormHandle, NewItemFormRootProps>(
         const laborUnitPrice = laborItem.material.unitPrice;
         const materialTotal = item.quantity * (material?.unitPrice || 0);
 
-        if (laborItem.quantity === 1 && materialTotal > 0) {
-          const possiblePercentage = Number(
-            ((laborUnitPrice / materialTotal) * 100).toFixed(2),
-          );
-          if (
-            possiblePercentage >= 0 &&
-            possiblePercentage <= 100 &&
-            Math.abs(materialTotal * (possiblePercentage / 100) - laborUnitPrice) < 0.01
-          ) {
-            laborType = "percentage";
-            laborRate = possiblePercentage;
+        // Prioritize persisted laborType from child labor item or parent line item
+        const persistedLaborType = laborItem.laborType || item.laborType;
+
+        if (persistedLaborType) {
+          laborType = persistedLaborType;
+          if (laborType === "percentage") {
+            laborRate =
+              materialTotal > 0
+                ? Number(((laborUnitPrice / materialTotal) * 100).toFixed(2))
+                : 0;
+          } else if (laborType === "quantity") {
+            laborRate = laborUnitPrice;
+          } else if (laborType === "fixed") {
+            laborRate = Number((laborUnitPrice * laborItem.quantity).toFixed(2));
+          }
+        } else {
+          // Backward-compatibility fallback for legacy items saved without laborType
+          if (laborItem.quantity === 1 && materialTotal > 0) {
+            const possiblePercentage = Number(
+              ((laborUnitPrice / materialTotal) * 100).toFixed(2),
+            );
+            if (
+              possiblePercentage >= 0 &&
+              possiblePercentage <= 100 &&
+              Math.abs(materialTotal * (possiblePercentage / 100) - laborUnitPrice) < 0.01
+            ) {
+              laborType = "percentage";
+              laborRate = possiblePercentage;
+            } else {
+              laborType = "fixed";
+              laborRate = laborUnitPrice;
+            }
+          } else if (laborItem.quantity === item.quantity) {
+            laborType = "quantity";
+            laborRate = laborUnitPrice;
           } else {
             laborType = "fixed";
-            laborRate = laborUnitPrice;
+            laborRate = laborUnitPrice * laborItem.quantity;
           }
-        } else if (laborItem.quantity === item.quantity) {
-          laborType = "quantity";
-          laborRate = laborUnitPrice;
-        } else {
-          laborType = "fixed";
-          laborRate = laborUnitPrice * laborItem.quantity;
         }
       }
 
@@ -226,6 +243,7 @@ export const NewItemForm = forwardRef<NewItemFormHandle, NewItemFormRootProps>(
         },
         itemCategory: values.itemCategory,
         attachedTemplate: attachedTemplate,
+        laborType: values.laborType !== "null" ? (values.laborType as LaborType) : null,
       };
     },
     [currency, editingItem, attachedTemplate],
@@ -259,6 +277,7 @@ export const NewItemForm = forwardRef<NewItemFormHandle, NewItemFormRootProps>(
         id: existingLaborItem?.id || crypto.randomUUID(),
         parentId: parentItem.id,
         quantity: Number(laborQuantity.toFixed(2)),
+        laborType: values.laborType as LaborType,
         description: getLaborDescription(
           values.laborType as "percentage" | "fixed" | "quantity",
           values.laborRate,

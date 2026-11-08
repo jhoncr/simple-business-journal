@@ -43,6 +43,11 @@ import {
 import { cn, formattedDate, formatCurrency } from "@/lib/utils";
 import { Payment } from "@backend/common/schemas/estimate_schema";
 import { allowedCurrencySchemaType, ROLES } from "@backend/common/schemas/common_schemas";
+import {
+  getActivePayments,
+  calculatePaymentsTotal,
+  calculateBalanceDue,
+} from "@/lib/financials";
 import { ROLES_THAT_ADD } from "@backend/common/const";
 import { useTranslations } from "next-intl";
 import { PaymentDialog } from "./PaymentDialog";
@@ -88,7 +93,7 @@ export const Payments = ({
 
   // Filter active and voided payments
   const activePayments = useMemo(
-    () => payments.filter((p) => !p.deletedAt && !p.isDeleted),
+    () => getActivePayments(payments),
     [payments],
   );
   const voidedPayments = useMemo(
@@ -97,12 +102,12 @@ export const Payments = ({
   );
 
   const totalPaid = useMemo(
-    () => activePayments.reduce((sum, p) => sum + (p.amount || 0), 0),
-    [activePayments],
+    () => calculatePaymentsTotal(payments),
+    [payments],
   );
 
   const balanceDue = useMemo(
-    () => (grandTotal || 0) - totalPaid,
+    () => calculateBalanceDue(grandTotal, totalPaid),
     [grandTotal, totalPaid],
   );
 
@@ -185,19 +190,19 @@ export const Payments = ({
         </Badge>
       );
     }
-    if (totalPaid >= grandTotal && grandTotal > 0) {
-      return (
-        <Badge className="bg-green-600 hover:bg-green-700 text-white gap-1">
-          <CheckCircle2 className="h-3 w-3" />
-          {t("status.paid")}
-        </Badge>
-      );
-    }
     if (totalPaid > grandTotal) {
       return (
         <Badge className="bg-purple-600 hover:bg-purple-700 text-white gap-1">
           <AlertCircle className="h-3 w-3" />
           {t("status.credit")}
+        </Badge>
+      );
+    }
+    if (totalPaid >= grandTotal && grandTotal > 0) {
+      return (
+        <Badge className="bg-green-600 hover:bg-green-700 text-white gap-1">
+          <CheckCircle2 className="h-3 w-3" />
+          {t("status.paid")}
         </Badge>
       );
     }

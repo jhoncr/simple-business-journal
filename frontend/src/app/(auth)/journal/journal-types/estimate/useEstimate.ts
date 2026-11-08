@@ -25,6 +25,17 @@ import {
 import { useAuth } from "@/lib/auth_handler";
 import { useJournalContext } from "@/context/JournalContext";
 import { ContactInfoRef } from "./subcomponents/ContactInfo";
+import {
+  calculateSubtotal as calcSubtotal,
+  calculateAdjustmentAmount as calcAdjustmentAmount,
+  calculateAdjustments,
+  calculateTotalBeforeTax,
+  calculateTax,
+  calculateGrandTotal,
+  getActivePayments,
+  calculatePaymentsTotal,
+  calculateBalanceDue,
+} from "@/lib/financials";
 
 const ADD_LOG_FN_NAME = "addLogFn";
 const ESTIMATE_ENTRY_TYPE = "estimate";
@@ -490,66 +501,45 @@ export const useEstimate = ({
   };
 
   const calculateSubtotal = useCallback(() => {
-    console.debug("Calculating subtotal for items:", confirmedItems);
-    return confirmedItems.reduce(
-      (sum, item) =>
-        sum +
-        (item.quantity || 0) *
-        (item.material?.unitPrice ? Number(item.material.unitPrice) : 0),
-      0,
-    );
+    return calcSubtotal(confirmedItems);
   }, [confirmedItems]);
 
   const itemSubtotal = useMemo(() => calculateSubtotal(), [calculateSubtotal]);
 
   const calculateAdjustmentAmount = useCallback(
     (adjustment: Adjustment): number => {
-      if (!adjustment || typeof adjustment.value !== "number") return 0;
-      const value = adjustment.value;
-      const calculations = {
-        addFixed: () => value || 0,
-        addPercent: () => ((itemSubtotal || 0) * value) / 100,
-        discountFixed: () => -(value || 0),
-        discountPercent: () => -((itemSubtotal || 0) * value) / 100,
-        taxPercent: () => 0,
-      };
-      return calculations[adjustment.type]?.() ?? 0;
+      return calcAdjustmentAmount(adjustment, itemSubtotal);
     },
     [itemSubtotal],
   );
 
   const totalAdjustments = useMemo(
-    () =>
-      adjustments.reduce(
-        (sum, adjustment) =>
-          sum + (calculateAdjustmentAmount(adjustment) || 0),
-        0,
-      ),
-    [adjustments, calculateAdjustmentAmount],
+    () => calculateAdjustments(itemSubtotal, adjustments),
+    [itemSubtotal, adjustments],
   );
 
   const { totalBeforeTax, taxAmount, grandTotal } = useMemo(() => {
-    const totalBeforeTax = (itemSubtotal || 0) + (totalAdjustments || 0);
-    const taxAmount = ((totalBeforeTax || 0) * (taxPercentage || 0)) / 100;
+    const totalBeforeTax = calculateTotalBeforeTax(itemSubtotal, totalAdjustments);
+    const taxAmount = calculateTax(totalBeforeTax, taxPercentage);
     return {
       totalBeforeTax,
       taxAmount,
-      grandTotal: totalBeforeTax + taxAmount,
+      grandTotal: calculateGrandTotal(totalBeforeTax, taxAmount),
     };
   }, [itemSubtotal, totalAdjustments, taxPercentage]);
 
   const activePayments = useMemo(
-    () => payments.filter((p) => !p.deletedAt && !p.isDeleted),
+    () => getActivePayments(payments),
     [payments],
   );
 
   const totalPaid = useMemo(
-    () => activePayments.reduce((sum, payment) => sum + (payment.amount || 0), 0),
-    [activePayments],
+    () => calculatePaymentsTotal(payments),
+    [payments],
   );
 
   const balanceDue = useMemo(
-    () => grandTotal - totalPaid,
+    () => calculateBalanceDue(grandTotal, totalPaid),
     [grandTotal, totalPaid],
   );
 

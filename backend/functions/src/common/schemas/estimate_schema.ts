@@ -62,6 +62,8 @@ export const materialSchema = z.object({
   labor: z.unknown().optional(),
 });
 
+export const laborTypeSchema = z.enum(['percentage', 'fixed', 'quantity']);
+
 export const lineItemSchema = z.object({
   id: z.string(),
   parentId: z.string(),
@@ -88,6 +90,9 @@ export const lineItemSchema = z.object({
 
   // Optional attached template snapshot
   attachedTemplate: attachedTemplateSchema.optional().nullable(),
+
+  // Optional labor calculation type
+  laborType: laborTypeSchema.optional().nullable(),
 });
 
 export const adjustmentSchema = z.object({
@@ -126,6 +131,7 @@ export const estimateDetailsStateSchema = z.object({
 export type estimateDetailsState = z.infer<typeof estimateDetailsStateSchema>;
 export type contactInfoSchemaType = z.infer<typeof contactInfoSchema>;
 export type LineItem = z.infer<typeof lineItemSchema>;
+export type LaborType = z.infer<typeof laborTypeSchema>;
 export type Adjustment = z.infer<typeof adjustmentSchema>;
 export type Payment = z.infer<typeof paymentSchema>;
 // Add the type export

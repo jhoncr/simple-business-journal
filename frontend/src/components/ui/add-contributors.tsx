@@ -1,4 +1,6 @@
-import { useState } from "react";
+"use client";
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -46,11 +48,19 @@ import { SharableLink } from "@/components/ui/sharable-link";
 
 type AccessList = { email: string; role: string; is_pending?: boolean };
 
-// Define the hostname for sharing links
-const HOSTNAME =
-  process.env.NODE_ENV === "development"
-    ? "http://localhost:3000"
-    : "https://nm.j3cordeiro.com";
+// Resolve hostname dynamically from window origin, env var, or dev fallback
+export function getAppOrigin(): string {
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return window.location.origin;
+  }
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+  if (process.env.NODE_ENV === "development") {
+    return "http://localhost:3000";
+  }
+  return "";
+}
 
 export function AddContributers({
   journalId,
@@ -83,6 +93,11 @@ export function AddContributers({
   const [people, setPeople] = useState([] as AccessList[]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [origin, setOrigin] = useState<string>("");
+
+  useEffect(() => {
+    setOrigin(getAppOrigin());
+  }, []);
 
   // Support external or internal control
   const isOpen = externalOpen !== undefined ? externalOpen : internalOpen;
@@ -221,8 +236,14 @@ export function AddContributers({
       });
   };
 
-  // Generate the share link
-  const shareLink = journalId ? `${HOSTNAME}/share?journal=${journalId}` : "";
+  // Generate the share link dynamically from runtime origin
+  const baseOrigin = origin || getAppOrigin();
+  const shareLink =
+    journalId && baseOrigin
+      ? `${baseOrigin}/share?journal=${journalId}`
+      : journalId
+        ? `/share?journal=${journalId}`
+        : "";
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenHandler}>
