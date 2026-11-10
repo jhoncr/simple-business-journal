@@ -306,3 +306,44 @@ test('WebGL context disposal executes safely without throwing', () => {
     disposeMockGL(throwingGL, true);
   });
 });
+
+// 6. Snapshot dimension label compositing & queue reset on template switch
+test('StoneForgeViewer.tsx composites 2D dimension labels onto print snapshots and uses 6-axis midpoint padding', () => {
+  const rootDir = path.resolve(__dirname, '../../../');
+  const viewerPath = path.join(
+    rootDir,
+    'frontend/src/components/studio/StoneForgeViewer.tsx',
+  );
+  const content = fs.readFileSync(viewerPath, 'utf8');
+
+  assert.ok(
+    content.includes('function collectDimensionLabelsWorld'),
+    'StoneForgeViewer.tsx must collect 3D dimension labels in world space',
+  );
+  assert.ok(
+    content.includes('function compositeSnapshotWithLabels'),
+    'StoneForgeViewer.tsx must composite 2D dimension label badges onto snapshot canvas',
+  );
+  assert.ok(
+    content.includes('geom.midpoint[0] - pad, geom.midpoint[1], geom.midpoint[2]'),
+    'StoneForgeViewer.tsx must use 6-axis midpoint padding so isometric projections do not collapse label bounds',
+  );
+});
+
+test('TemplatePrintLayout.tsx resets snapshot queue when template or variable overrides change', () => {
+  const rootDir = path.resolve(__dirname, '../../../');
+  const layoutPath = path.join(
+    rootDir,
+    'frontend/src/components/studio/TemplatePrintLayout.tsx',
+  );
+  const content = fs.readFileSync(layoutPath, 'utf8');
+
+  assert.ok(
+    content.includes('itemsSignature'),
+    'TemplatePrintLayout.tsx must compute itemsSignature to detect template/variable changes',
+  );
+  assert.ok(
+    content.includes('allViewKeys.find((k) => snapshots[k] === undefined)'),
+    'TemplatePrintLayout.tsx must select the first unresolved view key so no view is ever skipped',
+  );
+});

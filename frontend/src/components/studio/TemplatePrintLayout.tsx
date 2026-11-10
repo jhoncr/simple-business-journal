@@ -98,6 +98,24 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
 }) => {
   const t = useTranslations("estimate");
 
+  // Signature of templates and variable overrides to detect live edits / template switches
+  const itemsSignature = useMemo(() => {
+    return JSON.stringify(
+      items.map((item) => ({
+        id: item.id,
+        templateId: item.template?.id,
+        templateName: item.template?.name,
+        views: (item.template?.cameraViews || []).map((v) => ({
+          id: v.id,
+          preset: v.preset,
+          focusTargetId: v.focusTargetId,
+          zoomMultiplier: v.zoomMultiplier,
+        })),
+        overrides: item.variableOverrides || {},
+      }))
+    );
+  }, [items]);
+
   // Precompute all view keys across all items for sequential snapshotting
   const allViewKeys = useMemo(() => {
     const keys: string[] = [];
@@ -124,8 +142,25 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
   const [snapshots, setSnapshots] = useState<Record<string, string>>({});
   const [activeQueueIndex, setActiveQueueIndex] = useState<number>(0);
 
-  const activeKey = allViewKeys[activeQueueIndex] ?? null;
-  const isReady = allViewKeys.length === 0 || activeQueueIndex >= allViewKeys.length;
+  // Reset snapshots and queue index whenever the template or variable overrides change
+  const prevSignatureRef = useRef<string>(itemsSignature);
+  useEffect(() => {
+    if (prevSignatureRef.current !== itemsSignature) {
+      prevSignatureRef.current = itemsSignature;
+      setSnapshots({});
+      setActiveQueueIndex(0);
+      onReadyCalledRef.current = false;
+    }
+  }, [itemsSignature]);
+
+  // Always pick the first unresolved view key so no view can ever be skipped or stuck on "Loading view..."
+  const activeKey = useMemo(() => {
+    return allViewKeys.find((k) => snapshots[k] === undefined) ?? allViewKeys[activeQueueIndex] ?? null;
+  }, [allViewKeys, snapshots, activeQueueIndex]);
+
+  const isReady =
+    allViewKeys.length === 0 ||
+    (activeQueueIndex >= allViewKeys.length && allViewKeys.every((k) => snapshots[k] !== undefined));
   const onReadyCalledRef = useRef(false);
 
   const handleSnapshot = useCallback((key: string, url: string) => {
@@ -202,6 +237,7 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
     if (isActive) {
       return (
         <StoneForgeViewer
+          key={`${key}:${itemsSignature}`}
           components={components}
           variables={variables}
           printMode={true}
@@ -259,7 +295,7 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
             .td-view-card { break-inside: avoid; }
             .td-dimensions { break-inside: avoid; }
             .td-item-header { break-after: avoid; }
-            .td-item-page { page-break-after: always; break-after: page; min-height: 0 !important; height: auto !important; }
+            .td-item-page { page-break-after: always; break-after: page; }
             .td-item-page:last-child { page-break-after: auto; break-after: auto; }
             .td-drawing-page { page-break-before: always; break-before: page; min-height: 0 !important; height: auto !important; }
             .td-drawing-group { break-inside: avoid; }
@@ -299,7 +335,7 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
 
             return (
               <React.Fragment key={item.id}>
-                <div className="td-item-page px-4 pb-4 flex flex-col min-h-[500px] lg:min-h-[600px] print:min-h-0 print:h-auto">
+                <div className="td-item-page px-4 pb-4 flex flex-col min-h-[680px] lg:min-h-[740px] print:min-h-[190mm] print:h-[190mm]">
                   <PageHeader />
 
                   <div className="border rounded overflow-hidden border-gray-300 flex-1 flex flex-col mt-2">
