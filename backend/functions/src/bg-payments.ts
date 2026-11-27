@@ -26,7 +26,10 @@ import { ENTRY_CONFIG } from './common/schemas/configmap';
 import {
   paymentSchema,
 } from './common/schemas/estimate_schema';
-import { firestoreDateSchema } from './common/schemas/common_schemas';
+import {
+  docIdSchema,
+  firestoreDateSchema,
+} from './common/schemas/common_schemas';
 import {
   computeGrandTotal,
   totalPaidFor,
@@ -55,7 +58,11 @@ const newPaymentInputSchema = paymentSchema.omit({
 const paymentPatchSchema = z
   .object({
     id: z.string().min(1),
-    amount: z.number().positive('Payment amount must be positive.').optional(),
+    amount: z
+      .number()
+      .finite()
+      .positive('Payment amount must be positive.')
+      .optional(),
     date: firestoreDateSchema.optional(),
     method: z.string().max(60).optional().nullable(),
     transactionId: z.string().max(120).optional().nullable(),
@@ -65,8 +72,8 @@ const paymentPatchSchema = z
 
 const mutatePaymentsSchema = z
   .object({
-    jid: z.string().min(1),
-    entryId: z.string().min(1),
+    jid: docIdSchema,
+    entryId: docIdSchema,
     add: z.array(newPaymentInputSchema).max(50).optional(),
     update: z.array(paymentPatchSchema).max(50).optional(),
     void: z.array(z.string().min(1)).max(50).optional(),
@@ -83,10 +90,17 @@ const mutatePaymentsSchema = z
     { message: 'At least one payment operation is required.' },
   );
 
+type PaymentRecord = Record<string, unknown>;
+
 /** Normalizes Firestore Timestamps/Dates/numbers/ISO strings to millis for the callable response. */
-export function toMillis(value: any): number | null {
+export function toMillis(value: unknown): number | null {
   if (value === null || value === undefined) return null;
-  if (typeof value?.toMillis === 'function') return value.toMillis();
+  if (
+    typeof value === 'object' &&
+    typeof (value as { toMillis?: unknown }).toMillis === 'function'
+  ) {
+    return (value as { toMillis: () => number }).toMillis();
+  }
   if (value instanceof Date) return value.getTime();
   if (typeof value === 'number') return value;
   if (typeof value === 'string') {
@@ -97,19 +111,19 @@ export function toMillis(value: any): number | null {
 }
 
 /** Strips keys whose value is undefined so Firestore never rejects optional fields. */
-function stripUndefined<T extends Record<string, any>>(obj: T): Partial<T> {
+function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
   const out: Partial<T> = {};
   for (const [key, value] of Object.entries(obj)) {
     if (value !== undefined) {
-      (out as Record<string, any>)[key] = value;
+      (out as Record<string, unknown>)[key] = value;
     }
   }
   return out;
 }
 
 /** Normalizes Firestore Timestamps/Dates to millis for the callable response. */
-function paymentToMillis(payment: Record<string, any>): Record<string, any> {
-  const out = { ...payment };
+function paymentToMillis(payment: PaymentRecord): PaymentRecord {
+  const out: PaymentRecord = { ...payment };
   for (const key of ['date', 'createdAt', 'updatedAt', 'deletedAt']) {
     if (key in out) out[key] = toMillis(out[key]);
   }
@@ -129,11 +143,11 @@ export type PaymentMutationOps = {
  * Firestore rejects inside arrays). Exported for unit tests.
  */
 export function applyPaymentMutations(
-  details: Record<string, any>,
+  details: Record<string, unknown>,
   ops: PaymentMutationOps,
   uid: string,
   paymentNow: Timestamp = Timestamp.now(),
-): Record<string, any>[] {
+): PaymentRecord[] {
   const {
     add = [],
     update = [],
@@ -141,18 +155,23 @@ export function applyPaymentMutations(
     restoreIds = [],
   } = ops;
 
-  const payments: Record<string, any>[] = Array.isArray(details.payments) ?
-    details.payments.map((p) => ({ ...p })) :
+  // Backfill missing IDs on legacy payments so pre-migration estimates do not fail
+  // uniqueness validation when new payment mutations are applied.
+  const payments: PaymentRecord[] = Array.isArray(details.payments) ?
+    (details.payments as PaymentRecord[]).map((p) => ({
+      ...p,
+      id: typeof p.id === 'string' && p.id.trim() ? p.id : randomUUID(),
+    })) :
     [];
-  const byId = new Map<string, Record<string, any>>(
+  const byId = new Map<string, PaymentRecord>(
     payments.map((p) => [String(p.id), p]),
   );
 
   // --- ADD: server assigns id + audit fields; client input already zod-validated ---
   for (const input of add) {
     const id = randomUUID();
-    const created = {
-      ...stripUndefined(input),
+    const created: PaymentRecord = {
+      ...stripUndefined(input as Record<string, unknown>),
       id,
       createdAt: paymentNow,
       createdBy: uid,
@@ -181,7 +200,7 @@ export function applyPaymentMutations(
     }
     // patch.id already equals target.id (we looked it up by id), so
     // assigning the stripped patch is safe.
-    Object.assign(target, stripUndefined(patch), {
+    Object.assign(target, stripUndefined(patch as Record<string, unknown>), {
       updatedAt: paymentNow,
       updatedBy: uid,
     });
@@ -245,10 +264,14 @@ export function applyPaymentMutations(
       );
     }
     seen.add(String(p.id));
-    if (typeof p.amount !== 'number' || !(p.amount > 0)) {
+    if (
+      typeof p.amount !== 'number' ||
+      !Number.isFinite(p.amount) ||
+      !(p.amount > 0)
+    ) {
       throw new HttpsError(
         'invalid-argument',
-        'Payment amounts must be positive numbers.',
+        'Payment amounts must be positive finite numbers.',
       );
     }
   }
@@ -271,9 +294,7 @@ export const mutatePayments = createAuditedCallable(
   mutatePaymentsSchema,
   async (request) => {
     const uid = request.auth!.uid;
-    // Parse through mutatePaymentsSchema so firestoreDateSchema converts ISO
-    // date strings into Date objects (persisted as Firestore Timestamps).
-    const data = mutatePaymentsSchema.parse(request.data);
+    // request.data is already parsed through mutatePaymentsSchema by createAuditedCallable
     const {
       jid: journalId,
       entryId,
@@ -281,7 +302,7 @@ export const mutatePayments = createAuditedCallable(
       update = [],
       void: voidIds = [],
       restore: restoreIds = [],
-    } = data;
+    } = request.data;
 
     const { allowedRoles, subcollection } = ENTRY_CONFIG.estimate;
     const entryRef = db
@@ -321,7 +342,7 @@ export const mutatePayments = createAuditedCallable(
         );
       }
 
-      const details = (entryData.details ?? {}) as Record<string, any>;
+      const details = (entryData.details ?? {}) as Record<string, unknown>;
       // Firestore forbids FieldValue.serverTimestamp() inside arrays, so use
       // concrete Timestamp.now() for per-payment audit fields and keep
       // FieldValue.serverTimestamp() for the top-level document updatedAt.
@@ -344,7 +365,7 @@ export const mutatePayments = createAuditedCallable(
     const snap = await entryRef.get();
     const snapData = snap.data() ?? {};
     const outPayments = (
-      (snapData.details?.payments ?? []) as Record<string, any>[]
+      (snapData.details?.payments ?? []) as PaymentRecord[]
     ).map(paymentToMillis);
 
     logger.info(

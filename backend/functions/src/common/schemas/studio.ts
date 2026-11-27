@@ -12,7 +12,7 @@ export type CutoutShape = z.infer<typeof CutoutShapeSchema>;
 const SAFE_EXPRESSION_RE = /^[\w$+\-*/().\s]+$/;
 
 export const ExpressionSchema = z.union([
-  z.number(),
+  z.number().finite(),
   z
     .string()
     .max(500, 'Expression is too long')
@@ -40,9 +40,10 @@ export const DimensionLabelSchema = z.object({
   id: z.string(),
   type: z.literal('dimension_label'),
   name: z.string(),
-  edge: z.string(),
+  // Supports all edge identifiers: front, back, left, right, custom, top-*, bottom-*, front-*, back-*
+  edge: z.string().min(1).max(64),
   text: ExpressionSchema,
-  offset: z.number().default(15),
+  offset: z.number().finite().default(15),
   startPos: z.tuple([ExpressionSchema, ExpressionSchema, ExpressionSchema]).optional(),
   endPos: z.tuple([ExpressionSchema, ExpressionSchema, ExpressionSchema]).optional(),
   offsetDirection: z.tuple([ExpressionSchema, ExpressionSchema, ExpressionSchema]).optional(),
@@ -58,9 +59,9 @@ const baseComponentSchema = z.object({
   thickness: ExpressionSchema,
   position: z.tuple([ExpressionSchema, ExpressionSchema, ExpressionSchema]),
   rotation: z.tuple([ExpressionSchema, ExpressionSchema, ExpressionSchema]).optional(),
-  cutouts: z.array(CutoutSchema),
-  dimensionLabels: z.array(DimensionLabelSchema).optional(),
-  polishedEdges: z.array(EdgeTypeSchema).optional(),
+  cutouts: z.array(CutoutSchema).max(100),
+  dimensionLabels: z.array(DimensionLabelSchema).max(100).optional(),
+  polishedEdges: z.array(EdgeTypeSchema).max(16).optional(),
 });
 
 export type SlabComponent = z.infer<typeof baseComponentSchema> & {
@@ -71,13 +72,13 @@ export type SlabComponent = z.infer<typeof baseComponentSchema> & {
 // or mutually recursive schemas to prevent TypeScript compiler instantiation depth errors,
 // while keeping the external type signature (`z.ZodType<SlabComponent>`) intact.
 export const SlabComponentSchema: z.ZodType<SlabComponent> = baseComponentSchema.extend({
-  children: z.lazy(() => z.array(SlabComponentSchema)).optional(),
+  children: z.lazy(() => z.array(SlabComponentSchema).max(100)).optional(),
 }) as any;
 
 export const AssemblyVariableSchema = z.object({
   id: z.string(),
   label: z.string(),
-  default: z.number(),
+  default: z.number().finite(),
   min: ExpressionSchema.optional(),
   max: ExpressionSchema.optional(),
 });
@@ -91,7 +92,7 @@ export const CameraViewSchema = z.object({
     'iso-bfr', 'iso-bfl', 'iso-bbr', 'iso-bbl',
   ]).default('iso-tfr'),
   focusTargetId: z.string().optional(),
-  zoomMultiplier: z.number().optional().default(1),
+  zoomMultiplier: z.number().finite().positive().optional().default(1),
   isDefault: z.boolean(),
 });
 export type CameraView = z.infer<typeof CameraViewSchema>;
@@ -100,9 +101,9 @@ export const AssemblyTemplateSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().max(200).optional(),
-  variables: z.array(AssemblyVariableSchema),
-  components: z.array(SlabComponentSchema),
-  cameraViews: z.array(CameraViewSchema).optional(),
+  variables: z.array(AssemblyVariableSchema).max(100),
+  components: z.array(SlabComponentSchema).max(200),
+  cameraViews: z.array(CameraViewSchema).max(50).optional(),
   thumbnailUrl: z.string().optional(),
 });
 export type AssemblyTemplate = z.infer<typeof AssemblyTemplateSchema>;

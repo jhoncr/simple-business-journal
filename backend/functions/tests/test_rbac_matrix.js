@@ -1,5 +1,5 @@
 const { ROLES } = require('../lib/common/schemas/common_schemas');
-const { ROLES_ADMIN, ROLES_THAT_ADD, ROLES_CAN_DELETE } = require('../lib/common/const');
+const { ROLES_THAT_ADD, ROLES_CAN_DELETE } = require('../lib/common/const');
 const { ENTRY_CONFIG } = require('../lib/common/schemas/configmap');
 const z = require('zod');
 
@@ -26,7 +26,6 @@ function runRBACMatrixTests() {
   assert(ROLES.includes('viewer'), 'ROLES includes viewer');
   assert(ROLES.length === 4, 'ROLES has exactly 4 roles');
 
-  assert(ROLES_ADMIN.has('admin') && !ROLES_ADMIN.has('editor') && !ROLES_ADMIN.has('staff') && !ROLES_ADMIN.has('viewer'), 'ROLES_ADMIN contains only admin');
   assert(ROLES_THAT_ADD.has('admin') && ROLES_THAT_ADD.has('editor') && ROLES_THAT_ADD.has('staff') && !ROLES_THAT_ADD.has('viewer'), 'ROLES_THAT_ADD contains admin, editor, staff');
   assert(ROLES_CAN_DELETE.has('admin') && ROLES_CAN_DELETE.has('editor') && !ROLES_CAN_DELETE.has('staff') && !ROLES_CAN_DELETE.has('viewer'), 'ROLES_CAN_DELETE contains admin, editor');
 

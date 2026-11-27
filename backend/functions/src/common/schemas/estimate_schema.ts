@@ -10,7 +10,7 @@ import { AssemblyTemplateSchema } from './studio';
 export const attachedTemplateSchema = z.object({
   sourceTemplateId: z.string(), // Keep a reference just in case we want to show "Based on: [Name]"
   snapshot: AssemblyTemplateSchema, // The deep copy of the template structure
-  variableOverrides: z.record(z.string(), z.number()).optional(), // User's variable changes
+  variableOverrides: z.record(z.string(), z.number().finite()).optional(), // User's variable changes
 });
 export type AttachedTemplate = z.infer<typeof attachedTemplateSchema>;
 
@@ -26,10 +26,10 @@ export const currencySchema = z
 
 export const paymentSchema = z.object({
   id: z.string().optional(),
-  amount: z.number().positive('Payment amount must be positive.'),
+  amount: z.number().finite().positive('Payment amount must be positive.'),
   date: firestoreDateSchema,
-  method: z.string().optional().nullable(),
-  transactionId: z.string().optional().nullable(),
+  method: z.string().max(60).optional().nullable(),
+  transactionId: z.string().max(120).optional().nullable(),
   notes: z
     .string()
     .max(500, { message: 'Notes must be less than 500 characters' })
@@ -47,7 +47,7 @@ export const paymentSchema = z.object({
 export const materialSchema = z.object({
   id: z.string(),
   description: z.string(),
-  unitPrice: z.number(),
+  unitPrice: z.number().finite().nonnegative(),
   dimensions: z.object({
     type: z.enum(['area', 'unit']),
     unitLabel: z.enum(['m²', 'ft²', 'unit']),
@@ -55,7 +55,7 @@ export const materialSchema = z.object({
   serviceFee: z
     .object({
       type: z.enum(['percent', 'fixed', 'perUnit', 'none']),
-      value: z.number().nonnegative(),
+      value: z.number().finite().nonnegative(),
     })
     .optional(), // Make serviceFee optional to handle legacy data
   currency: currencyCodeSchema,
@@ -67,11 +67,11 @@ export const laborTypeSchema = z.enum(['percentage', 'fixed', 'quantity']);
 export const lineItemSchema = z.object({
   id: z.string(),
   parentId: z.string(),
-  quantity: z.number().nonnegative(),
+  quantity: z.number().finite().nonnegative(),
   dimensions: z
     .object({
-      length: z.number().nonnegative().optional().nullable(),
-      width: z.number().nonnegative().optional().nullable(),
+      length: z.number().finite().nonnegative().optional().nullable(),
+      width: z.number().finite().nonnegative().optional().nullable(),
     })
     .optional()
     .nullable(),
@@ -103,7 +103,7 @@ export const adjustmentSchema = z.object({
     'discountFixed',
     'taxPercent',
   ]),
-  value: z.number().nonnegative(),
+  value: z.number().finite().nonnegative(),
   description: z.string(),
 });
 
@@ -116,7 +116,7 @@ export const estimateDetailsStateSchema = z.object({
   supplier: contactInfoSchema,
   logo: z.string().nullable(),
   adjustments: z.array(adjustmentSchema),
-  taxPercentage: z.number().nonnegative(),
+  taxPercentage: z.number().finite().nonnegative(),
   currency: currencyCodeSchema,
   notes: z
     .string()

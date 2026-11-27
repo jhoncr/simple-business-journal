@@ -7,7 +7,6 @@ const {
   UserSchema,
   pendingAccessSchema,
   ROLES,
-  traceSchema,
   contactInfoSchema,
   addressSchema,
   allowedCurrencySchema,
@@ -36,7 +35,6 @@ const {
   entryTypeSchema,
 } = require('../lib/common/schemas/configmap');
 const {
-  ROLES_ADMIN,
   ROLES_THAT_ADD,
   ROLES_CAN_DELETE,
 } = require('../lib/common/const');
@@ -208,25 +206,24 @@ test('T5.1.6: Object.create(null) and prototype-free objects flatten cleanly wit
   assert.strictEqual(flattened['normal.key'], 'val');
 });
 
-test('T5.1.7: Dot characters, emojis, Unicode, and numeric keys in object property names', () => {
-  const input = {
-    'user.name': 'Alice',
+test('T5.1.7: Emojis, Unicode, and numeric keys flatten cleanly while dot keys are rejected', () => {
+  const safeInput = {
     'contact@domain': 'test',
     '🎉_celebration': true,
     '0': 'zero',
     'nested': {
-      'sub.key': 'deep',
       '日本語': 'japanese',
     },
   };
 
-  const flattened = flattenToDotNotation(input);
-  assert.strictEqual(flattened['user.name'], 'Alice');
+  const flattened = flattenToDotNotation(safeInput);
   assert.strictEqual(flattened['contact@domain'], 'test');
   assert.strictEqual(flattened['🎉_celebration'], true);
   assert.strictEqual(flattened['0'], 'zero');
-  assert.strictEqual(flattened['nested.sub.key'], 'deep');
   assert.strictEqual(flattened['nested.日本語'], 'japanese');
+
+  assert.throws(() => flattenToDotNotation({ 'user.name': 'Alice' }), /must not contain "\."/);
+  assert.throws(() => flattenToDotNotation({ nested: { 'sub.key': 'deep' } }), /must not contain "\."/);
 });
 
 // ============================================================================

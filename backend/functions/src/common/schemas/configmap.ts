@@ -1,15 +1,7 @@
 import * as z from 'zod';
-// import { BABY_ENTRY_TYPES } from "../const"; // TODO: Fix missing BabySchema.ts or BABY_ENTRY_TYPES export and re-enable baby entry types.
-// import {
-//   napDetailsSchema,
-//   diaperDetailsSchema,
-//   feedDetailsSchema,
-//   growthDetailsSchema,
-// } from "./BabySchema"; // Updated import path // TODO: Fix missing BabySchema.ts or BABY_ENTRY_TYPES export and re-enable baby entry types.
 import { estimateDetailsStateSchema } from './estimate_schema';
-// import { invoiceDetailsSchema } from "./invoice_schema";
 import { AssemblyTemplateSchema } from './studio';
-import { ROLES } from './common_schemas';
+import { docIdSchema, ROLES } from './common_schemas';
 
 // Define an interface for entry configuration
 interface EntryConfig<T extends z.ZodTypeAny> {
@@ -17,7 +9,7 @@ interface EntryConfig<T extends z.ZodTypeAny> {
   schema: T;
   displayName?: string; // Optional human-readable name
   icon?: string; // Optional icon identifier
-  category: 'business' | 'baby'; // Added baby for now if ever enabled
+  category: 'business';
   sortField?: string; // Optional sort field
   allowedRoles: readonly (typeof ROLES)[number][];
 }
@@ -30,8 +22,8 @@ export const ENTRY_CONFIG = {
     schema: estimateDetailsStateSchema,
     displayName: 'Estimate',
     category: 'business',
-    sortField: 'createdAt', // Add sortField
-    icon: 'ClipboardList', // Added icon
+    sortField: 'createdAt',
+    icon: 'ClipboardList',
     allowedRoles: ['staff', 'admin', 'editor'],
   },
   template: {
@@ -43,34 +35,13 @@ export const ENTRY_CONFIG = {
     icon: 'Box',
     allowedRoles: ['admin', 'editor'],
   },
-  // invoice: {
-  //   subcollection: "invoices",
-  //   schema: invoiceDetailsSchema,
-  //   displayName: "Invoice",
-  //   category: "business",
-  //   sortField: "details.dueDate",
-  //   icon: "ReceiptText", // Added icon
-  // },
-} as const satisfies Record<string, EntryConfig<any>>;
-
-// Helper functions to filter entries by category
-export const getBusinessEntries = () =>
-  Object.entries(ENTRY_CONFIG)
-    .filter(([, config]) => config.category === 'business')
-    .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
-
-// TODO: Uncomment or adjust getBabyEntries when baby entry types are re-enabled.
-// export const getBabyEntries = () =>
-//   Object.entries(ENTRY_CONFIG)
-//     .filter(([_, config]) => config.category === "baby")
-//     .reduce((acc, [key, value]) => ({ ...acc, [key]: value }), {});
+} as const satisfies Record<string, EntryConfig<z.ZodTypeAny>>;
 
 // Type helper to get subcollection names
 export type SubcollectionName =
   (typeof ENTRY_CONFIG)[keyof typeof ENTRY_CONFIG]['subcollection'];
 
-// export schema for entry type validation
-
+// Export schema for entry type validation
 export const entryTypeSchema = z.enum(
   Object.keys(ENTRY_CONFIG) as [string, ...string[]],
   {
@@ -79,11 +50,11 @@ export const entryTypeSchema = z.enum(
   },
 );
 export type EntryType = keyof typeof ENTRY_CONFIG;
-// Entry schema
 
+// Entry schema
 export const entrySchema = z.object({
-  entryId: z.string().optional(),
-  jid: z.string(),
+  entryId: docIdSchema.optional(),
+  jid: docIdSchema,
   entryType: entryTypeSchema,
   name: z
     .string()

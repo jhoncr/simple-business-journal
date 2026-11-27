@@ -19,7 +19,7 @@ type AuditedCallableOptions = {
 const AUDIT_STRIPPED_KEYS = new Set(['thumbnailBase64', 'thumbnail']);
 
 /** Pattern matching base64 image data URLs across any key */
-const DATA_IMAGE_REGEX = /^data:image\/[a-zA-Z+]+;base64,/;
+const DATA_IMAGE_REGEX = /^data:image\/[a-zA-Z0-9.+-]+;base64,/;
 
 /** Cap for the serialized audit payload; anything larger is truncated. */
 const MAX_AUDIT_JSON_BYTES = 8192;
@@ -75,12 +75,19 @@ export function sanitizeAuditInput(data: unknown): unknown {
   return cleaned;
 }
 
-export const createAuditedCallable = <T extends z.ZodType>(
+type AuditedHandlerResult<R = unknown> = {
+  id?: string;
+  response: R;
+};
+
+export const createAuditedCallable = <T extends z.ZodType, R = unknown>(
   functionName: string,
   collectionName: string,
   allowedRoles: readonly (typeof ROLES)[number][] | (typeof ROLES)[number][],
   inputSchema: T,
-  handler: (request: functions.https.CallableRequest) => Promise<any>,
+  handler: (
+    request: functions.https.CallableRequest<z.infer<T>>,
+  ) => Promise<AuditedHandlerResult<R>>,
   options: AuditedCallableOptions = {},
 ) => {
   return functions.https.onCall({
@@ -106,12 +113,15 @@ export const createAuditedCallable = <T extends z.ZodType>(
       );
     }
 
-    const data = validationResult.data as any;
-    const baseId = data.jid;
+    const parsedData = validationResult.data;
+    const baseId =
+      parsedData && typeof parsedData === 'object' && 'jid' in parsedData ?
+        (parsedData as { jid?: unknown }).jid :
+        undefined;
 
     // If allowedRoles is not empty, we require a baseId and role check.
     if (allowedRoles.length > 0 && !options.isCreateOperation) {
-      if (!baseId) {
+      if (typeof baseId !== 'string' || !baseId) {
         throw new functions.https.HttpsError(
           'invalid-argument',
           'Journal ID is required for this operation.',
@@ -146,10 +156,16 @@ export const createAuditedCallable = <T extends z.ZodType>(
       }
     }
 
-    // 4. Execute Core Logic
-    const { id, response } = await handler(request);
+    // Pass Zod-validated/sanitized data cleanly to the handler.
+    const validatedRequest: functions.https.CallableRequest<z.infer<T>> = {
+      ...request,
+      data: parsedData,
+    };
 
-    // 5. Log Audit Event for non-creation functions.
+    // 4. Execute Core Logic
+    const { id, response } = await handler(validatedRequest);
+
+    // 5. Log Audit Event whenever the handler returns a target document ID.
     // Best-effort: the audit write must never fail the user's operation
     // (it runs after the handler already committed its changes).
     if (id) {
@@ -160,7 +176,7 @@ export const createAuditedCallable = <T extends z.ZodType>(
           type: `FUNCTION_CALL_${functionName.toUpperCase()}`,
           userId: request.auth.uid,
           timestamp: FieldValue.serverTimestamp(),
-          details: { input: sanitizeAuditInput(request.data) },
+          details: { input: sanitizeAuditInput(parsedData) },
         });
       } catch (auditError) {
         logger.warn(

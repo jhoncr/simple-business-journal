@@ -4,33 +4,47 @@ import type { SafeParseError } from 'zod';
 const isEmulator = process.env.FUNCTIONS_EMULATOR === 'true';
 
 /**
+ * Anchored project subdomains allowed on Firebase Hosting (.web.app / .firebaseapp.com),
+ * including preview channels (`<project>--<channel>`).
+ */
+const FIREBASE_HOSTING_PROJECTS = '(?:nessedia-3d219|simple-log-19f86|demo-dummy)';
+
+export const PRODUCTION_ALLOWED_ORIGINS: (string | RegExp)[] = [
+  new RegExp(`^https:\\/\\/${FIREBASE_HOSTING_PROJECTS}(--[a-z0-9-]+)?\\.web\\.app$`),
+  new RegExp(`^https:\\/\\/${FIREBASE_HOSTING_PROJECTS}(--[a-z0-9-]+)?\\.firebaseapp\\.com$`),
+  /^https:\/\/([a-z0-9-]+\.)?j3cordeiro\.com$/,
+];
+
+export const EMULATOR_ALLOWED_ORIGINS: (string | RegExp)[] = [
+  /^https?:\/\/localhost(:\d+)?$/,
+  /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
+];
+
+/**
  * CORS origins for callable functions.
  *
- * Production: only Firebase Hosting's default domains. If a custom domain is
- * ever attached to hosting, add it here explicitly. The emulator allows
- * localhost so local development keeps working.
+ * Production: strictly anchored HTTPS origins for this project's Firebase
+ * Hosting subdomains and the j3cordeiro.com custom domain. The emulator allows
+ * localhost / 127.0.0.1 so local development keeps working.
  */
 export const ALLOWED_ORIGINS: (string | RegExp)[] = isEmulator ?
-  [/^https?:\/\/localhost(:\d+)?$/, /^https?:\/\/127\.0\.0\.1(:\d+)?$/] :
-  [/\.web\.app$/, /\.firebaseapp\.com$/, /\.j3cordeiro\.com$/];
+  EMULATOR_ALLOWED_ORIGINS :
+  PRODUCTION_ALLOWED_ORIGINS;
 
 /**
  * Handles a schema validation error by throwing an HttpsError with detailed information.
  *
  * @param {string} entryType - The type of entry which failed validation.
- * @param {SafeParseError<any>} detailsResult - The result from a safe parse operation containing validation issues.
+ * @param {SafeParseError<unknown>} detailsResult - The result from a safe parse operation containing validation issues.
  * @throws {HttpsError} Throws an error indicating an invalid argument if schema validation fails.
- *
- * @remarks
- * This function aggregates all issue messages into a single formatted error message and throws an error.
  */
 export function handleSchemaValidationError(
-  entryType: string, // Renamed parameter
-  detailsResult: SafeParseError<any>,
+  entryType: string,
+  detailsResult: SafeParseError<unknown>,
 ): never {
   throw new HttpsError(
     'invalid-argument',
-    `Invalid entry details for entryType ${entryType}: \n${detailsResult.error.issues // Updated message
+    `Invalid entry details for entryType ${entryType}: \n${detailsResult.error.issues
       .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
       .join('\n')}`,
   );

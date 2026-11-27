@@ -5,7 +5,6 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { getStorage } from 'firebase-admin/storage';
 
-import * as z from 'zod';
 import { JOURNAL_COLLECTION } from './common/const';
 import {
   ENTRY_CONFIG,
@@ -13,7 +12,6 @@ import {
   EntryType,
 } from './common/schemas/configmap';
 import { handleSchemaValidationError } from './lib/bg-consts';
-import { EntryItf } from './common/common_types';
 import { createAuditedCallable } from './helpers/audited-function';
 
 if (getApps().length === 0) {
@@ -22,10 +20,133 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 
+const ALLOWED_THUMBNAIL_MIMES: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpeg',
+  'image/webp': 'webp',
+};
+
+const THUMBNAIL_DATA_URL_RE = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([A-Za-z0-9+/=\s]+)$/;
+
+/**
+ * Validates and decodes a base64 template thumbnail data URL against the strict image MIME allowlist.
+ * Exported for unit tests.
+ */
+export function parseThumbnailDataUrl(thumbnailBase64: string): {
+  contentType: string;
+  ext: string;
+  buffer: Buffer;
+} {
+  const match = THUMBNAIL_DATA_URL_RE.exec(thumbnailBase64);
+  if (!match) {
+    throw new HttpsError(
+      'invalid-argument',
+      'Invalid thumbnail image format. Expected a base64-encoded PNG, JPEG, or WebP data URL.',
+    );
+  }
+  const contentType = match[1].toLowerCase();
+  const ext = ALLOWED_THUMBNAIL_MIMES[contentType];
+  if (!ext) {
+    throw new HttpsError(
+      'invalid-argument',
+      `Unsupported thumbnail MIME type: ${contentType}. Allowed types: image/png, image/jpeg, image/webp.`,
+    );
+  }
+  const buffer = Buffer.from(match[2], 'base64');
+  if (buffer.length === 0) {
+    throw new HttpsError(
+      'invalid-argument',
+      'Thumbnail image payload is empty.',
+    );
+  }
+  return { contentType, ext, buffer };
+}
+
+/**
+ * Enforces server ownership of `details.payments` for estimates written via addLogFn:
+ * creates always start with `payments: []`, and updates preserve the existing server array.
+ * Exported for unit tests.
+ */
+export function preserveServerPayments(
+  details: Record<string, unknown>,
+  existingPayments?: unknown,
+): Record<string, unknown> {
+  return {
+    ...details,
+    payments: Array.isArray(existingPayments) ? existingPayments : [],
+  };
+}
+
+/**
+ * Verifies that a journal exists, is active, and grants the caller one of the required roles.
+ */
+function assertJournalWriteAccess(
+  journalDoc: FirebaseFirestore.DocumentSnapshot,
+  uid: string,
+  allowedRoles: readonly string[],
+): FirebaseFirestore.DocumentData {
+  if (!journalDoc.exists) {
+    throw new HttpsError('not-found', 'Journal not found or no access.');
+  }
+  const journalData = journalDoc.data() || {};
+  if (journalData.isActive === false) {
+    throw new HttpsError('permission-denied', 'This journal is not active.');
+  }
+  const accessMap = journalData.access as Record<string, { role?: string }> | undefined;
+  const userRole =
+    accessMap && Object.prototype.hasOwnProperty.call(accessMap, uid) ?
+      accessMap[uid]?.role :
+      undefined;
+  if (!userRole || !allowedRoles.includes(userRole)) {
+    throw new HttpsError(
+      'permission-denied',
+      'No access to add entries to this journal.',
+    );
+  }
+  return journalData;
+}
+
+/**
+ * Verifies that an existing entry is active and satisfies the optimistic-concurrency guard.
+ */
+function assertEntryCanBeUpdated(
+  existingEntryDoc: FirebaseFirestore.DocumentSnapshot,
+  entryId: string,
+  targetSubcollectionName: string,
+  expectedUpdatedAtMillis?: number | null,
+): FirebaseFirestore.DocumentData {
+  if (!existingEntryDoc.exists) {
+    throw new HttpsError(
+      'not-found',
+      `Entry ${entryId} not found in ${targetSubcollectionName}.`,
+    );
+  }
+  const existingData = existingEntryDoc.data() ?? {};
+  if (existingData.isActive === false) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Cannot update a deleted entry.',
+    );
+  }
+  if (expectedUpdatedAtMillis != null) {
+    const currentMillis = existingData.updatedAt?.toMillis?.();
+    if (
+      typeof currentMillis === 'number' &&
+      currentMillis !== expectedUpdatedAtMillis
+    ) {
+      throw new HttpsError(
+        'failed-precondition',
+        'This entry was modified by someone else. Please reload and try again.',
+      );
+    }
+  }
+  return existingData;
+}
+
 export const addLogFn = createAuditedCallable(
   'addLogFn',
   JOURNAL_COLLECTION,
-  [], // Custom role check below
+  [], // Custom transactional role check below
   entrySchema,
   async (request) => {
     try {
@@ -38,18 +159,9 @@ export const addLogFn = createAuditedCallable(
         entryId,
         thumbnailBase64,
         expectedUpdatedAtMillis,
-      } = request.data as z.infer<typeof entrySchema>;
+      } = request.data;
 
       const uid = request.auth!.uid;
-
-      // Get the main journal document to check access and journalType
-      const journalDocRef = db.collection(JOURNAL_COLLECTION).doc(journalId);
-      const journalDoc = await journalDocRef.get();
-      if (!journalDoc.exists) {
-        throw new HttpsError('not-found', 'Journal not found or no access.');
-      }
-      const journalData = journalDoc.data() || {};
-      const journalType = journalData.journalType;
 
       const config = ENTRY_CONFIG[entryType as EntryType];
       if (!config) {
@@ -58,98 +170,144 @@ export const addLogFn = createAuditedCallable(
           `Unsupported entryType: ${entryType}`,
         );
       }
-      const { subcollection: targetSubcollectionName, schema: detailsSchema, allowedRoles } =
-        config;
+      const {
+        subcollection: targetSubcollectionName,
+        schema: detailsSchema,
+        allowedRoles,
+      } = config;
 
-      if (
-        !Object.getOwnPropertyDescriptor(journalData?.access ?? {}, uid) ||
-        !allowedRoles.includes(journalData?.access?.[uid]?.role)
-      ) {
-        throw new HttpsError(
-          'permission-denied',
-          'No access to add entries to this journal.',
-        );
-      }
-
-      logger.info(
-        `Processing entryType '${entryType}' for journal ${journalId} (type: ${journalType}).` +
-        ` Target subcollection: ${targetSubcollectionName}`,
-      );
       const detailsResult = detailsSchema.safeParse(rawDetails);
       if (!detailsResult.success) {
-        // Use the utility function for schema errors
         handleSchemaValidationError(entryType, detailsResult);
       }
-      const validatedDetails = detailsResult.data;
+      const validatedDetails: Record<string, unknown> = {
+        ...(detailsResult.data as Record<string, unknown>),
+      };
 
       logger.info(`Entry details for ${entryType} validated successfully.`);
 
+      const journalDocRef = db.collection(JOURNAL_COLLECTION).doc(journalId);
       const entriesColRef = journalDocRef.collection(targetSubcollectionName);
       const actualEntryId = entryId || entriesColRef.doc().id;
+      const entryDocRef = entriesColRef.doc(actualEntryId);
 
+      // For template thumbnail uploads, validate MIME allowlist, journal permissions,
+      // and (on updates) entry existence + active state + optimistic concurrency BEFORE
+      // writing anything to Cloud Storage.
       if (thumbnailBase64 && entryType === 'template') {
+        const { contentType, ext, buffer } = parseThumbnailDataUrl(thumbnailBase64);
+
+        const precheckJournal = await journalDocRef.get();
+        assertJournalWriteAccess(precheckJournal, uid, allowedRoles);
+
+        if (entryId) {
+          const precheckEntry = await entryDocRef.get();
+          assertEntryCanBeUpdated(
+            precheckEntry,
+            actualEntryId,
+            targetSubcollectionName,
+            expectedUpdatedAtMillis,
+          );
+        }
+
+        const filePath = `journals/${journalId}/templates/${actualEntryId}/thumbnail.${ext}`;
         try {
           const bucket = getStorage().bucket();
-
-          // Dynamically detect the format (e.g., image/webp, image/jpeg, image/png)
-          const mimeMatch = thumbnailBase64.match(/^data:(image\/\w+);base64,/);
-          const contentType = mimeMatch ? mimeMatch[1] : 'image/png';
-          const ext = contentType.split('/')[1] || 'png';
-
-          const filePath = `journals/${journalId}/templates/${actualEntryId}/thumbnail.${ext}`;
           const file = bucket.file(filePath);
-
-          // Strip the data URL prefix dynamically based on the matched content type
-          const base64Data = thumbnailBase64.replace(/^data:image\/\w+;base64,/, '');
-          const buffer = Buffer.from(base64Data, 'base64');
-
           await file.save(buffer, {
             metadata: {
-              contentType: contentType, // Use the dynamically detected type
-              cacheControl: 'public, max-age=31536000', // Optional: heavily caches thumbnails in the browser
+              contentType,
+              cacheControl: 'public, max-age=31536000',
             },
           });
-
-          (validatedDetails as any).thumbnailUrl = `/${filePath}`;
-          logger.info(`Thumbnail uploaded successfully for template ${actualEntryId}`);
+          validatedDetails.thumbnailUrl = `/${filePath}`;
+          logger.info(
+            `Thumbnail uploaded successfully for template ${actualEntryId}`,
+          );
         } catch (uploadError) {
           logger.error('Error uploading thumbnail:', uploadError);
+          throw new HttpsError(
+            'internal',
+            'Failed to upload template thumbnail. Please try again later.',
+          );
         }
       }
 
-      // Construct the base entry object (timestamps and details added below)
-      const baseEntry: Omit<
-        EntryItf,
-        'createdAt' | 'updatedAt' | 'details' | 'createdBy'
-      > = {
-        name: name,
-        isActive: true,
-        // createdBy will be set based on context (add vs update)
-      };
-
       if (entryId) {
-        const res = await _updateEntry(
-          db,
-          entriesColRef,
-          actualEntryId,
-          baseEntry,
-          validatedDetails,
-          targetSubcollectionName,
-          expectedUpdatedAtMillis,
+        await db.runTransaction(async (transaction) => {
+          const journalDoc = await transaction.get(journalDocRef);
+          assertJournalWriteAccess(journalDoc, uid, allowedRoles);
+
+          const existingEntryDoc = await transaction.get(entryDocRef);
+          const existingData = assertEntryCanBeUpdated(
+            existingEntryDoc,
+            actualEntryId,
+            targetSubcollectionName,
+            expectedUpdatedAtMillis,
+          );
+
+          const detailsToSave =
+            entryType === 'estimate' ?
+              preserveServerPayments(
+                validatedDetails,
+                (existingData.details as Record<string, unknown> | undefined)?.payments,
+              ) :
+              validatedDetails;
+
+          transaction.update(entryDocRef, {
+            name,
+            details: detailsToSave,
+            updatedAt: FieldValue.serverTimestamp(),
+            // DO NOT overwrite isActive, createdBy, or createdAt on edits
+          });
+        });
+
+        logger.info(
+          `Entry ${actualEntryId} in ${targetSubcollectionName} updated successfully`,
         );
-        return { id: journalId, response: res };
+        const snap = await entryDocRef.get();
+        return {
+          id: journalId,
+          response: {
+            result: 'ok',
+            message: 'Entry updated successfully',
+            id: actualEntryId,
+            updatedAtMillis: snap.data()?.updatedAt?.toMillis?.() ?? null,
+          },
+        };
       } else {
-        const docRef = entriesColRef.doc(actualEntryId);
-        const res = await _addEntry(
-          docRef,
-          baseEntry,
-          validatedDetails,
-          uid,
-          entryType,
-          journalId,
-          targetSubcollectionName,
+        await db.runTransaction(async (transaction) => {
+          const journalDoc = await transaction.get(journalDocRef);
+          assertJournalWriteAccess(journalDoc, uid, allowedRoles);
+
+          const detailsToSave =
+            entryType === 'estimate' ?
+              preserveServerPayments(validatedDetails) :
+              validatedDetails;
+
+          transaction.set(entryDocRef, {
+            name,
+            isActive: true,
+            createdBy: uid,
+            details: detailsToSave,
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        });
+
+        logger.info(
+          `${entryType} entry successfully added to ${targetSubcollectionName} in journal ${journalId}`,
         );
-        return { id: journalId, response: res };
+        const snap = await entryDocRef.get();
+        return {
+          id: journalId,
+          response: {
+            result: 'ok',
+            message: 'Entry added successfully',
+            id: entryDocRef.id,
+            updatedAtMillis: snap.data()?.updatedAt?.toMillis?.() ?? null,
+          },
+        };
       }
     } catch (error) {
       logger.error('Error in addLogFn: ', error);
@@ -163,135 +321,3 @@ export const addLogFn = createAuditedCallable(
     }
   },
 );
-
-// --- Helper function to add a new entry ---
-/**
- * Adds a new entry to the specified journal.
- * @param docRef - The Firestore document reference for the new entry.
- * @param baseEntry - The base entry data (excluding timestamps and details).
- * @param validatedDetails - The validated details for the entry.
- * @param uid - The user ID of the entry creator.
- * @param entryType - The type of the entry (for logging purposes).
- * @param journalId - The ID of the journal (for logging purposes).
- * @param targetSubcollectionName - The name of the subcollection where the entry will be added.
- * @returns A promise that resolves with the result of the add operation.
- */
-async function _addEntry(
-  docRef: FirebaseFirestore.DocumentReference,
-  baseEntry: Omit<
-    EntryItf,
-    'createdAt' | 'updatedAt' | 'details' | 'createdBy'
-  >,
-  validatedDetails: Record<string, unknown>,
-  uid: string,
-  entryType: string, // For logging
-  journalId: string, // For logging
-  targetSubcollectionName: string, // For logging
-) {
-  try {
-    await docRef.set({
-      ...baseEntry,
-      createdBy: uid, // Set creator on add
-      details: validatedDetails,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-    logger.info(
-      `${entryType} entry successfully added to ${targetSubcollectionName} in journal ${journalId}`,
-    );
-    // Read back so the client can seed its optimistic-concurrency version.
-    const snap = await docRef.get();
-    return {
-      result: 'ok',
-      message: 'Entry added successfully',
-      id: docRef.id,
-      updatedAtMillis: snap.data()?.updatedAt?.toMillis?.() ?? null,
-    };
-  } catch (error) {
-    logger.error('Error adding entry: ', error);
-    throw new HttpsError(
-      'internal',
-      'Failed to add entry. Please try again later.',
-    );
-  }
-}
-
-// --- Helper function to update an existing entry ---
-/**
- * Updates an existing entry in the specified journal.
- * @param db - The Firestore database instance.
- * @param entriesColRef - The Firestore collection reference for the journal's entries.
- * @param entryId - The ID of the entry to update.
- * @param baseEntry - The base entry data (excluding timestamps and details).
- * @param validatedDetails - The validated details for the entry.
- * @param targetSubcollectionName - The name of the subcollection where the entry is located.
- * @returns A promise that resolves with the result of the update operation.
- */
-async function _updateEntry(
-  db: FirebaseFirestore.Firestore,
-  entriesColRef: FirebaseFirestore.CollectionReference,
-  entryId: string,
-  baseEntry: Omit<
-    EntryItf,
-    'createdAt' | 'updatedAt' | 'details' | 'createdBy'
-  >,
-  validatedDetails: Record<string, unknown>,
-  targetSubcollectionName: string, // For logging
-  expectedUpdatedAtMillis?: number | null,
-) {
-  try {
-    await db.runTransaction(async (transaction) => {
-      const entryDocRef = entriesColRef.doc(entryId);
-      const existingEntryDoc = await transaction.get(entryDocRef);
-      if (!existingEntryDoc.exists) {
-        throw new HttpsError(
-          'not-found',
-          `Entry ${entryId} not found in ${targetSubcollectionName}.`,
-        );
-      }
-      // Optimistic-concurrency guard: when the client tells us which version
-      // it loaded, refuse to overwrite a newer server version instead of
-      // silently dropping the other writer's changes (last-writer-wins).
-      if (expectedUpdatedAtMillis != null) {
-        const currentMillis = existingEntryDoc
-          .data()
-          ?.updatedAt?.toMillis?.();
-        if (
-          typeof currentMillis === 'number' &&
-          currentMillis !== expectedUpdatedAtMillis
-        ) {
-          throw new HttpsError(
-            'failed-precondition',
-            'This entry was modified by someone else. Please reload and try again.',
-          );
-        }
-      }
-      // Consider adding check if user is allowed to edit (e.g., createdBy === uid or role allows)
-
-      transaction.update(entryDocRef, {
-        ...baseEntry, // Include name, isActive
-        details: validatedDetails,
-        updatedAt: FieldValue.serverTimestamp(),
-        // DO NOT update createdBy or createdAt on edits
-      });
-    });
-    logger.info(
-      `Entry ${entryId} in ${targetSubcollectionName} updated successfully`,
-    );
-    // Read back the new version so the client can keep its guard in sync.
-    const snap = await entriesColRef.doc(entryId).get();
-    return {
-      result: 'ok',
-      message: 'Entry updated successfully',
-      id: entryId,
-      updatedAtMillis: snap.data()?.updatedAt?.toMillis?.() ?? null,
-    };
-  } catch (error) {
-    logger.error('Transaction failed during update: ', error);
-    if (error instanceof HttpsError) throw error;
-    throw new HttpsError(
-      'internal',
-      'Failed to update entry. Please try again later.',
-    );
-  }
-}

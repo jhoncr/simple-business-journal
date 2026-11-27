@@ -4,9 +4,14 @@ import * as z from 'zod';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { JOURNAL_COLLECTION } from './common/const';
-import { ROLES } from './common/schemas/common_schemas';
+import { docIdSchema, ROLES } from './common/schemas/common_schemas';
 import { JournalSchemaType } from './common/schemas/JournalSchema';
 import { createAuditedCallable } from './helpers/audited-function';
+import {
+  escapeEmailKey,
+  findPendingAccessKey,
+  normalizeEmail,
+} from './helpers/email-utils';
 
 if (getApps().length === 0) {
   initializeApp();
@@ -14,16 +19,18 @@ if (getApps().length === 0) {
 
 const db = getFirestore();
 
-
 const updateShareRequest = z
   .object({
-    email: z.string().email(),
+    email: z
+      .string()
+      .trim()
+      .email()
+      .transform((value) => normalizeEmail(value)),
     role: z.enum(ROLES),
     operation: z.enum(['add', 'remove']),
-    jid: z.string(),
+    jid: docIdSchema,
   })
   .strict();
-
 
 export const addContributor = createAuditedCallable(
   'addContributor',
@@ -34,8 +41,9 @@ export const addContributor = createAuditedCallable(
     try {
       logger.info('addContributor called');
 
-      const data = request.data as z.infer<typeof updateShareRequest>;
+      const data = request.data;
       const journalId = data.jid;
+      const callerUid = request.auth!.uid;
 
       await db.runTransaction(async (transaction) => {
         const logDocRef = db.collection(JOURNAL_COLLECTION).doc(journalId);
@@ -46,21 +54,25 @@ export const addContributor = createAuditedCallable(
         }
 
         const logData = logDoc.data() as JournalSchemaType;
+        if (logData.isActive === false) {
+          throw new HttpsError('permission-denied', 'This journal is not active.');
+        }
+
+        const callerRole =
+          logData.access && Object.prototype.hasOwnProperty.call(logData.access, callerUid) ?
+            logData.access[callerUid]?.role :
+            undefined;
+        if (callerRole !== 'admin') {
+          throw new HttpsError(
+            'permission-denied',
+            'Only administrators can manage contributors.',
+          );
+        }
 
         if (data.operation === 'add') {
-          handleAddOperation(
-            transaction,
-            logDocRef,
-            data,
-            logData,
-          );
+          handleAddOperation(transaction, logDocRef, data, logData);
         } else if (data.operation === 'remove') {
-          handleRemoveOperation(
-            transaction,
-            logDocRef,
-            data,
-            logData,
-          );
+          handleRemoveOperation(transaction, logDocRef, data, logData);
         }
       });
 
@@ -69,13 +81,13 @@ export const addContributor = createAuditedCallable(
         response: { result: 'ok', message: 'operation completed successfully' },
       };
     } catch (error) {
-      logger.log('Error adding contributors', error);
+      logger.error('Error updating contributors', error);
       if (error instanceof HttpsError) {
         throw error;
       }
       throw new HttpsError(
         'internal',
-        'Error adding contributors. Please try again later.',
+        'Error updating contributors. Please try again later.',
       );
     }
   },
@@ -87,42 +99,57 @@ const handleAddOperation = (
   data: z.infer<typeof updateShareRequest>,
   logData: JournalSchemaType,
 ) => {
-  // check if the email is already in the access map, if so, only update the role
+  const normalizedTargetEmail = normalizeEmail(data.email);
   const access = logData?.access ?? {};
 
   const cur = Object.entries(access).find(([, value]) => {
-    return value.email === data.email;
+    return typeof value.email === 'string' &&
+      normalizeEmail(value.email) === normalizedTargetEmail;
   });
   if (cur) {
     const [uid, contributorData] = cur;
-    // If user is already an admin, prevent role change via this function.
-    // Admin role changes should be handled by a dedicated admin management function.
     if (contributorData.role === 'admin') {
       logger.warn(
-        `Attempt to change role of admin ${data.email} was blocked.`,
+        `Attempt to change role of admin ${normalizedTargetEmail} was blocked.`,
       );
-      return; // Or throw an error: new HttpsError("permission-denied", "Cannot change admin role here.");
+      throw new HttpsError(
+        'permission-denied',
+        'Cannot modify role of an administrator.',
+      );
     }
-    // Update the role for existing non-admin user
     transaction.update(logDocRef, {
       [`access.${uid}.role`]: data.role,
+      updatedAt: FieldValue.serverTimestamp(),
     });
-    logger.info(`Updated role for ${data.email} to ${data.role}.`);
+    logger.info(`Updated role for ${normalizedTargetEmail} to ${data.role}.`);
     return;
   }
 
-  const escapedEmail = data.email.replace(/\./g, ',');
-  // If the email is not in the access map, add it to pendingAccess map
+  const escapedEmail = escapeEmailKey(normalizedTargetEmail);
   const pendingAccess = logData?.pendingAccess ?? {};
-  // Avoid overwriting if email already in pendingAccess, update role instead
-  if (pendingAccess[escapedEmail] && pendingAccess[escapedEmail] !== data.role) {
-    logger.info(`Updating role for ${data.email} in pendingAccess to ${data.role}.`);
-  } else if (!pendingAccess[escapedEmail]) {
-    logger.info(`Adding ${data.email} to pendingAccess with role ${data.role}.`);
+  const existingKey = findPendingAccessKey(pendingAccess, normalizedTargetEmail);
+
+  const updates: FirebaseFirestore.UpdateData<FirebaseFirestore.DocumentData> = {
+    [`pendingAccess.${escapedEmail}`]: data.role,
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+
+  if (existingKey && existingKey !== escapedEmail) {
+    // Clean up legacy mixed-case key atomically while writing normalized key
+    updates[`pendingAccess.${existingKey}`] = FieldValue.delete();
   }
-  transaction.update(logDocRef, {
-    [`pendingAccess.${escapedEmail}`]: data.role, // Use email as key for pendingAccess
-  });
+
+  if (existingKey && pendingAccess[existingKey] !== data.role) {
+    logger.info(
+      `Updating role for ${normalizedTargetEmail} in pendingAccess to ${data.role}.`,
+    );
+  } else if (!existingKey) {
+    logger.info(
+      `Adding ${normalizedTargetEmail} to pendingAccess with role ${data.role}.`,
+    );
+  }
+
+  transaction.update(logDocRef, updates);
 };
 
 const handleRemoveOperation = (
@@ -131,48 +158,53 @@ const handleRemoveOperation = (
   data: z.infer<typeof updateShareRequest>,
   logData: JournalSchemaType,
 ) => {
-  // Check if the email is in the access map (active contributor)
+  const normalizedTargetEmail = normalizeEmail(data.email);
   const access = logData?.access ?? {};
   const contributorEntry = Object.entries(access).find(
-    ([, value]) => value.email === data.email,
+    ([, value]) =>
+      typeof value.email === 'string' &&
+      normalizeEmail(value.email) === normalizedTargetEmail,
   );
 
   if (contributorEntry) {
     const [uid, contributorData] = contributorEntry;
 
-    // Prevent admin from removing themselves if they are the sole admin
     if (contributorData.role === 'admin') {
-      const adminCount = Object.values(access).filter((c) => c.role === 'admin').length;
+      const adminCount = Object.values(access).filter(
+        (c) => c.role === 'admin',
+      ).length;
       if (adminCount <= 1) {
         throw new HttpsError('permission-denied', 'Cannot remove the sole admin.');
       }
     }
 
-    // Remove the user from the access map
     transaction.update(logDocRef, {
       [`access.${uid}`]: FieldValue.delete(),
-    });
-
-    // Remove UID from access_array
-    transaction.update(logDocRef, {
       access_array: FieldValue.arrayRemove(uid),
+      updatedAt: FieldValue.serverTimestamp(),
     });
-    logger.info(`Removed ${data.email} (UID: ${uid}) from access and access_array.`);
+    logger.info(
+      `Removed ${normalizedTargetEmail} (UID: ${uid}) from access and access_array.`,
+    );
     return;
   }
 
-  // If the email is not in the access map, check pendingAccess map
   const pendingAccess = logData?.pendingAccess ?? {};
-  const escapedEmail = data.email.replace(/\./g, ',');
-  if (pendingAccess[escapedEmail]) {
-    // Remove the email from the pendingAccess map
+  const existingKey = findPendingAccessKey(pendingAccess, normalizedTargetEmail);
+  if (existingKey) {
     transaction.update(logDocRef, {
-      [`pendingAccess.${escapedEmail}`]: FieldValue.delete(),
+      [`pendingAccess.${existingKey}`]: FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
-    logger.info(`Removed ${data.email} from pendingAccess.`);
-  } else {
-    logger.warn(
-      `Attempted to remove ${data.email}, but they were not found in access or pendingAccess.`,
-    );
+    logger.info(`Removed ${normalizedTargetEmail} from pendingAccess.`);
+    return;
   }
+
+  logger.warn(
+    `Attempted to remove ${normalizedTargetEmail}, but they were not found in access or pendingAccess.`,
+  );
+  throw new HttpsError(
+    'not-found',
+    'Contributor or pending invitation not found.',
+  );
 };

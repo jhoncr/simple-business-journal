@@ -2,10 +2,11 @@
   "name": "backend",
   "scripts": {
     "dev": "firebase --version; npm --prefix functions run build && firebase emulators:start --project=demo-dummy --import=./emulators-data",
-    "test": "echo \"No tests specified\" && exit 0",
+    "test": "npm --prefix functions test",
     "save-emulators": "firebase emulators:export ./emulators-data --project=demo-dummy",
-    "deploy": "npm --prefix functions run deploy && npm --prefix ../frontend run deploy",
-    "deploy:backend": "npm --prefix functions run deploy",
+    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes,storage",
+    "deploy": "npm run deploy:backend && npm --prefix ../frontend run deploy",
+    "deploy:backend": "npm --prefix functions run deploy && npm run deploy:rules",
     "deploy:frontend": "npm --prefix ../frontend run deploy"
   }
 }

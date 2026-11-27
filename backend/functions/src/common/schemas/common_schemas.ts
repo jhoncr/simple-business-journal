@@ -3,6 +3,11 @@ import * as z from 'zod';
 
 export const ROLES = ['viewer', 'staff', 'editor', 'admin'] as const;
 
+export const DOC_ID_REGEX = /^[A-Za-z0-9_-]{1,128}$/;
+export const docIdSchema = z
+  .string()
+  .regex(DOC_ID_REGEX, 'Invalid document ID format.');
+
 // User access schemas
 export const UserSchema = z.object({
   displayName: z.string().optional().nullable().or(z.literal('')),
@@ -103,15 +108,6 @@ export const firestoreDateSchema = z.preprocess((val: unknown) => {
   }
   return val;
 }, z.date());
-
-export const traceSchema = z.object({
-  createdBy: z.string(),
-  createdAt: firestoreDateSchema,
-  updatedBy: z.string(),
-  updatedAt: firestoreDateSchema,
-  deletedBy: z.string().optional().nullable(),
-  deletedAt: firestoreDateSchema.optional().nullable(),
-});
 
 export type contactInfoSchemaType = z.infer<typeof contactInfoSchema>;
 

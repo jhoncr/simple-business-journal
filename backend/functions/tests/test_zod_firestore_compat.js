@@ -196,29 +196,9 @@ function runTests() {
   };
   assert(JournalSchema.safeParse(softDeletedJournalDoc).success, 'JournalSchema parses soft-deleted documents with deletedAt and deletedBy');
 
-  // --- 4. Tests for traceSchema with string date coercion and Firestore Timestamps ---
-  console.log('\n[traceSchema Tests]');
-  const { traceSchema, firestoreDateSchema } = require('../lib/common/schemas/common_schemas');
-  const traceDoc = {
-    createdBy: 'uid_admin',
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedBy: 'uid_editor',
-    updatedAt: '2026-01-02T10:00:00.000Z',
-    deletedBy: 'uid_admin',
-    deletedAt: '2026-01-03T12:00:00.000Z',
-  };
-  assert(traceSchema.safeParse(traceDoc).success, 'traceSchema coerces ISO timestamp strings to Dates');
-
-  const traceWithTimestamps = {
-    createdBy: 'uid_admin',
-    createdAt: { seconds: 1767225600, nanoseconds: 0, toDate: () => new Date('2026-01-01T00:00:00.000Z') },
-    updatedBy: 'uid_editor',
-    updatedAt: { _seconds: 1767348000, _nanoseconds: 0 },
-  };
-  assert(traceSchema.safeParse(traceWithTimestamps).success, 'traceSchema parses Firestore Timestamp objects and serialized _seconds');
-
-  // --- 5. Tests for firestoreDateSchema standalone ---
+  // --- 4. Tests for firestoreDateSchema standalone ---
   console.log('\n[firestoreDateSchema Tests]');
+  const { firestoreDateSchema } = require('../lib/common/schemas/common_schemas');
   assert(firestoreDateSchema.safeParse(new Date()).success, 'firestoreDateSchema accepts Date instances');
   assert(firestoreDateSchema.safeParse('2026-08-30T14:00:00Z').success, 'firestoreDateSchema accepts ISO strings');
   assert(firestoreDateSchema.safeParse(1788100200000).success, 'firestoreDateSchema accepts numeric timestamps');

@@ -8,6 +8,8 @@ import { initializeApp, getApps } from 'firebase-admin/app';
 import { JOURNAL_COLLECTION } from './common/const';
 import { createAuditedCallable } from './helpers/audited-function';
 import { JournalSchema } from './common/schemas/JournalSchema';
+import { docIdSchema } from './common/schemas/common_schemas';
+import { findPendingAccessKey, normalizeEmail } from './helpers/email-utils';
 
 if (getApps().length === 0) {
   initializeApp();
@@ -17,10 +19,26 @@ const db = getFirestore();
 
 const schema = z
   .object({
-    jid: z.string(),
+    jid: docIdSchema,
     operation: z.enum(['accept', 'ignore', 'check']),
   })
   .strict();
+
+/**
+ * Validates that the caller has a verified email address before checking or accepting an invite.
+ * Exported for unit tests.
+ */
+export function assertVerifiedEmailForShare(
+  token: { email?: unknown; email_verified?: unknown } | undefined,
+): string {
+  if (token?.email_verified !== true || typeof token?.email !== 'string' || !token.email.trim()) {
+    throw new HttpsError(
+      'failed-precondition',
+      'Your email address must be verified before accepting an invitation.',
+    );
+  }
+  return normalizeEmail(token.email);
+}
 
 export const acceptShare = createAuditedCallable(
   'acceptShare',
@@ -31,23 +49,39 @@ export const acceptShare = createAuditedCallable(
     try {
       logger.info('acceptShare called');
 
-      const data = request.data as z.infer<typeof schema>;
-      const { jid: businessId, operation } = data; // Use businessId internally for consistency
+      const { jid: businessId, operation } = request.data;
       const uid = request.auth!.uid;
-      const email = request.auth!.token?.email;
-      const escapedEmail = email?.replace(/\./g, ',');
+      const rawEmail = request.auth!.token?.email;
+      const emailVerified = request.auth!.token?.email_verified === true;
 
       if (operation === 'ignore') {
+        // Verify an actual pending invite exists for this caller before attributing
+        // an audit event to the target journal, preventing arbitrary audit-log pollution.
+        let hasPendingInvite = false;
+        if (emailVerified && typeof rawEmail === 'string' && rawEmail.trim()) {
+          const logDoc = await db.collection(JOURNAL_COLLECTION).doc(businessId).get();
+          if (logDoc.exists) {
+            const logData = logDoc.data() as z.infer<typeof JournalSchema>;
+            if (
+              logData.isActive !== false &&
+              findPendingAccessKey(logData.pendingAccess, rawEmail)
+            ) {
+              hasPendingInvite = true;
+            }
+          }
+        }
         logger.info(
-          `User ${uid} (${email}) ignored share for business ${businessId}`,
+          `User ${uid} ignored share for business ${businessId} (verified invite: ${hasPendingInvite})`,
         );
         return {
-          id: businessId,
+          id: hasPendingInvite ? businessId : undefined,
           response: { result: 'ok', message: 'Ignored grant to access log' },
         };
       }
 
-      // Transaction to modify the business document
+      const normalizedEmail = assertVerifiedEmailForShare(request.auth!.token);
+
+      // Transaction to check or accept the invitation on the business document
       const result = await db.runTransaction(async (transaction) => {
         const logDocRef = db.collection(JOURNAL_COLLECTION).doc(businessId);
         const logDoc = await transaction.get(logDocRef);
@@ -55,35 +89,51 @@ export const acceptShare = createAuditedCallable(
         if (!logDoc.exists) {
           throw new HttpsError(
             'not-found',
-            'The business document does not exist or you do not have access.', // Simplified message
+            'The business document does not exist or you do not have access.',
           );
         }
 
-        // Type assertion for convenience, ensure JournalSchema is imported
         const logData = logDoc.data() as z.infer<typeof JournalSchema>;
 
-        // Check if user already has access
-        if (logData.access && logData.access[uid]) {
-          logger.info(
-            `User ${uid} already has access to business ${businessId}`,
+        if (logData.isActive === false) {
+          throw new HttpsError(
+            'permission-denied',
+            'This business journal is no longer active.',
           );
-          // No error needed, just inform the user
-          return null; // Exit transaction successfully
         }
+
+        // Check if user already has access
+        if (
+          logData.access &&
+          Object.prototype.hasOwnProperty.call(logData.access, uid)
+        ) {
+          const existingRole = logData.access[uid].role;
+          logger.info(
+            `User ${uid} already has access to business ${businessId} with role ${existingRole}`,
+          );
+          return {
+            id: businessId,
+            response: {
+              result: 'ok',
+              alreadyHasAccess: true,
+              role: existingRole,
+              message: 'You already have access to this business.',
+            },
+          };
+        }
+
+        const matchedPendingKey = findPendingAccessKey(
+          logData.pendingAccess,
+          normalizedEmail,
+        );
 
         // Check operation: Verify invitation exists
         if (operation === 'check') {
-          if (
-            escapedEmail &&
-            logData.pendingAccess &&
-            logData.pendingAccess[escapedEmail]
-          ) {
-            const role = logData.pendingAccess[escapedEmail];
+          if (matchedPendingKey && logData.pendingAccess) {
+            const role = logData.pendingAccess[matchedPendingKey];
             logger.info(
-              `Access check successful for ${email} on business ${businessId}. Role: ${role}`,
+              `Access check successful for ${normalizedEmail} on business ${businessId}. Role: ${role}`,
             );
-            // Message now includes the role.
-            // This return is inside the transaction, so the main return after transaction won't be hit for "check".
             return {
               id: businessId,
               response: {
@@ -93,76 +143,58 @@ export const acceptShare = createAuditedCallable(
             };
           } else {
             logger.warn(
-              `Access check failed for ${email} on business ${businessId}. No pending access found.`,
+              `Access check failed for ${normalizedEmail} on business ${businessId}. No pending access found.`,
             );
             throw new HttpsError(
-              'not-found', // Or 'permission-denied'
+              'not-found',
               'You have not been invited to access this business or the invitation was revoked.',
             );
           }
         }
 
-        // --- Core Logic for "accept" operation ---
-        // The `if (operation !== "accept")` check is removed as it's redundant here.
-        // If operation was "ignore" or "check", logic would have returned/thrown before this point.
-
-        if (
-          email &&
-          escapedEmail &&
-          logData.pendingAccess &&
-          Object.prototype.hasOwnProperty.call(
-            logData.pendingAccess,
-            escapedEmail,
-          )
-        ) {
+        // Core logic for "accept" operation
+        if (matchedPendingKey && logData.pendingAccess) {
           logger.info(
-            `Accepting share for ${email} on business ${businessId}.`,
+            `Accepting share for ${normalizedEmail} on business ${businessId}.`,
           );
-          const role = logData.pendingAccess[escapedEmail];
+          const role = logData.pendingAccess[matchedPendingKey];
 
-          // Prepare updates
-          const updates: Record<string, any> = {
-            // Add to access map
+          const updates: FirebaseFirestore.UpdateData<FirebaseFirestore.DocumentData> = {
             [`access.${uid}`]: {
-              role: role,
-              email: email,
+              role,
+              email: normalizedEmail,
               displayName: request?.auth?.token?.name || '',
               photoURL: request?.auth?.token?.picture || '',
             },
-            // Remove from pendingAccess map, only if email is not null
-            [`pendingAccess.${escapedEmail}`]: FieldValue.delete(),
-            // Add UID to access_array
+            [`pendingAccess.${matchedPendingKey}`]: FieldValue.delete(),
             access_array: FieldValue.arrayUnion(uid),
-            updatedAt: FieldValue.serverTimestamp(), // Update timestamp
+            updatedAt: FieldValue.serverTimestamp(),
           };
-
-          // --- REMOVED Parent Update Logic ---
-          // No parent document to update in the new model.
 
           transaction.update(logDocRef, updates);
           logger.info(
-            `User ${uid} (${email}) successfully added to business ${businessId} with role ${role}.`,
+            `User ${uid} (${normalizedEmail}) successfully added to business ${businessId} with role ${role}.`,
           );
-          return null;
+          return {
+            id: businessId,
+            response: {
+              result: 'ok',
+              message: 'Accepted grant to access business',
+            },
+          };
         } else {
           logger.warn(
-            `Accept operation failed for ${email} on business ${businessId}. No pending access found.`,
+            `Accept operation failed for ${normalizedEmail} on business ${businessId}. No pending access found.`,
           );
           throw new HttpsError(
             'permission-denied',
             'You have not been invited to access this business or the invitation may have been withdrawn.',
           );
         }
-      }); // End transaction
+      });
 
-      if (result) {
-        return result;
-      }
-
-      return { id: businessId, response: { result: 'ok', message: 'Accepted grant to access business' } };
+      return result;
     } catch (error) {
-      // If HttpsError was thrown from within the transaction for "check" (e.g. "not-found"),
-      // it will be caught here and re-thrown.
       logger.error('Error accepting share for business:', error);
       if (error instanceof HttpsError) {
         throw error;

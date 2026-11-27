@@ -1,21 +1,33 @@
 rules_version = '2';
 
-// Craft rules based on data in your Firestore database
-// allow write: if firestore.get(
-//    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
 service firebase.storage {
   match /b/{bucket}/o {
+    function isActiveDoc(docData) {
+      return !('isActive' in docData) || docData.isActive == true || docData.isActive == null;
+    }
+
+    function hasActiveJournalAccess(journalId) {
+      let journalData = firestore.get(/databases/(default)/documents/journals/$(journalId)).data;
+      return request.auth.uid in journalData.access_array && isActiveDoc(journalData);
+    }
+
+    function isActiveTemplate(journalId, templateId) {
+      let templateData = firestore.get(/databases/(default)/documents/journals/$(journalId)/templates/$(templateId)).data;
+      return isActiveDoc(templateData);
+    }
+
     // Path structured by journal to match Firestore hierarchy
     match /journals/{journalId}/templates/{templateId}/{fileName} {
       // Strictly forbid all direct client writes.
       // The Firebase Admin SDK in the backend function will bypass this to save the file.
       allow write: if false;
 
-      // Mirror Firestore logic: check access_array and isActive state
+      // Mirror Firestore logic: check auth, journal existence/access/isActive, and template existence/isActive
       allow read: if request.auth != null &&
-                  request.auth.uid in firestore.get(/databases/(default)/documents/journals/$(journalId)).data.access_array &&
-                  (firestore.get(/databases/(default)/documents/journals/$(journalId)).data.isActive == true ||
-                   firestore.get(/databases/(default)/documents/journals/$(journalId)).data.isActive == null);
+                  firestore.exists(/databases/(default)/documents/journals/$(journalId)) &&
+                  hasActiveJournalAccess(journalId) &&
+                  firestore.exists(/databases/(default)/documents/journals/$(journalId)/templates/$(templateId)) &&
+                  isActiveTemplate(journalId, templateId);
     }
 
     match /{allPaths=**} {

@@ -1,4 +1,3 @@
-import { AccessMap, ROLES } from './schemas/common_schemas';
 import { Timestamp } from 'firebase-admin/firestore';
 
 export enum WorkStatus {
@@ -17,34 +16,7 @@ export interface EntryItf {
   updatedAt: Timestamp;
   status?: WorkStatus;
   details: {
+    // Entry details vary by entryType (estimate vs template) and are validated via Zod schemas.
     [key: string]: any;
-  };
-}
-
-// Remove JournalRole enum
-// export enum JournalRole {
-//   "admin",
-//   "editor",
-//   "staff",
-//   "viewer",
-// }
-
-export interface JournalUser {
-  displayName?: string | null;
-  role: (typeof ROLES)[number]; // Use ROLES type
-  email: string;
-  photoURL?: string | null;
-}
-
-export interface JournalDocument {
-  id?: string; // only for the UI, the UI library hydrates the doc with the document ID
-  title: string;
-  journalType: string;
-  // status: string; // Removed status field
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  access: AccessMap;
-  pendingAccess: {
-    [email: string]: (typeof ROLES)[number]; // Use ROLES type
   };
 }
