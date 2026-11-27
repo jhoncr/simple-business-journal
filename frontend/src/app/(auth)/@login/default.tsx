@@ -20,7 +20,39 @@ import {
 import Image from "next/image";
 import { useAuth } from "@/lib/auth_handler";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+
+// --- AI TESTING AUTO-LOGIN ---
+// Strictly gated to development environment only (dead-code eliminated in production builds).
+// Only triggers if NEXT_PUBLIC_AI_TEST_MODE is set to "true" (e.g. npm run dev:ai).
+function useAiAutoLogin() {
+  useEffect(() => {
+    if (
+      process.env.NODE_ENV === "development" &&
+      process.env.NEXT_PUBLIC_AI_TEST_MODE === "true"
+    ) {
+      const email =
+        process.env.NEXT_PUBLIC_AI_TEST_EMAIL || "ai-tester@test.com";
+      const password =
+        process.env.NEXT_PUBLIC_AI_TEST_PASSWORD || "password123";
+      const auth = getAuth();
+
+      signInWithEmailAndPassword(auth, email, password)
+        .then((userCredential) => {
+          console.log(
+            `🤖 AI Agent silently logged in! UID: ${userCredential.user.uid}`,
+          );
+        })
+        .catch((err) => {
+          console.error(
+            "🤖 Test login failed. Did you remember to create the user in the emulator UI and save the state?",
+            err,
+          );
+        });
+    }
+  }, []);
+}
 
 const GoogleIcon = () => (
   <div className="flex items-center justify-center w-6 h-6 rounded-full shadow">
@@ -38,6 +70,7 @@ const GoogleIcon = () => (
   </div>
 );
 export default function LandingPage() {
+  useAiAutoLogin();
   const { authUser, signInWithGoogle } = useAuth();
   const t = useTranslations("LandingPage");
   const [isLoggingIn, setIsLoggingIn] = useState(false);

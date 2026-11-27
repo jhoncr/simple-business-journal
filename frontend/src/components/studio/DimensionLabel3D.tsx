@@ -209,7 +209,7 @@ export const DimensionLabel3D: React.FC<DimensionLabel3DProps> = ({
       <Line points={geometry.extensionB} color={lineColor} lineWidth={extLineWidth} raycast={() => null} />
 
       {/* Text label - rendered as HTML overlaid on the canvas to maintain readable size */}
-      <Html position={geometry.midpoint} center zIndexRange={[100, 0]} occlude>
+      <Html position={geometry.midpoint} center zIndexRange={[100, 0]}>
         <div
           onClick={(e) => { e.stopPropagation(); onSelect(label.id); }}
           className={`px-2 py-0 rounded shadow-sm border text-xs font-semibold select-none whitespace-nowrap cursor-pointer ${bgColor}`}

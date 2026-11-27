@@ -10,6 +10,16 @@ import { allowedCurrencySchemaType } from "@backend/common/schemas/common_schema
 import { ROLES_THAT_ADD } from "@backend/common/const"; // Import ROLES_THAT_ADD
 import { ROLES } from "@backend/common/schemas/common_schemas"; // Import ROLES type
 import { Payment } from "@backend/common/schemas/estimate_schema";
+import {
+  calculateAdjustmentAmount as calcAdjustmentAmount,
+  calculateAdjustments,
+  calculateTotalBeforeTax,
+  calculateTax,
+  calculateGrandTotal,
+  getActivePayments,
+  calculatePaymentsTotal,
+  calculateBalanceDue,
+} from "@/lib/financials";
 
 interface InvoiceBottomLinesProps {
   itemSubtotal: number;
@@ -56,52 +66,38 @@ export function InvoiceBottomLines({
 
   const calculateAdjustmentAmount = React.useCallback(
     (adjustment: Adjustment): number => {
-      if (!adjustment || typeof adjustment.value !== "number") return 0;
-      const value = adjustment.value;
-      const calculations = {
-        addFixed: () => value || 0,
-        addPercent: () => ((itemSubtotal || 0) * value) / 100,
-        discountFixed: () => -(value || 0),
-        discountPercent: () => -((itemSubtotal || 0) * value) / 100,
-        taxPercent: () => 0, // this is a tax percentage, not an adjustment
-      };
-      return calculations[adjustment.type]?.() ?? 0;
+      return calcAdjustmentAmount(adjustment, itemSubtotal);
     },
     [itemSubtotal],
   );
 
   const totalAdjustments = React.useMemo(
-    () =>
-      adjustments.reduce(
-        (sum, adjustment) =>
-          sum + (calculateAdjustmentAmount(adjustment) || 0),
-        0,
-      ),
-    [adjustments, calculateAdjustmentAmount],
+    () => calculateAdjustments(itemSubtotal, adjustments),
+    [itemSubtotal, adjustments],
   );
 
   const { totalBeforeTax, taxAmount, grandTotal } = React.useMemo(() => {
-    const totalBeforeTax = (itemSubtotal || 0) + (totalAdjustments || 0);
-    const taxAmount = ((totalBeforeTax || 0) * (taxPercentage || 0)) / 100;
+    const totalBeforeTax = calculateTotalBeforeTax(itemSubtotal, totalAdjustments);
+    const taxAmount = calculateTax(totalBeforeTax, taxPercentage);
     return {
       totalBeforeTax,
       taxAmount,
-      grandTotal: totalBeforeTax + taxAmount,
+      grandTotal: calculateGrandTotal(totalBeforeTax, taxAmount),
     };
   }, [itemSubtotal, totalAdjustments, taxPercentage]);
 
   const activePayments = React.useMemo(
-    () => payments.filter((p) => !p.deletedAt && !p.isDeleted),
+    () => getActivePayments(payments),
     [payments],
   );
 
   const totalPayments = React.useMemo(
-    () => activePayments.reduce((sum, payment) => sum + (payment.amount || 0), 0),
-    [activePayments],
+    () => calculatePaymentsTotal(payments),
+    [payments],
   );
 
   const balanceDue = React.useMemo(
-    () => grandTotal - totalPayments,
+    () => calculateBalanceDue(grandTotal, totalPayments),
     [grandTotal, totalPayments],
   );
 

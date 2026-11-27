@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import { EstimateHeader } from "@/app/(auth)/journal/journal-types/estimate/subcomponents/header";
 import { StoneForgeViewer } from "@/components/studio/StoneForgeViewer";
 import { AssemblyTemplate, SlabComponent } from "@backend/common/schemas/studio";
@@ -74,7 +74,7 @@ export interface DrawingItem {
   rectangles: RectangleData[];
 }
 
-interface TemplatePrintLayoutProps {
+export interface TemplatePrintLayoutProps {
   items: PrintableItem[];
   drawingItems?: DrawingItem[];
   contactInfo?: contactInfoSchemaType;
@@ -85,6 +85,7 @@ interface TemplatePrintLayoutProps {
     phone?: string;
     email?: string;
   };
+  onReadyToPrint?: () => void;
 }
 
 export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
@@ -93,8 +94,165 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
   contactInfo,
   logo,
   customerContext,
+  onReadyToPrint,
 }) => {
   const t = useTranslations("estimate");
+
+  // Signature of templates and variable overrides to detect live edits / template switches
+  const itemsSignature = useMemo(() => {
+    return JSON.stringify(
+      items.map((item) => ({
+        id: item.id,
+        templateId: item.template?.id,
+        templateName: item.template?.name,
+        views: (item.template?.cameraViews || []).map((v) => ({
+          id: v.id,
+          preset: v.preset,
+          focusTargetId: v.focusTargetId,
+          zoomMultiplier: v.zoomMultiplier,
+        })),
+        overrides: item.variableOverrides || {},
+      }))
+    );
+  }, [items]);
+
+  // Precompute all view keys across all items for sequential snapshotting
+  const allViewKeys = useMemo(() => {
+    const keys: string[] = [];
+    items.forEach((item) => {
+      const cameraViews = (item.template?.cameraViews || []) as CameraView[];
+      if (cameraViews.length > 0) {
+        const mainViews = cameraViews.filter((v) => !v.focusTargetId);
+        const detailViews = cameraViews.filter((v) => v.focusTargetId);
+        if (mainViews.length > 0) {
+          keys.push(`${item.id}:default:${mainViews[0].id}`);
+          mainViews.slice(1).forEach((v) => keys.push(`${item.id}:other:${v.id}`));
+        }
+        detailViews.forEach((v) => keys.push(`${item.id}:detail:${v.id}`));
+        if (mainViews.length === 0 && detailViews.length === 0) {
+          keys.push(`${item.id}:single`);
+        }
+      } else {
+        keys.push(`${item.id}:single`);
+      }
+    });
+    return keys;
+  }, [items]);
+
+  const [snapshots, setSnapshots] = useState<Record<string, string>>({});
+  const [activeQueueIndex, setActiveQueueIndex] = useState<number>(0);
+
+  // Reset snapshots and queue index whenever the template or variable overrides change
+  const prevSignatureRef = useRef<string>(itemsSignature);
+  useEffect(() => {
+    if (prevSignatureRef.current !== itemsSignature) {
+      prevSignatureRef.current = itemsSignature;
+      setSnapshots({});
+      setActiveQueueIndex(0);
+      onReadyCalledRef.current = false;
+    }
+  }, [itemsSignature]);
+
+  // Always pick the first unresolved view key so no view can ever be skipped or stuck on "Loading view..."
+  const activeKey = useMemo(() => {
+    return allViewKeys.find((k) => snapshots[k] === undefined) ?? allViewKeys[activeQueueIndex] ?? null;
+  }, [allViewKeys, snapshots, activeQueueIndex]);
+
+  const isReady =
+    allViewKeys.length === 0 ||
+    (activeQueueIndex >= allViewKeys.length && allViewKeys.every((k) => snapshots[k] !== undefined));
+  const onReadyCalledRef = useRef(false);
+
+  const handleSnapshot = useCallback((key: string, url: string) => {
+    setSnapshots((prev) => ({ ...prev, [key]: url }));
+    setActiveQueueIndex((prev) => prev + 1);
+  }, []);
+
+  useEffect(() => {
+    if ((items.length > 0 || drawingItems.length > 0) && isReady && !onReadyCalledRef.current) {
+      onReadyCalledRef.current = true;
+      requestAnimationFrame(() => {
+        onReadyToPrint?.();
+      });
+    }
+  }, [items.length, drawingItems.length, isReady, onReadyToPrint]);
+
+  // Fallback safety timeout scaled dynamically with view count so print dialog is never blocked indefinitely
+  useEffect(() => {
+    if ((items.length > 0 || drawingItems.length > 0) && allViewKeys.length > 0) {
+      const timeoutDuration = Math.max(10000, allViewKeys.length * 3500);
+      const timer = setTimeout(() => {
+        if (!onReadyCalledRef.current) {
+          console.warn("Print ready fallback triggered after timeout");
+          onReadyCalledRef.current = true;
+          onReadyToPrint?.();
+        }
+      }, timeoutDuration);
+      return () => clearTimeout(timer);
+    }
+  }, [items.length, drawingItems.length, allViewKeys.length, onReadyToPrint]);
+
+  // Inactivity watchdog timer: triggers fallback only if no view progress is made for 5000ms
+  useEffect(() => {
+    if ((items.length > 0 || drawingItems.length > 0) && allViewKeys.length > 0 && !isReady) {
+      const watchdogTimer = setTimeout(() => {
+        if (!onReadyCalledRef.current) {
+          console.warn("Print ready watchdog triggered after 5000ms inactivity");
+          onReadyCalledRef.current = true;
+          onReadyToPrint?.();
+        }
+      }, 5000);
+      return () => clearTimeout(watchdogTimer);
+    }
+  }, [items.length, drawingItems.length, allViewKeys.length, activeQueueIndex, isReady, onReadyToPrint]);
+
+  const renderViewCard = (
+    key: string,
+    viewName: string,
+    components: SlabComponent[],
+    variables: Record<string, number>,
+    fixedCameraView?: CameraView | null
+  ) => {
+    const snapshotUrl = snapshots[key];
+    const isActive = key === activeKey;
+
+    if (snapshotUrl !== undefined) {
+      if (snapshotUrl === "") {
+        return (
+          <div className="flex items-center justify-center h-full text-xs text-muted-foreground italic">
+            View unavailable
+          </div>
+        );
+      }
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={snapshotUrl}
+          alt={viewName}
+          className="w-full h-full object-contain"
+        />
+      );
+    }
+
+    if (isActive) {
+      return (
+        <StoneForgeViewer
+          key={`${key}:${itemsSignature}`}
+          components={components}
+          variables={variables}
+          printMode={true}
+          fixedCameraView={fixedCameraView || undefined}
+          onSnapshot={(url) => handleSnapshot(key, url)}
+        />
+      );
+    }
+
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-400 text-xs">
+        <span className="text-[10px] text-gray-400">Loading view...</span>
+      </div>
+    );
+  };
 
   if (items.length === 0 && drawingItems.length === 0) return null;
 
@@ -139,21 +297,22 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
             .td-item-header { break-after: avoid; }
             .td-item-page { page-break-after: always; break-after: page; }
             .td-item-page:last-child { page-break-after: auto; break-after: auto; }
-            .td-drawing-page { page-break-before: always; break-before: page; }
+            .td-drawing-page { page-break-before: always; break-before: page; min-height: 0 !important; height: auto !important; }
             .td-drawing-group { break-inside: avoid; }
+            .td-print-container { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; }
           }
         `,
         }}
       />
 
-      <div className="td-no-print print:hidden w-full max-w-[285mm] bg-blue-50 border-l-4 border-blue-400 p-2 my-4 mx-auto rounded text-xs text-blue-700 shadow-sm flex items-center gap-2">
+      <div className="td-no-print print:hidden w-full max-w-6xl bg-blue-50 border-l-4 border-blue-400 p-2 my-4 mx-auto rounded text-xs text-blue-700 shadow-sm flex items-center gap-2">
         <Button variant="outline" size="sm" className="flex items-center gap-2 h-9" title={t("quickPrint")} onClick={() => window.print()}>
           <Printer className="h-3 w-3" />
           {t("quickPrint")}
         </Button>
       </div>
 
-      <div className="bg-white shadow-xl print:shadow-none mb-8 print:m-0 print:p-0 flex-shrink-0 mx-auto" style={{ width: '285mm' }}>
+      <div className="bg-white shadow-xl print:shadow-none mb-8 print:m-0 print:p-0 flex-shrink-0 mx-auto w-full max-w-6xl print:max-w-none print:w-full td-print-container">
         <div className="pt-1">
           {items.map((item, index) => {
             const template = item.template;
@@ -176,7 +335,7 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
 
             return (
               <React.Fragment key={item.id}>
-                <div className="td-item-page px-4 pb-4 flex flex-col" style={{ minHeight: '196mm' }}>
+                <div className="td-item-page px-4 pb-4 flex flex-col min-h-[680px] lg:min-h-[740px] print:min-h-[190mm] print:h-[190mm]">
                   <PageHeader />
 
                   <div className="border rounded overflow-hidden border-gray-300 flex-1 flex flex-col mt-2">
@@ -194,7 +353,13 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
                               {defaultView.name}
                             </div>
                             <div className="absolute inset-0">
-                              <StoneForgeViewer components={template.components} variables={mergedVariables} printMode={true} fixedCameraView={defaultView} />
+                              {renderViewCard(
+                                `${item.id}:default:${defaultView.id}`,
+                                defaultView.name,
+                                template.components,
+                                mergedVariables,
+                                defaultView
+                              )}
                             </div>
                           </div>
                         )}
@@ -208,7 +373,13 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
                                     <div key={view.id} className="td-view-card relative border border-gray-200 rounded w-full overflow-hidden flex-1 bg-white min-h-0">
                                       <div className="absolute top-0.5 left-0.5 z-10 bg-white/90 px-1 py-px rounded text-[9px] font-bold text-gray-500 border border-gray-200">{view.name}</div>
                                       <div className="absolute inset-0">
-                                        <StoneForgeViewer components={template.components} variables={mergedVariables} printMode={true} fixedCameraView={view} />
+                                        {renderViewCard(
+                                          `${item.id}:other:${view.id}`,
+                                          view.name,
+                                          template.components,
+                                          mergedVariables,
+                                          view
+                                        )}
                                       </div>
                                     </div>
                                   ))}
@@ -223,7 +394,13 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
                                     <div key={view.id} className="td-view-card relative border border-gray-200 rounded flex-1 min-w-[120px] overflow-hidden bg-white min-h-0">
                                       <div className="absolute top-0.5 left-0.5 z-10 bg-white/90 px-1 py-px rounded text-[9px] font-bold text-gray-500 border border-gray-200">{view.name}</div>
                                       <div className="absolute inset-0">
-                                        <StoneForgeViewer components={template.components} variables={mergedVariables} printMode={true} fixedCameraView={view} />
+                                        {renderViewCard(
+                                          `${item.id}:detail:${view.id}`,
+                                          view.name,
+                                          template.components,
+                                          mergedVariables,
+                                          view
+                                        )}
                                       </div>
                                     </div>
                                   ))}
@@ -235,7 +412,13 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
                       </div>
                     ) : (
                       <div className="td-view-card w-full h-[300px] relative overflow-hidden bg-white">
-                        <StoneForgeViewer components={template.components} variables={mergedVariables} printMode={true} />
+                        {renderViewCard(
+                          `${item.id}:single`,
+                          "Overview",
+                          template.components,
+                          mergedVariables,
+                          null
+                        )}
                       </div>
                     )}
 
@@ -309,7 +492,7 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
                   });
 
                   return (
-                    <div className="td-item-page px-4 pb-4 flex flex-col print:block print:h-auto print:min-h-0" style={{ minHeight: '196mm' }}>
+                    <div className="td-item-page px-4 pb-4 flex flex-col print:block print:h-auto print:min-h-0">
                       <RectangleViewer
                         rectangles={rectangles}
                         header={
@@ -336,7 +519,7 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
           })}
 
           {drawingItems.length > 0 && (
-            <div className="td-drawing-page px-4 pb-4 flex flex-col" style={{ minHeight: '196mm' }}>
+            <div className="td-drawing-page px-4 pb-4 flex flex-col print:block print:h-auto print:min-h-0">
               <RectangleViewer
                 rectangles={drawingItems.flatMap((item) => item.rectangles.map((rect) => ({ ...rect, groupId: null })))}
                 header={

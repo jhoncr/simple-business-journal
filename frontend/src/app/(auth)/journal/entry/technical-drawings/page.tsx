@@ -1,12 +1,21 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { fetchEntry, fetchJournal } from "@/lib/db_handler";
-import { estimateDetailsStateSchema } from "@backend/common/schemas/estimate_schema";
+import { LineItem, estimateDetailsStateSchema } from "@backend/common/schemas/estimate_schema";
 import { TemplatePrintLayout, PrintableItem, DrawingItem } from "@/components/studio/TemplatePrintLayout";
 import { RectangleData } from "@/components/RectangleViewer";
+
+/**
+ * Converts dimension values from meters (stored in Firestore line items)
+ * to centimeters (required by RectangleViewer technical drawings).
+ */
+export function metersToCentimeters(meters?: number | null): number {
+  if (meters == null || isNaN(meters)) return 0;
+  return Math.round(meters * 100);
+}
 
 export default function TechnicalDrawingsPrintLayout() {
   const t = useTranslations("technicalDrawings");
@@ -17,10 +26,24 @@ export default function TechnicalDrawingsPrintLayout() {
   const [loading, setLoading] = useState(true);
   const [estimateData, setEstimateData] = useState<any>(null);
   const [journalData, setJournalData] = useState<any>(null);
+  const hasPrintedRef = useRef(false);
+
+  const handleReadyToPrint = useCallback(() => {
+    if (hasPrintedRef.current) return;
+    hasPrintedRef.current = true;
+    if (typeof window !== "undefined" && typeof window.print === "function") {
+      requestAnimationFrame(() => {
+        window.print();
+      });
+    }
+  }, []);
 
   useEffect(() => {
     async function loadData() {
-      if (!journalId || !entryId) return;
+      if (!journalId || !entryId) {
+        setLoading(false);
+        return;
+      }
 
       try {
         const [entryRes, journalRes] = await Promise.all([
@@ -55,15 +78,6 @@ export default function TechnicalDrawingsPrintLayout() {
     loadData();
   }, [journalId, entryId]);
 
-  useEffect(() => {
-    if (!loading && estimateData) {
-      const timer = setTimeout(() => {
-        window.print();
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [loading, estimateData]);
-
   if (loading) {
     return (
       <div className="p-10 text-center">{t("loading")}</div>
@@ -77,24 +91,23 @@ export default function TechnicalDrawingsPrintLayout() {
   }
 
   // Section 1: 3D template items
-  const printableItems: PrintableItem[] = estimateData.confirmedItems
-    .filter((item: any) => item.attachedTemplate != null)
-    .map((item: any) => ({
+  const printableItems: PrintableItem[] = (estimateData.confirmedItems || [])
+    .filter((item: LineItem) => item.attachedTemplate != null)
+    .map((item: LineItem) => ({
       id: item.id,
-      description: item.description || item.attachedTemplate.snapshot.name,
-      template: item.attachedTemplate.snapshot,
-      variableOverrides: item.attachedTemplate.variableOverrides || {},
+      description: item.description || item.attachedTemplate!.snapshot.name,
+      template: item.attachedTemplate!.snapshot,
+      variableOverrides: item.attachedTemplate!.variableOverrides || {},
     }));
 
   // Section 2: Window Sill / Tile Edge drawing items
-  const drawingItems: DrawingItem[] = estimateData.confirmedItems
-    .filter((item: any) =>
+  const drawingItems: DrawingItem[] = (estimateData.confirmedItems || [])
+    .filter((item: LineItem) =>
       item.itemCategory === "window-sill" || item.itemCategory === "tile-edge"
     )
-    .map((item: any) => {
-      const SCALER = 100; // TODO: remote this in the future, this is a workaround to the fact that NewItemForm is in meters
-      const width = Math.round((item.dimensions?.width ?? 0) * SCALER);
-      const length = Math.round((item.dimensions?.length ?? 0) * SCALER);
+    .map((item: LineItem) => {
+      const width = metersToCentimeters(item.dimensions?.width);
+      const length = metersToCentimeters(item.dimensions?.length);
       const isWindowSill = item.itemCategory === "window-sill";
 
       const rect: RectangleData = {
@@ -129,6 +142,7 @@ export default function TechnicalDrawingsPrintLayout() {
       contactInfo={journalData.details?.contactInfo}
       logo={journalData.details?.logo}
       customerContext={estimateData.customer}
+      onReadyToPrint={handleReadyToPrint}
     />
   );
 }

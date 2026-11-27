@@ -41,3 +41,21 @@ test('handles nested objects, arrays and circular references', () => {
   assert.equal(out.nested.deep.self, '[circular]');
   assert.deepEqual(out.list, [1, 'a']);
 });
+
+test('strips base64 image data URLs across arbitrary keys', () => {
+  const dataUrl = 'data:image/png;base64,' + 'A'.repeat(500);
+  const out = sanitizeAuditInput({
+    customImage: dataUrl,
+    nested: { photo: 'data:image/jpeg;base64,12345' },
+  });
+  assert.match(out.customImage, /\[stripped image data URL \(\d+ chars\)\]/);
+  assert.match(out.nested.photo, /\[stripped image data URL \(28 chars\)\]/);
+});
+
+test('handles non-serializable circular payloads gracefully', () => {
+  // Test bigints or symbols which fail JSON.stringify
+  const input = { val: 123n };
+  const out = sanitizeAuditInput(input);
+  assert.equal(out._auditNote, 'input was not JSON-serializable');
+});
+

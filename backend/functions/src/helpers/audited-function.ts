@@ -18,6 +18,9 @@ type AuditedCallableOptions = {
  */
 const AUDIT_STRIPPED_KEYS = new Set(['thumbnailBase64', 'thumbnail']);
 
+/** Pattern matching base64 image data URLs across any key */
+const DATA_IMAGE_REGEX = /^data:image\/[a-zA-Z+]+;base64,/;
+
 /** Cap for the serialized audit payload; anything larger is truncated. */
 const MAX_AUDIT_JSON_BYTES = 8192;
 
@@ -32,6 +35,9 @@ export function sanitizeAuditInput(data: unknown): unknown {
   const clean = (value: unknown): unknown => {
     if (value === null || value === undefined) return value;
     if (typeof value === 'string') {
+      if (DATA_IMAGE_REGEX.test(value)) {
+        return `[stripped image data URL (${value.length} chars)]`;
+      }
       return value.length > 2000 ?
         value.slice(0, 2000) + `…[truncated ${value.length} chars]` :
         value;

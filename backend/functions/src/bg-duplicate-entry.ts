@@ -7,6 +7,7 @@ import { JOURNAL_COLLECTION } from './common/const';
 import { ENTRY_CONFIG, EntryType } from './common/schemas/configmap';
 import { createAuditedCallable } from './helpers/audited-function';
 import { EntryItf } from './common/common_types';
+import { handleSchemaValidationError } from './lib/bg-consts';
 import * as z from 'zod';
 
 if (getApps().length === 0) {
@@ -48,9 +49,9 @@ export const duplicateEntry = createAuditedCallable(
 
       if (!config) {
         throw new HttpsError(
-            'invalid-argument',
-            `Unsupported entryType: ${entryType}`,
-          );
+          'invalid-argument',
+          `Unsupported entryType: ${entryType}`,
+        );
       }
 
       const { allowedRoles, subcollection: targetSubcollectionName } = config;
@@ -77,39 +78,73 @@ export const duplicateEntry = createAuditedCallable(
       const originalEntry = originalEntryDoc.data() as EntryItf;
 
       // Prepare details (clear specific fields based on type)
-      const duplicateDetails = { ...originalEntry.details };
+      const duplicateDetails = { ...(originalEntry.details || {}) } as Record<string, any>;
+
+      // Pre-allocate the new entry document
+      const newDocRef = entriesColRef.doc();
+      const newDocId = newDocRef.id;
 
       if (entryType === 'estimate') {
         // Clear payments for estimates
         duplicateDetails.payments = [];
-        duplicateDetails.notes = `${
-            originalEntry.details.notes ?
-              `${originalEntry.details.notes}\n` :
-              ''
-          } \n(Copied from ${entryId})`;
+
+        // Safe note truncation to respect max 250 character constraint
+        const MAX_NOTES_LENGTH = 250;
+        const annotation = `\n(Copied from ${entryId})`;
+        const rawNotes = (originalEntry.details as any)?.notes;
+        const origNotes = typeof rawNotes === 'string' ? rawNotes.trim() : '';
+
+        if (origNotes) {
+          const maxOrigLength = Math.max(0, MAX_NOTES_LENGTH - annotation.length);
+          const truncatedNotes =
+            origNotes.length > maxOrigLength ?
+              origNotes.slice(0, maxOrigLength) :
+              origNotes;
+          duplicateDetails.notes = `${truncatedNotes}${annotation}`;
+        } else {
+          duplicateDetails.notes = `(Copied from ${entryId})`.slice(
+            0,
+            MAX_NOTES_LENGTH,
+          );
+        }
+      } else if (entryType === 'template') {
+        duplicateDetails.id = newDocId;
       }
 
-      // Generate name for the duplicate
-      const duplicateName = originalEntry.name + ' (Copy)';
+      // Generate name for the duplicate, capped at 254 chars
+      const duplicateName = (
+        originalEntry.name ? `${originalEntry.name} (Copy)` : 'Untitled (Copy)'
+      ).slice(0, 254);
       duplicateDetails.name = duplicateName;
+
+      // Validate duplicate details against entry schema before persisting
+      const detailsResult = config.schema.safeParse(duplicateDetails);
+      if (!detailsResult.success) {
+        logger.error(
+          `Validation failed when duplicating ${entryType} ${entryId} in journal ${journalId}:`,
+          detailsResult.error,
+        );
+        handleSchemaValidationError(entryType, detailsResult);
+      }
+      const validatedDetails = detailsResult.data;
 
       // Create the duplicate entry
       const duplicateEntryData: Omit<EntryItf, 'createdAt' | 'updatedAt'> = {
         name: duplicateName,
         isActive: true,
         createdBy: uid,
-        details: duplicateDetails,
+        details: validatedDetails,
       };
 
       // Add the duplicate entry to Firestore
-      const docRef = await entriesColRef.add({
+      await newDocRef.set({
         ...duplicateEntryData,
         createdAt: FieldValue.serverTimestamp(),
         updatedAt: FieldValue.serverTimestamp(),
       });
 
       logger.info(
-        `${entryType} duplicated successfully. Original: ${entryId}, Duplicate: ${docRef.id}`,
+        `${entryType} duplicated successfully. Original: ${entryId}, Duplicate: ${newDocId}`,
       );
 
       return {
@@ -117,7 +152,7 @@ export const duplicateEntry = createAuditedCallable(
         response: {
           result: 'ok',
           message: `${entryType} duplicated successfully`,
-          id: docRef.id,
+          id: newDocId,
           originalId: entryId,
         },
       };

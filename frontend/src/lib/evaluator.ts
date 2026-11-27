@@ -120,7 +120,14 @@ function parseAndEval(
       if (t && t.kind === 'op' && (t.op === '*' || t.op === '/')) {
         next();
         const rhs = parseFactor();
-        value = t.op === '*' ? value * rhs : value / rhs;
+        if (t.op === '/') {
+          if (rhs === 0) {
+            throw new Error('Division by zero');
+          }
+          value = value / rhs;
+        } else {
+          value = value * rhs;
+        }
       } else {
         return value;
       }
@@ -162,18 +169,20 @@ function parseAndEval(
 
 export const evaluateExpression = (
   expr: Expression,
-  variables: Record<string, number>,
+  variables: Record<string, number> = {},
 ): number => {
   if (typeof expr === 'number') return expr;
-  if (!expr || expr.trim() === '') return 0;
+  if (!expr || typeof expr !== 'string' || expr.trim() === '') return 0;
   if (expr.length > MAX_EXPR_LENGTH) return 0;
 
   try {
     // Keep the legacy variable-name filter: only safe identifiers are visible.
     const validVars: Record<string, number> = {};
-    for (const [key, val] of Object.entries(variables)) {
-      if (IDENT_RE.test(key) && typeof val === 'number') {
-        validVars[key] = val;
+    if (variables && typeof variables === 'object') {
+      for (const [key, val] of Object.entries(variables)) {
+        if (IDENT_RE.test(key) && typeof val === 'number') {
+          validVars[key] = val;
+        }
       }
     }
     const result = parseAndEval(tokenize(expr), validVars);
