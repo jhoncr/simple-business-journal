@@ -13,7 +13,11 @@
 // estimate total.
 import { HttpsError } from 'firebase-functions/v2/https';
 import * as logger from 'firebase-functions/logger';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import {
+  getFirestore,
+  FieldValue,
+  Timestamp,
+} from 'firebase-admin/firestore';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { randomUUID } from 'crypto';
 import * as z from 'zod';
@@ -79,13 +83,28 @@ const mutatePaymentsSchema = z
     { message: 'At least one payment operation is required.' },
   );
 
-/** Normalizes Firestore Timestamps/Dates/numbers to millis for the callable response. */
-function toMillis(value: any): number | null {
+/** Normalizes Firestore Timestamps/Dates/numbers/ISO strings to millis for the callable response. */
+export function toMillis(value: any): number | null {
   if (value === null || value === undefined) return null;
   if (typeof value?.toMillis === 'function') return value.toMillis();
   if (value instanceof Date) return value.getTime();
   if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const ms = Date.parse(value);
+    return Number.isNaN(ms) ? null : ms;
+  }
   return null;
+}
+
+/** Strips keys whose value is undefined so Firestore never rejects optional fields. */
+function stripUndefined<T extends Record<string, any>>(obj: T): Partial<T> {
+  const out: Partial<T> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      (out as Record<string, any>)[key] = value;
+    }
+  }
+  return out;
 }
 
 /** Normalizes Firestore Timestamps/Dates to millis for the callable response. */
@@ -97,6 +116,154 @@ function paymentToMillis(payment: Record<string, any>): Record<string, any> {
   return out;
 }
 
+export type PaymentMutationOps = {
+  add?: z.infer<typeof newPaymentInputSchema>[];
+  update?: z.infer<typeof paymentPatchSchema>[];
+  voidIds?: string[];
+  restoreIds?: string[];
+};
+
+/**
+ * Applies payment mutations (add/update/void/restore) and validates invariants.
+ * Uses a concrete Firestore Timestamp (never FieldValue.serverTimestamp(), which
+ * Firestore rejects inside arrays). Exported for unit tests.
+ */
+export function applyPaymentMutations(
+  details: Record<string, any>,
+  ops: PaymentMutationOps,
+  uid: string,
+  paymentNow: Timestamp = Timestamp.now(),
+): Record<string, any>[] {
+  const {
+    add = [],
+    update = [],
+    voidIds = [],
+    restoreIds = [],
+  } = ops;
+
+  const payments: Record<string, any>[] = Array.isArray(details.payments) ?
+    details.payments.map((p) => ({ ...p })) :
+    [];
+  const byId = new Map<string, Record<string, any>>(
+    payments.map((p) => [String(p.id), p]),
+  );
+
+  // --- ADD: server assigns id + audit fields; client input already zod-validated ---
+  for (const input of add) {
+    const id = randomUUID();
+    const created = {
+      ...stripUndefined(input),
+      id,
+      createdAt: paymentNow,
+      createdBy: uid,
+      updatedAt: paymentNow,
+      updatedBy: uid,
+      isDeleted: false,
+    };
+    payments.push(created);
+    byId.set(id, created);
+  }
+
+  // --- UPDATE: patch allowed fields on live payments ---
+  for (const patch of update) {
+    const target = byId.get(patch.id);
+    if (!target) {
+      throw new HttpsError(
+        'invalid-argument',
+        `Payment ${patch.id} not found.`,
+      );
+    }
+    if (target.isDeleted || target.deletedAt) {
+      throw new HttpsError(
+        'failed-precondition',
+        `Payment ${patch.id} is voided and cannot be edited. Restore it first.`,
+      );
+    }
+    // patch.id already equals target.id (we looked it up by id), so
+    // assigning the stripped patch is safe.
+    Object.assign(target, stripUndefined(patch), {
+      updatedAt: paymentNow,
+      updatedBy: uid,
+    });
+  }
+
+  // --- VOID: soft-delete ---
+  for (const pid of voidIds) {
+    const target = byId.get(pid);
+    if (!target) {
+      throw new HttpsError(
+        'invalid-argument',
+        `Payment ${pid} not found.`,
+      );
+    }
+    if (target.isDeleted || target.deletedAt) {
+      throw new HttpsError(
+        'failed-precondition',
+        `Payment ${pid} is already voided.`,
+      );
+    }
+    Object.assign(target, {
+      isDeleted: true,
+      deletedAt: paymentNow,
+      deletedBy: uid,
+      updatedAt: paymentNow,
+      updatedBy: uid,
+    });
+  }
+
+  // --- RESTORE: un-void ---
+  for (const pid of restoreIds) {
+    const target = byId.get(pid);
+    if (!target) {
+      throw new HttpsError(
+        'invalid-argument',
+        `Payment ${pid} not found.`,
+      );
+    }
+    if (!target.isDeleted && !target.deletedAt) {
+      throw new HttpsError(
+        'failed-precondition',
+        `Payment ${pid} is not voided.`,
+      );
+    }
+    Object.assign(target, {
+      isDeleted: false,
+      deletedAt: null,
+      deletedBy: null,
+      updatedAt: paymentNow,
+      updatedBy: uid,
+    });
+  }
+
+  // --- Invariants across the whole array ---
+  const seen = new Set<string>();
+  for (const p of payments) {
+    if (!p.id || seen.has(String(p.id))) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Duplicate payment id detected.',
+      );
+    }
+    seen.add(String(p.id));
+    if (typeof p.amount !== 'number' || !(p.amount > 0)) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Payment amounts must be positive numbers.',
+      );
+    }
+  }
+  const grandTotal = computeGrandTotal(details);
+  const paid = totalPaidFor(payments);
+  if (paid - grandTotal > MONEY_EPSILON) {
+    throw new HttpsError(
+      'failed-precondition',
+      `Payments (${paid.toFixed(2)}) would exceed the estimate total (${grandTotal.toFixed(2)}).`,
+    );
+  }
+
+  return payments;
+}
+
 export const mutatePayments = createAuditedCallable(
   'mutatePayments',
   JOURNAL_COLLECTION,
@@ -104,7 +271,9 @@ export const mutatePayments = createAuditedCallable(
   mutatePaymentsSchema,
   async (request) => {
     const uid = request.auth!.uid;
-    const data = request.data as z.infer<typeof mutatePaymentsSchema>;
+    // Parse through mutatePaymentsSchema so firestoreDateSchema converts ISO
+    // date strings into Date objects (persisted as Firestore Timestamps).
+    const data = mutatePaymentsSchema.parse(request.data);
     const {
       jid: journalId,
       entryId,
@@ -153,129 +322,21 @@ export const mutatePayments = createAuditedCallable(
       }
 
       const details = (entryData.details ?? {}) as Record<string, any>;
-      const payments: Record<string, any>[] = Array.isArray(details.payments) ?
-        details.payments.map((p) => ({ ...p })) :
-        [];
-      const byId = new Map<string, Record<string, any>>(
-        payments.map((p) => [String(p.id), p]),
+      // Firestore forbids FieldValue.serverTimestamp() inside arrays, so use
+      // concrete Timestamp.now() for per-payment audit fields and keep
+      // FieldValue.serverTimestamp() for the top-level document updatedAt.
+      const payments = applyPaymentMutations(
+        details,
+        { add, update, voidIds, restoreIds },
+        uid,
+        Timestamp.now(),
       );
-      const now = FieldValue.serverTimestamp();
-
-      // --- ADD: server assigns id + audit fields; client input already zod-validated ---
-      for (const input of add) {
-        const id = randomUUID();
-        const created = {
-          ...input,
-          id,
-          createdAt: now,
-          createdBy: uid,
-          updatedAt: now,
-          updatedBy: uid,
-          isDeleted: false,
-        };
-        payments.push(created);
-        byId.set(id, created);
-      }
-
-      // --- UPDATE: patch allowed fields on live payments ---
-      for (const patch of update) {
-        const target = byId.get(patch.id);
-        if (!target) {
-          throw new HttpsError(
-            'invalid-argument',
-            `Payment ${patch.id} not found.`,
-          );
-        }
-        if (target.isDeleted || target.deletedAt) {
-          throw new HttpsError(
-            'failed-precondition',
-            `Payment ${patch.id} is voided and cannot be edited. Restore it first.`,
-          );
-        }
-        // patch.id already equals target.id (we looked it up by id), so
-        // assigning the whole patch is safe.
-        Object.assign(target, patch, { updatedAt: now, updatedBy: uid });
-      }
-
-      // --- VOID: soft-delete ---
-      for (const pid of voidIds) {
-        const target = byId.get(pid);
-        if (!target) {
-          throw new HttpsError(
-            'invalid-argument',
-            `Payment ${pid} not found.`,
-          );
-        }
-        if (target.isDeleted || target.deletedAt) {
-          throw new HttpsError(
-            'failed-precondition',
-            `Payment ${pid} is already voided.`,
-          );
-        }
-        Object.assign(target, {
-          isDeleted: true,
-          deletedAt: now,
-          deletedBy: uid,
-          updatedAt: now,
-          updatedBy: uid,
-        });
-      }
-
-      // --- RESTORE: un-void ---
-      for (const pid of restoreIds) {
-        const target = byId.get(pid);
-        if (!target) {
-          throw new HttpsError(
-            'invalid-argument',
-            `Payment ${pid} not found.`,
-          );
-        }
-        if (!target.isDeleted && !target.deletedAt) {
-          throw new HttpsError(
-            'failed-precondition',
-            `Payment ${pid} is not voided.`,
-          );
-        }
-        Object.assign(target, {
-          isDeleted: false,
-          deletedAt: null,
-          deletedBy: null,
-          updatedAt: now,
-          updatedBy: uid,
-        });
-      }
-
-      // --- Invariants across the whole array ---
-      const seen = new Set<string>();
-      for (const p of payments) {
-        if (!p.id || seen.has(String(p.id))) {
-          throw new HttpsError(
-            'invalid-argument',
-            'Duplicate payment id detected.',
-          );
-        }
-        seen.add(String(p.id));
-        if (typeof p.amount !== 'number' || !(p.amount > 0)) {
-          throw new HttpsError(
-            'invalid-argument',
-            'Payment amounts must be positive numbers.',
-          );
-        }
-      }
-      const grandTotal = computeGrandTotal(details);
-      const paid = totalPaidFor(payments);
-      if (paid - grandTotal > MONEY_EPSILON) {
-        throw new HttpsError(
-          'failed-precondition',
-          `Payments (${paid.toFixed(2)}) would exceed the estimate total (${grandTotal.toFixed(2)}).`,
-        );
-      }
 
       // Only the payments array (and updatedAt) is touched — concurrent edits
       // to other estimate fields no longer clobber payments and vice versa.
       tx.update(entryRef, {
         'details.payments': payments,
-        'updatedAt': now,
+        'updatedAt': FieldValue.serverTimestamp(),
       });
     });
 
