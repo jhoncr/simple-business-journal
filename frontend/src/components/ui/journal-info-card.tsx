@@ -1,18 +1,9 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Card, CardFooter, CardHeader } from "@/components/ui/card";
+import { Card, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  MapPin,
-  Mail,
-  Phone,
-  ExternalLink,
-  PencilIcon,
-  Trash2,
-  GripVertical,
-} from "lucide-react"; // Added GripVertical
+import { MapPin, Mail, Phone, PencilIcon, Trash2 } from "lucide-react";
 import { CreateNewJournal } from "@/app/(auth)/journal/journal-types/create-new-journal";
-import { getJournalIcon } from "@/app/(auth)/journal/journal-types/config"; // Keep if used for icons
 import { useState } from "react";
 import {
   AlertDialog,
@@ -28,32 +19,23 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useTranslations } from "next-intl";
 import { httpsCallable } from "firebase/functions";
-import { useRouter } from "next/navigation";
-// --- Import specific types ---
 import { BusinessDetailsType } from "@backend/common/schemas/JournalSchema";
-import { functions } from "@/lib/auth_handler"; // Use configured functions
+import { functions } from "@/lib/auth_handler";
 
-// --- Update Types for Props ---
-type Address = BusinessDetailsType["contactInfo"]["address"]; // Use nested type
 type ContactInfo = BusinessDetailsType["contactInfo"];
 
-// --- Add subcollection info prop type ---
 type SubcollectionInfo = {
-  subcollection: string; // e.g., "cashflow_entries"
-  // Add other relevant info like display name, icon?
-  // displayName?: string;
-  // icon?: React.ReactNode;
+  subcollection: string;
 };
 
 interface InfoCardProps {
-  id: string; // Journal ID is required
-  currency?: string; // Optional for non-business types
-  contactInfo: ContactInfo; // Required, structure might vary slightly by type
+  id: string;
+  currency?: string;
+  contactInfo: ContactInfo;
   logo: string | null;
-  // --- Updated Prop: journalSubcollections ---
-  // Pass the config for subcollections relevant to *this* journal
   journalSubcollections: Record<string, SubcollectionInfo>;
   isAdmin?: boolean;
+  onChanged?: () => void;
 }
 
 const DEFAULT_TYPE = "estimates";
@@ -63,25 +45,18 @@ export function JournalInfoCard({
   currency,
   contactInfo,
   logo,
-  journalSubcollections,
   isAdmin = false,
+  onChanged,
 }: InfoCardProps) {
   const t = useTranslations("journal");
   const tCommon = useTranslations("common");
+  const tLogo = useTranslations("logoUpload");
   const { toast } = useToast();
 
-  // --- State and Hooks ---
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const [isEditing, setIsEditing] = useState(false);
-  const router = useRouter();
-
-  console.log("journalSubcollections", journalSubcollections);
-  // --- Prepare Data for Edit Form ---
-  // This assumes the card is primarily for Business type for editing
-  // Adjust if editing different types directly from the card
   const initialEditData = {
-    title: contactInfo.name, // Use contact name as title for form
+    title: contactInfo.name,
     details: {
       currency: (currency === "USD" || currency === "BRL"
         ? currency
@@ -97,17 +72,16 @@ export function JournalInfoCard({
     contactInfo.address.state ||
     contactInfo.address.zipCode;
 
-  // --- Use correct backend function name ---
   const handleDeleteJournal = async () => {
-    setIsDeleting(true); // Set pending state
+    setIsDeleting(true);
     try {
-      // Call deleteJournal function
-      const deleteJournalFn = httpsCallable(functions, "deleteJournal"); // Use correct name
-      await deleteJournalFn({ jid: id }); // Pass journalId
+      const deleteJournalFn = httpsCallable(functions, "deleteJournal", {
+        limitedUseAppCheckTokens: true,
+      });
+      await deleteJournalFn({ jid: id });
       toast({ title: t("journalDeleted") });
-      router.push("/"); // Navigate home after delete
-      router.refresh(); // Force refresh
-    } catch (error: any) {
+      onChanged?.();
+    } catch (error: unknown) {
       console.error("Error deleting journal:", error);
       toast({ title: t("failedToDeleteJournal"), variant: "destructive" });
     } finally {
@@ -173,7 +147,7 @@ export function JournalInfoCard({
                     {/* Added background */}
                     <Image
                       src={logo || "/placeholder.svg"}
-                      alt="Logo"
+                      alt={tLogo("companyLogoAlt")}
                       fill
                       className="object-contain"
                       onError={(e) => {
@@ -243,12 +217,12 @@ export function JournalInfoCard({
 
             <CreateNewJournal
               isEdit
-              initialData={initialEditData as any}
+              initialData={initialEditData}
               journalId={id}
-              onClose={() => setIsEditing(false)}
+              onSuccess={onChanged}
               trigger={
                 <button
-                  onClick={() => setIsEditing(true)}
+                  type="button"
                   aria-label={tCommon("edit")}
                   className="p-1 hover:bg-muted rounded"
                 >

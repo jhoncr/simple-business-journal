@@ -109,6 +109,7 @@
     "loading": "Loading...",
     "no": "No",
     "openMenu": "Open menu",
+    "retry": "Retry",
     "save": "Save",
     "saveChanges": "Save changes",
     "update": "Update",
@@ -189,10 +190,10 @@
       "tileEdge": "Tile edge",
       "type": "Type",
       "width": "Width (cm)",
-      "windowStill": "Window still"
+      "windowStill": "Window sill"
     },
     "noRectanglesToDisplay": "No rectangles to display",
-    "title": "Window Still and Tile edges"
+    "title": "Window Sill and Tile Edges"
   },
   "entryPage": {
     "backToJournal": "Back to Journal",
@@ -320,6 +321,7 @@
     "estimate": "Estimate",
     "estimateDuplicated": "Estimate Duplicated",
     "failedToDeleteJournal": "Failed to delete the journal. Please try again.",
+    "failedToFilterEntries": "Failed to load filtered entries.",
     "filterByStatus": "Filter by Status",
     "invalidData": "Invalid data for deletion.",
     "itemCount": "{count} item(s)",
@@ -340,6 +342,7 @@
     "selectAll": "Select all",
     "statusFilter": "Status Filter",
     "studio": "Studio",
+    "thisItem": "this item",
     "title": "Journal",
     "unexpectedError": "An unexpected error occurred before deletion.",
     "unknownEntryType": "Error: Unknown entry type {entryType}",
@@ -348,7 +351,10 @@
   "logoUpload": {
     "addLogo": "Add Logo",
     "companyLogoAlt": "Company logo",
-    "svgOnlyError": "Please upload an SVG file."
+    "fileTooLargeError": "Logo file must be 100KB or smaller.",
+    "removeLogo": "Remove logo",
+    "svgOnlyError": "Please upload an SVG file.",
+    "unsafeSvgError": "Invalid or unsafe SVG file."
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -365,6 +371,7 @@
     "area": "Area",
     "cancel": "Cancel",
     "clearTemplate": "Clear Template",
+    "customTemplateName": "Custom {name}",
     "defaultTemplateName": "Template",
     "description": "Description",
     "descriptionPlaceholder": "Enter item description",
@@ -416,6 +423,7 @@
   },
   "newJournal": {
     "businessName": "Business Name",
+    "businessNameMinLength": "Business name must be at least 3 characters",
     "city": "City",
     "contactInformation": "Contact Information",
     "createBusiness": "Create Business",
@@ -573,9 +581,17 @@
     "edgeSelected": "{edge} Edge Selected",
     "edges": {
       "back": "Back",
+      "back-left": "Back Left",
+      "back-right": "Back Right",
       "bottom": "Bottom",
+      "bottom-back": "Bottom Back",
+      "bottom-front": "Bottom Front",
+      "bottom-left": "Bottom Left",
+      "bottom-right": "Bottom Right",
       "custom": "Custom",
       "front": "Front",
+      "front-left": "Front Left",
+      "front-right": "Front Right",
       "left": "Left",
       "right": "Right",
       "top": "Top",
@@ -594,6 +610,7 @@
     "globalProperties": "Global Properties",
     "lengthX": "Length (X)",
     "loadingWorkspace": "Loading workspace...",
+    "mainCounter": "Main Counter",
     "maxCameraViews": "Maximum of 10 camera views allowed.",
     "maxPlaceholder": "Max limit",
     "minPlaceholder": "Min (e.g. 10 or length/2)",
@@ -622,11 +639,15 @@
       "isoTfr": "Top Front Right (TFR)"
     },
     "presetStandard": "Standard",
+    "printLoadingView": "Loading view...",
+    "printOverview": "Overview",
+    "printViewUnavailable": "View unavailable",
     "properties": "Properties",
     "rectangular": "Rectangular",
     "removeLabel": "Remove Label",
     "removePolishTag": "Remove Polish Tag",
     "rotationRadians": "Rotation (Radians)",
+    "sandboxDesign": "Sandbox Design",
     "saveSuccess": "Template saved successfully!",
     "saveTemplate": "Save Template",
     "saving": "Saving...",
@@ -642,6 +663,7 @@
     "templateName": "Template Name",
     "textExpression": "Text Expression",
     "thicknessY": "Thickness (Y)",
+    "untitledAssembly": "Untitled Assembly",
     "updateSuccess": "Template updated successfully!",
     "user": "User",
     "userTooltip": "User View – variables only",

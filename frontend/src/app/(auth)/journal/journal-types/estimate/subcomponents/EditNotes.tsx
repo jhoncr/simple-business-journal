@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, type KeyboardEvent } from "react";
+import { useState, useEffect, useRef, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Check, Pencil, X } from "lucide-react";
@@ -8,10 +8,11 @@ import { useTranslations } from "next-intl";
 
 interface InlineEditTextareaProps {
   initialValue: string;
-  onSave: (value: string) => void;
+  onSave: (value: string) => Promise<boolean | void> | void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  canEdit?: boolean;
 }
 
 export function InlineEditTextarea({
@@ -20,25 +21,42 @@ export function InlineEditTextarea({
   placeholder,
   className = "",
   disabled = false,
+  canEdit = true,
 }: InlineEditTextareaProps) {
   const t = useTranslations("common");
   const effectivePlaceholder = placeholder ?? t("enterNotes");
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(initialValue);
+  const [isSavingLocal, setIsSavingLocal] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Sync local value when initialValue changes externally (e.g. conflict reload)
+  useEffect(() => {
+    setValue(initialValue);
+    if (!canEdit) {
+      setIsEditing(false);
+    }
+  }, [initialValue, canEdit]);
+
   const handleEdit = () => {
-    if (disabled) return;
+    if (!canEdit || disabled) return;
     setIsEditing(true);
-    // Focus the textarea after rendering
     setTimeout(() => {
       textareaRef.current?.focus();
     }, 0);
   };
 
-  const handleSave = () => {
-    onSave(value);
-    setIsEditing(false);
+  const handleSave = async () => {
+    if (!canEdit || disabled || isSavingLocal) return;
+    setIsSavingLocal(true);
+    try {
+      const result = await onSave(value);
+      if (result !== false) {
+        setIsEditing(false);
+      }
+    } finally {
+      setIsSavingLocal(false);
+    }
   };
 
   const handleCancel = () => {
@@ -66,21 +84,26 @@ export function InlineEditTextarea({
             onKeyDown={handleKeyDown}
             placeholder={effectivePlaceholder}
             className="min-h-[100px] p-2 pr-20 w-full"
+            disabled={disabled || isSavingLocal}
             autoFocus
           />
           <div className="absolute top-2 right-2 flex space-x-4">
             <Button
+              type="button"
               size="icon"
               variant="ghost"
               onClick={handleCancel}
+              disabled={disabled || isSavingLocal}
               className="h-8 w-8 print:hidden"
               aria-label={t("cancelEditing")}
             >
               <X className="h-4 w-4" />
             </Button>
             <Button
+              type="button"
               size="icon"
               onClick={handleSave}
+              disabled={disabled || isSavingLocal}
               className="h-8 w-8 print:hidden"
               aria-label={t("saveChanges")}
               variant={value ? "brutalist" : "destructive"}
@@ -91,22 +114,26 @@ export function InlineEditTextarea({
         </div>
       ) : (
         <div className="group relative min-h-[40px] w-full rounded-md border border-input bg-background p-3">
-          <div className="whitespace-pre-wrap pr-12">
+          <div className={`whitespace-pre-wrap ${canEdit ? "pr-12" : ""}`}>
             {value || (
               <p className="text-muted-foreground print:hidden">
                 {effectivePlaceholder}
               </p>
             )}
           </div>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={handleEdit}
-            className="absolute right-2 top-2 h-8 w-8 print:hidden"
-            aria-label={t("editText")}
-          >
-            <Pencil className="h-4 w-4" />
-          </Button>
+          {canEdit && (
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              onClick={handleEdit}
+              disabled={disabled}
+              className="absolute right-2 top-2 h-8 w-8 print:hidden"
+              aria-label={t("editText")}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       )}
     </div>

@@ -6,32 +6,84 @@ import { DBentry, WorkStatus } from "./custom_types";
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
-export function formattedDate(entryDate: Timestamp | Date) {
-  // console.log(entryDate);
+export type DateInput =
+  | Timestamp
+  | Date
+  | { toDate: () => Date }
+  | { seconds: number; nanoseconds?: number }
+  | string
+  | number
+  | null
+  | undefined;
 
-  let date: Date = new Date();
-  if (entryDate instanceof Timestamp) {
-    date = new Date(entryDate.toDate());
+function resolveIntlLocale(locale?: string): string {
+  if (!locale) return "en-US";
+  if (locale === "pt") return "pt-BR";
+  if (locale === "en") return "en-US";
+  return locale;
+}
+
+export function formattedDate(entryDate: DateInput, locale?: string): string {
+  if (entryDate === null || entryDate === undefined) {
+    return "";
   }
-  let options: Intl.DateTimeFormatOptions = {
+
+  let date: Date | null = null;
+  if (entryDate instanceof Timestamp) {
+    date = entryDate.toDate();
+  } else if (entryDate instanceof Date) {
+    date = entryDate;
+  } else if (
+    typeof entryDate === "object" &&
+    "toDate" in entryDate &&
+    typeof entryDate.toDate === "function"
+  ) {
+    date = entryDate.toDate();
+  } else if (
+    typeof entryDate === "object" &&
+    "seconds" in entryDate &&
+    typeof entryDate.seconds === "number"
+  ) {
+    const nanos =
+      typeof entryDate.nanoseconds === "number" ? entryDate.nanoseconds : 0;
+    date = new Date(entryDate.seconds * 1000 + nanos / 1_000_000);
+  } else if (typeof entryDate === "string" || typeof entryDate === "number") {
+    date = new Date(entryDate);
+  }
+
+  if (!date || isNaN(date.getTime())) {
+    return "";
+  }
+
+  const options: Intl.DateTimeFormatOptions = {
     month: "short",
     day: "numeric",
     year: "numeric",
   };
-  // Corrected logic: Display the year if the entry's year is different from the current year.
-  if (date.getFullYear() !== new Date().getFullYear()) {
-    options["year"] = "numeric";
+
+  try {
+    return date.toLocaleDateString(resolveIntlLocale(locale), options);
+  } catch {
+    return date.toLocaleDateString("en-US", options);
   }
-  return date.toLocaleDateString("en-US", options);
 }
 
 // Format currency
-// Renamed parameter currencySymbol to currencyCode for clarity.
-export const formatCurrency = (amount: number, currencyCode: string) => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currencyCode, // Use the renamed parameter
-  }).format(amount);
+export const formatCurrency = (
+  amount: number,
+  currencyCode: string,
+  locale?: string,
+): string => {
+  const safeAmount = Number.isFinite(amount) ? amount : 0;
+  try {
+    return new Intl.NumberFormat(resolveIntlLocale(locale), {
+      style: "currency",
+      currency: currencyCode,
+    }).format(safeAmount);
+  } catch (error) {
+    console.warn("Invalid currency code for formatCurrency:", currencyCode, error);
+    return `$${safeAmount.toFixed(2)}`;
+  }
 };
 
 export const currencyToSymbol = (currency: string): string => {

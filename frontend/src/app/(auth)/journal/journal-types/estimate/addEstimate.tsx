@@ -25,7 +25,6 @@ import { Payments } from "./subcomponents/Payments";
 import { InlineEditTextarea } from "./subcomponents/EditNotes";
 import { NewItemFormWrapper } from "./subcomponents/NewItemFormWrapper";
 import { InvoiceBottomLines } from "./subcomponents/Adjustments";
-import { Label } from "@/components/ui/label";
 import { WorkStatus } from "@backend/common/common_types";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,15 +62,15 @@ export const EstimateDetails = React.memo(function EstimateDetails(
     customerRef,
     editingItem,
     setCustomer,
-    setAdjustments,
-    setTaxPercentage,
-    setNotes,
     addConfirmedItem,
     removeConfirmedItem,
     editItem,
     cancelEdit,
     handleStatusChange,
-    handleSave,
+    handleCustomerChange,
+    handleAdjustmentsChange,
+    handleTaxPercentageChange,
+    handleNotesChange,
     calculateSubtotal,
     currencyFormat,
     handleAddPayment,
@@ -80,9 +79,9 @@ export const EstimateDetails = React.memo(function EstimateDetails(
     handleRestorePayment,
   } = useEstimate(props);
 
-  // Derived state: require contact info before unlocking the rest of the form
+  // Derived state: require contact info before unlocking the rest of the form for editors
   const isContactInfoValid = Boolean(customer?.name?.trim());
-  const isFormEnabled = canUpdate && isContactInfoValid;
+  const isFormLocked = canUpdate && !isContactInfoValid;
 
   if (loading) {
     return <div className="text-center p-10">{t("loadingDetails")}</div>;
@@ -98,12 +97,10 @@ export const EstimateDetails = React.memo(function EstimateDetails(
     );
   }
 
-  console.log("Rendering EstimateDetails with createdAt:", createdAt);
-
   return (
     <div
       id="estimate-printable-container"
-      className="w-full print:max-w-none mx-auto border-none relative pb-20 md:pb-4 xl:pr-[430px] print:p-0 print:m-0 print:border-none"
+      className={`w-full print:max-w-none mx-auto border-none relative pb-20 md:pb-4 ${canUpdate ? "xl:pr-[430px]" : ""} print:p-0 print:m-0 print:border-none`}
     >
       <EstimateHeader
         logo={props.supplierLogo}
@@ -124,89 +121,85 @@ export const EstimateDetails = React.memo(function EstimateDetails(
             ref={customerRef}
             info={customer}
             setInfo={setCustomer}
-            onSave={(newInfo) => handleSave({ customer: newInfo })}
+            onSave={handleCustomerChange}
+            canUpdate={canUpdate}
+            disabled={isSaving}
           />
         </div>
 
-        {canUpdate && (
-          <>
-            {!isContactInfoValid && (
-              <div className="bg-secondary/50 text-secondary-foreground p-3 rounded-md text-sm text-center print:hidden border border-border">
-                {t("unlockFormPrompt")}
-              </div>
-            )}
-
-            <fieldset
-              disabled={!isFormEnabled}
-              className={!isFormEnabled ? "opacity-50 space-y-4 pointer-events-none select-none" : "space-y-4"}
-            >
-              <Card className="print:border-none print:shadow-none">
-                <CardHeader className="p-4 pb-2 print:p-0">
-                  <CardTitle className="text-base">{t("items")}</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 pt-0 print:p-0">
-                  <ItemsList
-                    confirmedItems={confirmedItems}
-                    removeConfirmedItem={removeConfirmedItem}
-                    editItem={editItem}
-                    editingItem={editingItem}
-                    currencyFormat={currencyFormat}
-                    isSaving={isSaving}
-                    canUpdate={canUpdate}
-                  />
-                  <div className="print:hidden mt-4">
-                    <NewItemFormWrapper
-                      onAddItem={addConfirmedItem}
-                      currency={props.journalCurrency}
-                      inventoryCache={props.journalInventoryCache}
-                      userRole={userRole}
-                      editingItem={editingItem}
-                      onCancelEdit={cancelEdit}
-                      confirmedItems={confirmedItems}
-                    />
-                  </div>
-                  <div className="mt-4">
-                    <InvoiceBottomLines
-                      itemSubtotal={calculateSubtotal()}
-                      adjustments={adjustments}
-                      setAdjustments={(newAdjustments) => {
-                        setAdjustments(newAdjustments);
-                        handleSave({ adjustments: newAdjustments });
-                      }}
-                      taxPercentage={taxPercentage}
-                      setTaxPercentage={(newTaxPercentage) => {
-                        setTaxPercentage(newTaxPercentage);
-                        handleSave({ taxPercentage: newTaxPercentage });
-                      }}
-                      currency={props.journalCurrency}
-                      userRole={userRole}
-                      payments={payments}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="print:border-none print:shadow-none bg-secondary/5">
-                <CardHeader className="p-4 pb-2 print:p-0">
-                  <CardTitle className="text-base">{t("notes")}</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 pt-0 print:p-0">
-                  <InlineEditTextarea
-                    initialValue={notes}
-                    onSave={(value) => {
-                      setNotes(value);
-                      handleSave({ notes: value });
-                    }}
-                    placeholder={t("addNotesPlaceholder")}
-                    disabled={isSaving}
-                  />
-                </CardContent>
-              </Card>
-            </fieldset>
-          </>
+        {isFormLocked && (
+          <div className="bg-secondary/50 text-secondary-foreground p-3 rounded-md text-sm text-center print:hidden border border-border">
+            {t("unlockFormPrompt")}
+          </div>
         )}
 
-        {isFormEnabled &&
+        <fieldset
+          disabled={isFormLocked}
+          className={
+            isFormLocked
+              ? "opacity-50 space-y-4 pointer-events-none select-none"
+              : "space-y-4"
+          }
+        >
+          <Card className="print:border-none print:shadow-none">
+            <CardHeader className="p-4 pb-2 print:p-0">
+              <CardTitle className="text-base">{t("items")}</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 print:p-0">
+              <ItemsList
+                confirmedItems={confirmedItems}
+                removeConfirmedItem={removeConfirmedItem}
+                editItem={editItem}
+                editingItem={editingItem}
+                currencyFormat={currencyFormat}
+                isSaving={isSaving}
+                canUpdate={canUpdate}
+              />
+              {canUpdate && (
+                <div className="print:hidden mt-4">
+                  <NewItemFormWrapper
+                    onAddItem={addConfirmedItem}
+                    currency={props.journalCurrency}
+                    inventoryCache={props.journalInventoryCache}
+                    userRole={userRole}
+                    editingItem={editingItem}
+                    onCancelEdit={cancelEdit}
+                    confirmedItems={confirmedItems}
+                  />
+                </div>
+              )}
+              <div className="mt-4">
+                <InvoiceBottomLines
+                  itemSubtotal={calculateSubtotal()}
+                  adjustments={adjustments}
+                  setAdjustments={handleAdjustmentsChange}
+                  taxPercentage={taxPercentage}
+                  setTaxPercentage={handleTaxPercentageChange}
+                  currency={props.journalCurrency}
+                  userRole={userRole}
+                  payments={payments}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="print:border-none print:shadow-none bg-secondary/5">
+            <CardHeader className="p-4 pb-2 print:p-0">
+              <CardTitle className="text-base">{t("notes")}</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 print:p-0">
+              <InlineEditTextarea
+                initialValue={notes}
+                onSave={handleNotesChange}
+                placeholder={t("addNotesPlaceholder")}
+                disabled={isSaving}
+                canEdit={canUpdate}
+              />
+            </CardContent>
+          </Card>
+        </fieldset>
+
+        {!isFormLocked &&
           (status == WorkStatus.IN_PROCESS ||
             status == WorkStatus.DELIVERED ||
             payments.length > 0) && (
@@ -227,13 +220,17 @@ export const EstimateDetails = React.memo(function EstimateDetails(
       </div>
 
       {(() => {
-        const hasTechnicalDrawings = confirmedItems.some(
-          (item) =>
-            !!item.attachedTemplate ||
-            item.itemCategory === "window-sill" ||
-            item.itemCategory === "tile-edge",
-        );
-        const technicalDrawingsHref = `/journal/entry/technical-drawings?jid=${props.journalId}&eid=${entryId}`;
+        const hasTechnicalDrawings =
+          Boolean(entryId) &&
+          confirmedItems.some(
+            (item) =>
+              !!item.attachedTemplate ||
+              item.itemCategory === "window-sill" ||
+              item.itemCategory === "tile-edge",
+          );
+        const technicalDrawingsHref = entryId
+          ? `/journal/entry/technical-drawings?jid=${props.journalId}&eid=${entryId}`
+          : "";
 
         return (
           <div

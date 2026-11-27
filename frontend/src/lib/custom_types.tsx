@@ -36,13 +36,13 @@ export interface AccessMap {
 export interface Journal {
   id: string;
   title: string;
-  journalType: (typeof JOURNAL_TYPES)[keyof typeof JOURNAL_TYPES]; // Use values from shared JOURNAL_TYPES
-  details?: BusinessDetailsType | any; // Using BusinessDetailsType for business journals, 'any' for others for now
+  journalType: (typeof JOURNAL_TYPES)[keyof typeof JOURNAL_TYPES];
+  details?: BusinessDetailsType;
   access: AccessMap;
-  access_array: string[]; // Array of UIDs that have access
-  pendingAccess?: { [email: string]: string }; // Roles are strings like "admin", "viewer"
-  createdAt: Timestamp; // Firestore Timestamp
-  updatedAt?: Timestamp; // Firestore Timestamp (optional on frontend type)
+  access_array: string[];
+  pendingAccess?: { [email: string]: string };
+  createdAt: Timestamp;
+  updatedAt?: Timestamp;
   isActive: boolean;
 }
 

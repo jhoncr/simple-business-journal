@@ -76,7 +76,11 @@ export function PaymentDialog({
   useEffect(() => {
     if (open) {
       if (paymentToEdit) {
-        setAmount(String(paymentToEdit.amount || ""));
+        setAmount(
+          paymentToEdit.amount != null
+            ? Number(paymentToEdit.amount).toFixed(2)
+            : "",
+        );
         setDate(
           paymentToEdit.date ? new Date(paymentToEdit.date) : new Date(),
         );
@@ -99,7 +103,7 @@ export function PaymentDialog({
         setNotes(paymentToEdit.notes || "");
       } else {
         // Adding new payment
-        setAmount(balanceDue > 0 ? String(balanceDue) : "");
+        setAmount(balanceDue > 0 ? balanceDue.toFixed(2) : "");
         setDate(new Date());
         setMethodType("credit_card");
         setCustomMethod("");
@@ -162,7 +166,7 @@ export function PaymentDialog({
 
   const handleFillFullBalance = () => {
     if (balanceDue > 0) {
-      setAmount(String(balanceDue));
+      setAmount(balanceDue.toFixed(2));
     }
   };
 

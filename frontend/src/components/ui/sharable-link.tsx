@@ -1,15 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useTranslations } from "next-intl";
 
 interface SharableLinkProps {
@@ -25,6 +19,15 @@ export function SharableLink({
 }: SharableLinkProps) {
   const t = useTranslations("common");
   const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const displayLink =
     link.length > maxDisplayLength
@@ -38,7 +41,13 @@ export function SharableLink({
     try {
       await navigator.clipboard.writeText(link);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(() => {
+        setCopied(false);
+        timeoutRef.current = null;
+      }, 2000);
     } catch (err) {
       console.error("Failed to copy text: ", err);
     }
@@ -51,10 +60,8 @@ export function SharableLink({
           {displayLink}
         </p>
       </div>
-      {/* <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild> */}
       <Button
+        type="button"
         variant="outline"
         size="sm"
         onClick={copyToClipboard}
@@ -70,12 +77,6 @@ export function SharableLink({
           {copied ? t("copied") : t("copy")}
         </span>
       </Button>
-      {/* </TooltipTrigger>
-          <TooltipContent> */}
-      {/* <p>{copied ? "Copied to clipboard!" : "Copy to clipboard"}</p>
-          </TooltipContent> */}
-      {/* </Tooltip>
-      </TooltipProvider> */}
     </Card>
   );
 }

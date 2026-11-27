@@ -1,5 +1,5 @@
 // frontend/src/app/(auth)/journal/journal-types/create-new-journal.tsx
-import { useState, useEffect } from "react"; // Added useEffect
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,9 +13,9 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
+  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import * as z from "zod";
@@ -24,31 +24,27 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
 import { Input } from "@/components/ui/input";
-import { FilePlus2, Building2 } from "lucide-react"; // Removed Plus import
+import { FilePlus2, Building2 } from "lucide-react";
 import { httpsCallable } from "firebase/functions";
-import { functions, useAuth } from "@/lib/auth_handler";
-import {
-  allowedCurrencySchema,
-  contactInfoSchema,
-} from "@backend/common/schemas/common_schemas"; // Use common_schemas for currency/contact
-import {
-  // JournalGroupSchema, // Removed
-  businessDetailsSchema, // Import specific details schema
-} from "@backend/common/schemas/JournalSchema"; // Update path if needed
-import { JOURNAL_TYPES } from "@backend/common/const"; // Import JOURNAL_TYPES
+import { functions } from "@/lib/auth_handler";
+import { allowedCurrencySchema } from "@backend/common/schemas/common_schemas";
+import { businessDetailsSchema } from "@backend/common/schemas/JournalSchema";
+import { JOURNAL_TYPES } from "@backend/common/const";
 import { LogoUpload } from "@/components/LogoUpload";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslations } from "next-intl";
 
-// --- Define Frontend Schema for the Form ---
-// This schema matches the structure needed for the 'business' journal type details
-const BusinessFormSchema = z.object({
-  title: z.string().min(3, "Business name must be at least 3 characters"), // Use title for business name
-  details: businessDetailsSchema, // Use the specific details schema
-});
+const createBusinessFormSchema = (minLengthMessage: string) =>
+  z.object({
+    title: z.string().min(3, minLengthMessage),
+    details: businessDetailsSchema,
+  });
 
-type FormValues = z.infer<typeof BusinessFormSchema>;
+type FormValues = {
+  title: string;
+  details: z.infer<typeof businessDetailsSchema>;
+};
 
 const getCurrencyOptions = () => {
   return allowedCurrencySchema.options.map((currency) => ({
@@ -57,52 +53,58 @@ const getCurrencyOptions = () => {
   }));
 };
 
-// --- Updated Response Type ---
 interface CreateJournalResponse {
-  journalId: string; // Expecting journalId now
+  journalId: string;
 }
 
 interface CreateNewJournalProps {
   isEdit?: boolean;
-  initialData?: FormValues; // Use the new FormValues type
+  initialData?: FormValues;
   journalId?: string;
   onClose?: () => void;
+  onSuccess?: () => void;
   trigger?: React.ReactNode;
 }
 
 export function CreateNewJournal({
   isEdit = false,
-  initialData, // This needs careful mapping if the source structure differs
+  initialData,
   journalId,
   onClose,
+  onSuccess,
   trigger,
 }: CreateNewJournalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const router = useRouter();
   const t = useTranslations("newJournal");
-  const tCommon = useTranslations("common");
   const { toast } = useToast();
 
-  // --- Initialize Form ---
-  // Setup default values, mapping from potentially different initialData structure if needed
-  const defaultValues: FormValues = {
-    title: initialData?.title || "",
-    details: {
-      currency: initialData?.details.currency || "USD",
-      contactInfo: initialData?.details.contactInfo || {
-        name: initialData?.title || "", // Use business name as default for contact name
-        email: null,
-        phone: null,
-        address: { street: null, city: null, state: null, zipCode: null },
+  const businessFormSchema = useMemo(
+    () => createBusinessFormSchema(t("businessNameMinLength")),
+    [t],
+  );
+
+  const defaultValues: FormValues = useMemo(
+    () => ({
+      title: initialData?.title || "",
+      details: {
+        currency: initialData?.details.currency || "USD",
+        contactInfo: initialData?.details.contactInfo || {
+          name: initialData?.title || "",
+          email: null,
+          phone: null,
+          address: { street: null, city: null, state: null, zipCode: null },
+        },
+        logo: initialData?.details.logo || null,
       },
-      logo: initialData?.details.logo || null,
-    },
-  };
+    }),
+    [initialData],
+  );
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(BusinessFormSchema),
-    defaultValues: defaultValues,
+    resolver: zodResolver(businessFormSchema),
+    defaultValues,
   });
 
   // Effect to reset form when initialData changes (for edit mode)
@@ -117,15 +119,14 @@ export function CreateNewJournal({
         },
       });
     } else if (!isEdit) {
-      form.reset(defaultValues); // Reset to defaults when switching to create mode
+      form.reset(defaultValues);
     }
-  }, [initialData, isEdit, form.reset]);
+  }, [initialData, isEdit, form, defaultValues]);
 
-  // Add this effect to sync the business name and contact name
+  // Sync the business name and contact name
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
       if (name === "title") {
-        // When title changes, update contact name
         form.setValue("details.contactInfo.name", value.title || "");
       }
     });
@@ -136,26 +137,17 @@ export function CreateNewJournal({
   const onSubmit = async (data: FormValues) => {
     setPending(true);
 
-    // --- Construct Payload for Backend ---
-    // For creation, we need journalType and full details
-    // For update, we only send changed fields and the ID
-    let payload: any = {
-      title: data.title, // Use the title from the form
-      details: data.details, // Send the whole details object
+    const payload: Record<string, unknown> = {
+      title: data.title,
+      details: data.details,
     };
 
     if (isEdit && journalId) {
       payload.jid = journalId;
-      // Optionally: Only send changed fields for updates?
-      // This requires comparing 'data' with 'initialData'
     } else {
-      // Add journalType for creation
       payload.journalType = JOURNAL_TYPES.BUSINESS;
     }
 
-    console.log("Payload:", payload);
-
-    // --- Call Correct Backend Function ---
     const functionName = isEdit ? "updateJournal" : "createJournal";
     const callable = httpsCallable(functions, functionName, {
       limitedUseAppCheckTokens: true,
@@ -163,7 +155,6 @@ export function CreateNewJournal({
 
     try {
       const result = await callable(payload);
-      console.log(`${functionName} successful:`, result.data);
 
       toast({
         title: t("successMessage", {
@@ -172,24 +163,23 @@ export function CreateNewJournal({
         }),
       });
 
-      form.reset(defaultValues); // Reset form to defaults after success
+      form.reset(defaultValues);
       setIsOpen(false);
-      if (onClose) onClose();
+      onClose?.();
+      onSuccess?.();
 
-      // --- Redirect on Creation ---
       if (!isEdit && result.data) {
         const response = result.data as CreateJournalResponse;
-        router.push(`/journal?jid=${response.journalId}`); // Use the returned journalId
-      } else if (isEdit) {
-        // Optional: Force refresh or update local state if needed after edit
-        router.refresh(); // Simple way to refresh data on the current page
+        router.push(`/journal?jid=${response.journalId}`);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(`${functionName} failed:`, error);
+      const message =
+        error instanceof Error ? error.message : t("unexpectedError");
       toast({
         title: t("errorMessage", {
           action: isEdit ? t("updating") : t("creatingVerb"),
-          error: error.message || t("unexpectedError"),
+          error: message || t("unexpectedError"),
         }),
         variant: "destructive",
       });
@@ -200,10 +190,8 @@ export function CreateNewJournal({
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen === false && !isEdit) {
-      // Only reset fully if creating
       form.reset(defaultValues);
     } else if (nextOpen === true && isEdit && initialData) {
-      // Reset to initialData when opening edit
       form.reset({
         title: initialData.title,
         details: {
@@ -228,7 +216,7 @@ export function CreateNewJournal({
           </div>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isEdit ? t("editBusiness") : t("newBusiness")}
@@ -238,41 +226,36 @@ export function CreateNewJournal({
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          {/* --- Use form.handleSubmit --- */}
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* --- Business Name (Title) --- */}
+            {/* Business Name (Title) */}
             <FormField
               control={form.control}
               name="title"
               render={({ field }) => (
                 <FormItem>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <FormDescription className="text-start col-span-1">
+                    <FormLabel className="text-start col-span-1">
                       {t("name")}
-                    </FormDescription>
+                    </FormLabel>
                     <FormControl className="col-span-3">
                       <Input placeholder={t("businessName")} {...field} />
                     </FormControl>
                   </div>
-                  <FormMessage className="col-start-2 col-span-3" />{" "}
-                  {/* Adjust message position */}
+                  <FormMessage className="col-start-2 col-span-3" />
                 </FormItem>
               )}
             />
 
-            {/* --- Logo --- */}
+            {/* Logo */}
             <FormField
               control={form.control}
               name="details.logo"
               render={({ field }) => (
                 <FormItem>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <FormDescription className="text-start">
-                      {t("logo")}
-                    </FormDescription>
+                    <FormLabel className="text-start">{t("logo")}</FormLabel>
                     <div className="col-span-3">
                       <FormControl>
-                        {/* Pass field.value and field.onChange */}
                         <LogoUpload
                           logo={field.value}
                           setLogo={(newLogo) => field.onChange(newLogo)}
@@ -285,21 +268,21 @@ export function CreateNewJournal({
               )}
             />
 
-            {/* --- Currency --- */}
+            {/* Currency */}
             <FormField
               control={form.control}
               name="details.currency"
               render={({ field }) => (
                 <FormItem>
                   <div className="grid grid-cols-4 items-center gap-4">
-                    <FormDescription className="text-start">
+                    <FormLabel className="text-start">
                       {t("currency")}
-                    </FormDescription>
+                    </FormLabel>
                     <FormControl className="col-span-3">
                       <select
                         className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                        value={field.value} // Use field.value
-                        onChange={field.onChange} // Use field.onChange
+                        value={field.value}
+                        onChange={field.onChange}
                         required
                       >
                         {getCurrencyOptions().map((option) => (
@@ -315,7 +298,7 @@ export function CreateNewJournal({
               )}
             />
 
-            {/* --- Contact Information Fields --- */}
+            {/* Contact Information Fields */}
             <div className="space-y-4 border-t pt-4">
               <h3 className="font-medium text-sm col-span-4 mb-2">
                 {t("contactInformation")}
@@ -327,9 +310,9 @@ export function CreateNewJournal({
                 render={({ field }) => (
                   <FormItem>
                     <div className="grid grid-cols-4 items-center gap-4">
-                      <FormDescription className="text-start">
+                      <FormLabel className="text-start">
                         {t("email")}
-                      </FormDescription>
+                      </FormLabel>
                       <FormControl className="col-span-3">
                         <Input
                           placeholder={t("emailAddress")}
@@ -350,9 +333,9 @@ export function CreateNewJournal({
                 render={({ field }) => (
                   <FormItem>
                     <div className="grid grid-cols-4 items-center gap-4">
-                      <FormDescription className="text-start">
+                      <FormLabel className="text-start">
                         {t("phone")}
-                      </FormDescription>
+                      </FormLabel>
                       <FormControl className="col-span-3">
                         <Input
                           placeholder={t("phoneNumber")}
@@ -372,9 +355,9 @@ export function CreateNewJournal({
                 render={({ field }) => (
                   <FormItem>
                     <div className="grid grid-cols-4 items-center gap-4">
-                      <FormDescription className="text-start">
+                      <FormLabel className="text-start">
                         {t("street")}
-                      </FormDescription>
+                      </FormLabel>
                       <FormControl className="col-span-3">
                         <Input
                           placeholder={t("streetAddress")}
@@ -394,9 +377,9 @@ export function CreateNewJournal({
                   name="details.contactInfo.address.city"
                   render={({ field }) => (
                     <FormItem>
-                      <FormDescription className="text-start">
+                      <FormLabel className="text-start">
                         {t("city")}
-                      </FormDescription>
+                      </FormLabel>
                       <FormControl>
                         <Input {...field} value={field.value || ""} />
                       </FormControl>
@@ -409,9 +392,9 @@ export function CreateNewJournal({
                   name="details.contactInfo.address.state"
                   render={({ field }) => (
                     <FormItem>
-                      <FormDescription className="text-start">
+                      <FormLabel className="text-start">
                         {t("state")}
-                      </FormDescription>
+                      </FormLabel>
                       <FormControl>
                         <Input {...field} value={field.value || ""} />
                       </FormControl>
@@ -424,9 +407,7 @@ export function CreateNewJournal({
                   name="details.contactInfo.address.zipCode"
                   render={({ field }) => (
                     <FormItem>
-                      <FormDescription className="text-start">
-                        {t("zip")}
-                      </FormDescription>
+                      <FormLabel className="text-start">{t("zip")}</FormLabel>
                       <FormControl>
                         <Input
                           placeholder={t("zipPlaceholder")}
@@ -446,8 +427,8 @@ export function CreateNewJournal({
                 <FilePlus2 className="pr-2" />
                 {pending
                   ? isEdit
-                    ? t("saving") + "..."
-                    : t("creating") + "..."
+                    ? t("saving")
+                    : t("creating")
                   : isEdit
                   ? t("saveChanges")
                   : t("createBusiness")}

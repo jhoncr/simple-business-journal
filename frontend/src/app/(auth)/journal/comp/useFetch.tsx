@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { fetchOlderEntrys, useEntriesSubCol } from "@/lib/db_handler";
-import { DBentry, DBentryMap } from "../../../../lib/custom_types";
+import { DBentry, DBentryMap } from "@/lib/custom_types";
 import { EntryType } from "@backend/common/schemas/configmap";
 import { ENTRY_CONFIG } from "@/lib/config_shared";
 
@@ -59,23 +59,41 @@ export function useFetchEntries(journalId: string, entryType: EntryType) {
   const realtimeEntries = useEntriesSubCol(journalId, entryType);
   const prevRealtimeKeysRef = useRef<Set<string>>(new Set());
 
-  // Merge realtime entries into allEntries and prune removed keys
+  // Merge realtime entries into allEntries.
+  // Only prune a key leaving the realtime window if it was actually removed (i.e. window is not full,
+  // or the removed entry's sort timestamp is strictly newer than the oldest entry in the current window).
+  // Entries pushed past the limit(20) boundary by newer additions remain preserved in allEntries.
   useEffect(() => {
     const currentRealtimeKeys = new Set(Object.keys(realtimeEntries));
     const prevRealtimeKeys = prevRealtimeKeysRef.current;
+
+    const currentSorted = sortEntries(realtimeEntries, entryType);
+    const windowIsFull = currentRealtimeKeys.size >= FETCH_LIMIT;
+    const oldestInWindowMs =
+      currentSorted.length > 0
+        ? getSortableDate(currentSorted[currentSorted.length - 1], entryType)
+        : 0;
 
     setAllEntries((prev) => {
       const updated = { ...prev, ...realtimeEntries };
       for (const key of prevRealtimeKeys) {
         if (!currentRealtimeKeys.has(key)) {
-          delete updated[key];
+          const prevEntry = prev[key];
+          if (!windowIsFull) {
+            delete updated[key];
+          } else if (
+            prevEntry &&
+            getSortableDate(prevEntry, entryType) > oldestInWindowMs
+          ) {
+            delete updated[key];
+          }
         }
       }
       return updated;
     });
 
     prevRealtimeKeysRef.current = currentRealtimeKeys;
-  }, [realtimeEntries]);
+  }, [realtimeEntries, entryType]);
 
   // Memoized sorted list
   const sortedEntries = useMemo(() => {
@@ -88,20 +106,12 @@ export function useFetchEntries(journalId: string, entryType: EntryType) {
 
   // Fetch function that can be called externally
   const fetchMore = useCallback(async () => {
-    // Guard clauses
-    if (isFetchingRef.current) {
-      console.log(`[${entryType}] Already fetching, skipping`);
-      return;
-    }
-
-    if (paginationState === "complete") {
-      console.log(`[${entryType}] No more entries to fetch`);
+    if (isFetchingRef.current || paginationState === "complete") {
       return;
     }
 
     const currentEntries = sortEntries(allEntries, entryType);
     if (currentEntries.length === 0) {
-      console.log(`[${entryType}] No entries yet to paginate from`);
       return;
     }
 
@@ -109,15 +119,8 @@ export function useFetchEntries(journalId: string, entryType: EntryType) {
 
     // Prevent fetching same batch twice
     if (lastCursorRef.current === oldestEntry.id) {
-      console.log(
-        `[${entryType}] Already fetched from cursor ${oldestEntry.id}`,
-      );
       return;
     }
-
-    console.log(
-      `[${entryType}] Fetching older entries from ${oldestEntry.id}`,
-    );
 
     isFetchingRef.current = true;
     setPaginationState("fetching");
@@ -132,7 +135,6 @@ export function useFetchEntries(journalId: string, entryType: EntryType) {
       );
 
       const fetchedCount = Object.keys(olderEntries).length;
-      console.log(`[${entryType}] Fetched ${fetchedCount} older entries`);
 
       if (fetchedCount === 0) {
         setPaginationState("complete");
@@ -141,11 +143,12 @@ export function useFetchEntries(journalId: string, entryType: EntryType) {
         setPaginationState("idle");
         lastCursorRef.current = oldestEntry.id;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`[${entryType}] Error fetching older entries:`, err);
-      setError(err.message || "Failed to load older entries");
+      const message =
+        err instanceof Error ? err.message : "Failed to load older entries";
+      setError(message);
       setPaginationState("error");
-      // Don't update cursor on error to allow retry
     } finally {
       isFetchingRef.current = false;
     }
@@ -153,7 +156,6 @@ export function useFetchEntries(journalId: string, entryType: EntryType) {
 
   // Remove entry from local state
   const removeEntry = useCallback((entryToRemove: DBentry) => {
-    console.log(`Removing entry ${entryToRemove.id} from local state`);
     setAllEntries((prev) => {
       const newEntries = { ...prev };
       delete newEntries[entryToRemove.id];
@@ -163,7 +165,6 @@ export function useFetchEntries(journalId: string, entryType: EntryType) {
 
   // Reset state when journal or entry type changes
   useEffect(() => {
-    console.log(`[${entryType}] Resetting state for journal ${journalId}`);
     setAllEntries({});
     setPaginationState("idle");
     setError(null);

@@ -1,6 +1,10 @@
 import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
-import { WorkStatusDropdown, getStatusLabel } from "./estimateStatus";
+import {
+  WorkStatusBadge,
+  WorkStatusDropdown,
+  getStatusLabel,
+} from "./estimateStatus";
 import { WorkStatus } from "@backend/common/common_types";
 import { useTranslations } from "next-intl";
 
@@ -8,7 +12,7 @@ interface InvoiceDetailsProps {
   entryId: string | null | undefined;
   createdDate: Date | null | undefined;
   status: WorkStatus;
-  handleStatusChange: (newStatus: WorkStatus) => void;
+  handleStatusChange?: (newStatus: WorkStatus) => void;
 }
 
 export const InvoiceDetails = ({
@@ -18,7 +22,6 @@ export const InvoiceDetails = ({
   handleStatusChange,
 }: InvoiceDetailsProps) => {
   const t = useTranslations("estimate");
-  console.log("Rendering InvoiceDetails with createdDate:", createdDate);
   return (
     <div className="flex justify-between items-start mt-2 border-b pb-1 text-2xs">
       <div>
@@ -46,7 +49,11 @@ export const InvoiceDetails = ({
         </div>
       </div>
       <div className="print:hidden">
-        <WorkStatusDropdown qstatus={status} setStatus={handleStatusChange} />
+        {handleStatusChange ? (
+          <WorkStatusDropdown qstatus={status} setStatus={handleStatusChange} />
+        ) : (
+          <WorkStatusBadge status={status} />
+        )}
       </div>
     </div>
   );

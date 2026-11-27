@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useImperativeHandle, forwardRef } from "react";
+import React, { useState, useEffect, useImperativeHandle, forwardRef } from "react";
 import {
   FormControl,
   FormField,
@@ -27,13 +27,23 @@ export interface ContactInfoRef {
 interface ContactInfoProps {
   info: contactInfoSchemaType;
   setInfo: (info: contactInfoSchemaType) => void;
-  onSave?: (updates: any) => void;
+  onSave?: (updates: contactInfoSchemaType) => Promise<boolean | void> | void;
   title?: string;
+  canUpdate?: boolean;
+  disabled?: boolean;
 }
 
 // Improved ContactSummary layout
 const ContactSummary = ({ info }: { info: contactInfoSchemaType }) => {
   const t = useTranslations("contactInfo");
+  const cityStateZip = [
+    info.address?.city,
+    [info.address?.state, info.address?.zipCode].filter(Boolean).join(" "),
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const hasAddress = Boolean(info.address?.street || cityStateZip);
+
   return (
     <div className="flex flex-wrap justify-between items-start gap-2 flex-grow">
       {/* Name and company info */}
@@ -46,16 +56,13 @@ const ContactSummary = ({ info }: { info: contactInfoSchemaType }) => {
         </div>
 
         {/* Address below name */}
-        {info.address?.street && ( // Add optional chaining to safely access address properties
+        {hasAddress && (
           <div className="mt-1 text-2xs text-muted-foreground print:text-2xs">
             <div className="flex items-center space-x-2">
               <MapPin className="h-4 w-4 text-muted-foreground" />
               <div className="flex flex-wrap gap-x-1">
-                <span>{info.address.street}</span>
-                <div>
-                  {info.address.city}, {info.address.state}{" "}
-                  {info.address.zipCode}
-                </div>
+                {info.address?.street && <span>{info.address.street}</span>}
+                {cityStateZip && <div>{cityStateZip}</div>}
               </div>
             </div>
           </div>
@@ -63,35 +70,41 @@ const ContactSummary = ({ info }: { info: contactInfoSchemaType }) => {
       </div>
 
       {/* Contact details on right side */}
-      <div className="flex flex-col md:items-end space-y-1 text-2xs">
-        <div className="flex items-center space-x-1">
-          <Phone className="h-4 w-4 text-muted-foreground" />
-          <a
-            href={`tel:${info.phone}`}
-            className="text-muted-foreground hover:text-primary print:text-2xs"
-          >
-            {info.phone || t("notSet")}
-          </a>
+      {(info.phone || info.email) && (
+        <div className="flex flex-col md:items-end space-y-1 text-2xs">
+          {info.phone && (
+            <div className="flex items-center space-x-1">
+              <Phone className="h-4 w-4 text-muted-foreground" />
+              <a
+                href={`tel:${info.phone}`}
+                className="text-muted-foreground hover:text-primary print:text-2xs"
+              >
+                {info.phone}
+              </a>
+            </div>
+          )}
+          {info.email && (
+            <div className="flex items-center space-x-1">
+              <Mail className="h-4 w-4 text-muted-foreground" />
+              <a
+                href={`mailto:${info.email}`}
+                className="text-muted-foreground hover:text-primary print:text-2xs"
+              >
+                {info.email}
+              </a>
+            </div>
+          )}
         </div>
-        <div className="flex items-center space-x-1">
-          <Mail className="h-4 w-4 text-muted-foreground" />
-          <a
-            href={`mailto:${info.email}`}
-            className="text-muted-foreground hover:text-primary print:text-2xs"
-          >
-            {info.email || t("notSet")}
-          </a>
-        </div>
-      </div>
+      )}
     </div>
   );
 };
 
 export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
-  ({ info, setInfo, onSave, title }, ref) => {
+  ({ info, setInfo, onSave, title, canUpdate = true, disabled = false }, ref) => {
     const t = useTranslations("contactInfo");
     const tCommon = useTranslations("common");
-    const [isEditing, setIsEditing] = useState(!info.name);
+    const [isEditing, setIsEditing] = useState(canUpdate && !info.name);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const form = useForm<contactInfoSchemaType>({
@@ -99,21 +112,38 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
       defaultValues: info,
     });
 
+    // Sync local form state when `info` prop changes externally (e.g. after conflict reload)
+    useEffect(() => {
+      form.reset(info);
+      if (!canUpdate) {
+        setIsEditing(false);
+      } else if (info.name) {
+        setIsEditing(false);
+      }
+    }, [info, canUpdate, form]);
+
     const handleCancel = () => {
       form.reset(info);
       setIsEditing(false);
     };
 
     const handleSubmit = async (data: contactInfoSchemaType) => {
+      if (!canUpdate || disabled) return;
+      const previousInfo = info;
       try {
         setIsSubmitting(true);
         setInfo(data);
         if (onSave) {
-          onSave(data);
+          const result = await onSave(data);
+          if (result === false) {
+            setInfo(previousInfo);
+            return;
+          }
         }
         setIsEditing(false);
       } catch (error) {
         console.error("Error submitting form:", error);
+        setInfo(previousInfo);
       } finally {
         setIsSubmitting(false);
       }
@@ -329,11 +359,11 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
                   </Button>
                   <Button
                     type="submit"
-                    // disabled={
-                    //   !form.formState.isValid ||
-                    //   isSubmitting ||
-                    //   form.formState.isSubmitting
-                    // }
+                    disabled={
+                      isSubmitting ||
+                      disabled ||
+                      form.formState.isSubmitting
+                    }
                     variant={"brutalist"}
                     aria-label={t("saveChanges")}
                   >
@@ -345,16 +375,20 @@ export const ContactInfo = forwardRef<ContactInfoRef, ContactInfoProps>(
           ) : (
             <div className="space-x-4 print:hidden flex flex-row justify-between items-top">
               <ContactSummary info={info} />
-              <Button
-                variant="brutalist"
-                size="sm"
-                onClick={() => {
-                  form.reset(info);
-                  setIsEditing(true);
-                }}
-              >
-                <Edit2 className="h-4 w-4" />
-              </Button>
+              {canUpdate && (
+                <Button
+                  variant="brutalist"
+                  size="sm"
+                  disabled={disabled}
+                  aria-label={tCommon("edit")}
+                  onClick={() => {
+                    form.reset(info);
+                    setIsEditing(true);
+                  }}
+                >
+                  <Edit2 className="h-4 w-4" />
+                </Button>
+              )}
             </div>
           )}
         </CardContent>

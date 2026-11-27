@@ -10,11 +10,14 @@ import { EntryType } from "@backend/common/schemas/configmap";
 import { DBentry, AccessUser } from "@/lib/custom_types";
 import { WorkStatus } from "@backend/common/common_types";
 import { formatCurrency, formattedDate, cn } from "@/lib/utils";
-import { calculateEstimateFinancials } from "@/lib/financials";
+import {
+  calculateEstimateFinancials,
+  getPaymentStatus,
+} from "@/lib/financials";
 import Link from "next/link";
 import { WorkStatusBadge } from "./subcomponents/estimateStatus";
 import { ClipboardList } from "lucide-react"; // Icon for estimate
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 // --- Define Props Interface ---
 interface EstimateEntryProps {
@@ -39,6 +42,7 @@ export const EstimateEntry = React.memo(function EstimateEntry({
 }: EstimateEntryProps) {
   const t = useTranslations("journal");
   const tPayments = useTranslations("payments");
+  const locale = useLocale();
 
   // --- Basic validation ---
   if (!journalId || !entry || entryType !== "estimate" || !entry.details) {
@@ -68,6 +72,12 @@ export const EstimateEntry = React.memo(function EstimateEntry({
     taxPercentage,
     payments,
   });
+
+  const paymentStatus = getPaymentStatus(
+    activePayments.length,
+    totalPaid,
+    grandTotal,
+  );
 
   return (
     <EntryView
@@ -135,23 +145,27 @@ export const EstimateEntry = React.memo(function EstimateEntry({
           <div className="flex items-center gap-2 justify-start flex-wrap">
             <WorkStatusBadge status={status} />
 
-            {activePayments.length > 0 && (
+            {paymentStatus !== "unpaid" && (
               <span
                 className={cn(
                   "text-2xs px-1.5 py-0.5 rounded font-medium",
-                  totalPaid >= grandTotal
-                    ? "bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300 border border-green-200 dark:border-green-800"
-                    : "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800",
+                  paymentStatus === "credit"
+                    ? "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
+                    : paymentStatus === "paid"
+                      ? "bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300 border border-green-200 dark:border-green-800"
+                      : "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800",
                 )}
               >
-                {totalPaid >= grandTotal
-                  ? tPayments("status.paid")
-                  : `${tPayments("status.partial")} (${formatCurrency(totalPaid, currency || "USD")})`}
+                {paymentStatus === "credit"
+                  ? tPayments("status.credit")
+                  : paymentStatus === "paid"
+                    ? tPayments("status.paid")
+                    : `${tPayments("status.partial")} (${formatCurrency(totalPaid, currency || "USD")})`}
               </span>
             )}
 
             <div className="text-sm text-muted-foreground whitespace-nowrap">
-              {formattedDate(entry.createdAt)}
+              {formattedDate(entry.createdAt, locale)}
             </div>
           </div>
           {/* ID shown for debugging or reference */}

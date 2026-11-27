@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 import { AdjustmentForm, Adjustment } from "./AdjustmentForm";
 import { Button } from "@/components/ui/button";
 import { MinusCircle } from "lucide-react";
@@ -36,14 +36,7 @@ interface InvoiceBottomLinesProps {
 const currencyFormat = (
   amount: number,
   currency: allowedCurrencySchemaType,
-) => {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-};
+) => formatCurrency(amount, currency);
 
 export function InvoiceBottomLines({
   itemSubtotal,

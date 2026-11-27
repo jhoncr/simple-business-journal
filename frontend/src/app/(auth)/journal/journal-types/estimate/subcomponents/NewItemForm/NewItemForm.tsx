@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useCallback, forwardRef, useImperativeHandle } from "react";
+import { useMemo, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from "react";
 import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -50,6 +50,8 @@ export const NewItemForm = forwardRef<NewItemFormHandle, NewItemFormRootProps>(
   ) => {
     const t = useTranslations("newItemForm");
   const canAdd = useMemo(() => ROLES_THAT_ADD.has(userRole), [userRole]);
+  const confirmedItemsRef = useRef<LineItem[]>(confirmedItems);
+  confirmedItemsRef.current = confirmedItems;
 
   const populateFormFromLineItem = useCallback(
     (item: LineItem): ItemFormValues => {
@@ -61,7 +63,7 @@ export const NewItemForm = forwardRef<NewItemFormHandle, NewItemFormRootProps>(
         dimensionType = `area-${material.dimensions.unitLabel}`;
       }
 
-      const laborItem = confirmedItems.find((ci) => ci.parentId === item.id);
+      const laborItem = confirmedItemsRef.current.find((ci) => ci.parentId === item.id);
       let laborType: "null" | "percentage" | "fixed" | "quantity" = "null";
       let laborRate = 0;
 
@@ -124,7 +126,7 @@ export const NewItemForm = forwardRef<NewItemFormHandle, NewItemFormRootProps>(
         laborRate,
       };
     },
-    [confirmedItems],
+    [],
   );
 
   const getLaborDescription = useCallback(
@@ -165,7 +167,7 @@ export const NewItemForm = forwardRef<NewItemFormHandle, NewItemFormRootProps>(
 
   useImperativeHandle(ref, () => ({
     onTemplateSelected: (name: string) => {
-      form.setValue("description", `Custom ${name}`);
+      form.setValue("description", t("customTemplateName", { name }));
       form.setValue("quantity", 1);
       form.setValue("itemCategory", "gallery");
     },

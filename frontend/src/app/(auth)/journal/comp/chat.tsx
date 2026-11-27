@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, memo, useMemo, useRef } from "react";
-import { DBentry } from "../../../../lib/custom_types";
+import { DBentry } from "@/lib/custom_types";
 import { AccessMap } from "@backend/common/schemas/common_schemas";
 import { Button } from "@/components/ui/button";
 import { ChevronsUp } from "lucide-react";
@@ -27,6 +27,41 @@ interface MessageListProps {
   onDuplicated?: (newEntryId: string) => void;
 }
 
+const LoadingIndicator = ({
+  error,
+  loading,
+  messagesLength,
+  hasActiveFilters,
+  hasMore,
+}: {
+  error?: string | null;
+  loading: boolean;
+  messagesLength: number;
+  hasActiveFilters?: boolean;
+  hasMore: boolean;
+}) => {
+  const t = useTranslations("journal");
+  return (
+    <div className="w-full py-4">
+      {error ? (
+        <p className="text-center text-sm text-destructive">{error}</p>
+      ) : loading ? (
+        <p className="text-center text-sm text-muted-foreground">
+          {t("loading")}
+        </p>
+      ) : messagesLength === 0 && hasActiveFilters ? (
+        <p className="text-center text-sm text-muted-foreground">
+          {t("noMatchingEntries")}
+        </p>
+      ) : !hasMore ? (
+        <p className="text-center text-sm text-muted-foreground">
+          {t("noMoreEntries")}
+        </p>
+      ) : null}
+    </div>
+  );
+};
+
 const MessageList = memo(function MessageList({
   messages,
   journalId,
@@ -49,25 +84,22 @@ const MessageList = memo(function MessageList({
 
   // Set up Intersection Observer for bottom detection
   useEffect(() => {
-    if (!bottomSentinelRef.current || !scrollRef.current) return;
+    if (!bottomSentinelRef.current || !scrollRef.current || !hasMore) return;
 
-    // Clean up previous observer
     if (observerRef.current) {
       observerRef.current.disconnect();
     }
 
-    // Create new observer with explicit root
     observerRef.current = new IntersectionObserver(
       (entries) => {
         const [entry] = entries;
         if (entry.isIntersecting && hasMore && !loading) {
-          console.log("[MessageList] Bottom sentinel visible, loading more");
           onLoadMore();
         }
       },
       {
-        root: scrollRef.current, // Explicitly set the scroll container as root
-        rootMargin: "200px", // Trigger 200px before reaching bottom for smoother UX
+        root: scrollRef.current,
+        rootMargin: "200px",
         threshold: 0,
       },
     );
@@ -96,29 +128,6 @@ const MessageList = memo(function MessageList({
     }
   }, []);
 
-  const LoadingIndicator = () => {
-    const t = useTranslations("journal");
-    return (
-      <div className="w-full py-4">
-        {error ? (
-          <p className="text-center text-sm text-red-500">{error}</p>
-        ) : loading ? (
-          <p className="text-center text-sm text-muted-foreground">
-            {t("loading")}
-          </p>
-        ) : messages.length === 0 && hasActiveFilters ? (
-          <p className="text-center text-sm text-muted-foreground">
-            {t("noMatchingEntries")}
-          </p>
-        ) : !hasMore ? (
-          <p className="text-center text-sm text-muted-foreground">
-            {t("noMoreEntries")}
-          </p>
-        ) : null}
-      </div>
-    );
-  };
-
   return (
     <div className="w-full h-full relative overflow-hidden">
       {/* Back to top button */}
@@ -135,7 +144,7 @@ const MessageList = memo(function MessageList({
 
       {/* Scrollable message list */}
       <div
-        className="w-full h-full flex flex-col overflow-y-auto overflow-x-hidden space-y-2 px-2"
+        className="w-full h-full flex flex-col overflow-y-auto overflow-x-hidden space-y-2 px-2 pb-24"
         ref={scrollRef}
         onScroll={handleScroll}
       >
@@ -171,7 +180,13 @@ const MessageList = memo(function MessageList({
         })}
 
         {/* Loading indicator */}
-        <LoadingIndicator />
+        <LoadingIndicator
+          error={error}
+          loading={loading}
+          messagesLength={messages.length}
+          hasActiveFilters={hasActiveFilters}
+          hasMore={hasMore}
+        />
 
         {/* Bottom sentinel for Intersection Observer */}
         <div ref={bottomSentinelRef} className="h-1 w-full" />
@@ -229,12 +244,18 @@ export function ChatBox({
   useEffect(() => {
     if (error) {
       toast({
-        title: t("error") || "Error",
+        title: t("error"),
         description: error,
         variant: "destructive",
       });
     }
   }, [error, toast, t]);
+
+  const handleLoadMore = useCallback(() => {
+    if (!hasFilter) {
+      fetchMore();
+    }
+  }, [hasFilter, fetchMore]);
 
   return (
     <div className="relative flex flex-col space-y-1 md:max-w-2xl w-full mx-auto h-full overflow-hidden">
@@ -244,12 +265,12 @@ export function ChatBox({
           journalId={journalId}
           entryType={entryType}
           access={access}
-          loading={loading}
+          loading={hasFilter ? false : loading}
           error={error}
-          hasMore={hasMore}
+          hasMore={hasFilter ? false : hasMore}
           role={viewerRole}
           hasActiveFilters={hasActiveFilters}
-          onLoadMore={fetchMore}
+          onLoadMore={handleLoadMore}
           removeFn={hasFilter ? removeFilterEntry : removeEntry}
           onDuplicated={onDuplicated}
         />

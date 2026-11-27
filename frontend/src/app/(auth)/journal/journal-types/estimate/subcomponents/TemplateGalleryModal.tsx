@@ -42,6 +42,7 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled, op
   const [cacheMap, setCacheMap] = useState<Record<string, CacheEntry>>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
+  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -74,11 +75,12 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled, op
     const fetchUrls = async () => {
       const storage = getStorage(app);
       const newUrls: Record<string, string> = {};
-      
+      const newFailed: Record<string, boolean> = {};
+
       // Map over the entries to create an array of promises
       const fetchPromises = Object.entries(cacheMap).map(async ([id, entry]) => {
         if (!entry.t) return;
-        
+
         if (entry.t.startsWith("http") || entry.t.startsWith("data:")) {
           newUrls[id] = entry.t;
         } else {
@@ -87,6 +89,7 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled, op
             newUrls[id] = url;
           } catch (e) {
             console.error("Failed to fetch image url for", id, e);
+            newFailed[id] = true;
           }
         }
       });
@@ -96,6 +99,7 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled, op
 
       if (isMounted) {
         setImageUrls(newUrls);
+        setFailedImages(newFailed);
       }
     };
 
@@ -214,7 +218,7 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled, op
                   onClick={() => handleSelect(id)}
                 >
                   <div className="bg-secondary/30 rounded-md h-32 w-full mb-3 flex items-center justify-center relative overflow-hidden">
-                    {entry.t ? (
+                    {entry.t && !failedImages[id] ? (
                       imageUrls[id] ? (
                         <Image
                           src={imageUrls[id]}
@@ -222,6 +226,9 @@ export function TemplateGalleryModal({ journalId, onSelectTemplate, disabled, op
                           fill
                           className="object-cover"
                           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                          onError={() =>
+                            setFailedImages((prev) => ({ ...prev, [id]: true }))
+                          }
                         />
                       ) : (
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground z-10" />

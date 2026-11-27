@@ -3,12 +3,14 @@ import React, {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useState,
   ReactNode,
 } from "react";
 import { useSearchParams } from "next/navigation"; // To get journalId
 import { useWatchJournal } from "@/lib/db_handler";
 import { Journal } from "@/lib/custom_types"; // Assuming Journal type exists
+import { useTranslations } from "next-intl";
 
 interface JournalContextProps {
   journal: Journal | null | undefined; // undefined while loading, null if not found
@@ -28,13 +30,12 @@ export const useJournalContext = () => useContext(JournalContext);
 
 interface JournalProviderProps {
   children: ReactNode;
-  // Pass journalId explicitly if preferred over reading from params here
-  // journalId: string | null;
 }
 
 export const JournalProvider: React.FC<JournalProviderProps> = ({
   children,
 }) => {
+  const t = useTranslations("entryPage");
   const searchParams = useSearchParams();
   const journalId = searchParams.get("jid"); // Read journalId from URL
   const jtype = searchParams.get("jtype"); // Read jtype from URL
@@ -45,18 +46,21 @@ export const JournalProvider: React.FC<JournalProviderProps> = ({
   // Basic error handling: if loading finished and no journal found
   useEffect(() => {
     if (!watchLoading && !watchedJournal && journalId) {
-      setError("Journal not found or access denied.");
+      setError(t("journalNotFoundOrDenied"));
     } else {
       setError(null); // Clear error if journal is found or loading
     }
-  }, [watchLoading, watchedJournal, journalId]);
+  }, [watchLoading, watchedJournal, journalId, t]);
 
-  const value = {
-    journal: watchedJournal,
-    loading: watchLoading,
-    error: error,
-    jtype: jtype,
-  };
+  const value = useMemo(
+    () => ({
+      journal: watchedJournal,
+      loading: watchLoading,
+      error,
+      jtype,
+    }),
+    [watchedJournal, watchLoading, error, jtype],
+  );
 
   return (
     <JournalContext.Provider value={value}>{children}</JournalContext.Provider>

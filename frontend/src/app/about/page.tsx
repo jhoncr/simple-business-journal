@@ -9,7 +9,7 @@ export default function About() {
 
   return (
     <>
-      <main className="flex flex-col items-center justify-center min-h-screen m-4">
+      <div className="flex flex-col items-center justify-center min-h-screen m-4">
         <h1 className="text-4xl font-bold">{t("title")}</h1>
 
         <p className="mt-3 text-2xl">{t("description")}</p>
@@ -19,12 +19,18 @@ export default function About() {
             {t("button")}
           </Button>
         </Link>
-      </main>
+      </div>
       <footer className="flex items-center justify-center w-full h-24 border-t">
         <h2>
           {" "}
           {t("footer")}
-          <a href="https://twitter.com/J3Cordeiro">Jhon</a>
+          <a
+            href="https://twitter.com/J3Cordeiro"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Jhon
+          </a>
         </h2>
       </footer>
     </>

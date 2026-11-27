@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, forwardRef, useCallback } from "react";
+import { useState, useEffect, useRef, forwardRef, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -49,25 +49,48 @@ export const NumericInput = forwardRef<HTMLInputElement, NumericInputProps>(
     ref,
   ) => {
     const t = useTranslations("common");
-    const [displayValue, setDisplayValue] = useState("");
+    const [displayValue, setDisplayValue] = useState(() =>
+      propValue !== undefined && propValue !== null ? String(propValue) : "",
+    );
     const [localError, setLocalError] = useState<string>("");
+    const displayValueRef = useRef(displayValue);
+    displayValueRef.current = displayValue;
+    const userClearedRef = useRef(false);
 
-    // Sync with external value changes
+    // Sync with external value changes without clobbering active typing (e.g. "12.", "12.0", or "")
     useEffect(() => {
-      if (propValue !== undefined && propValue !== null) {
-        const stringValue = String(propValue);
-        // Only update if different to avoid cursor jump
-        if (stringValue !== displayValue) {
-          setDisplayValue(stringValue);
+      if (propValue === "" || propValue === null || propValue === undefined) {
+        userClearedRef.current = false;
+        if (displayValueRef.current !== "") {
+          setDisplayValue("");
         }
-      } else if (
-        propValue === "" ||
-        propValue === null ||
-        propValue === undefined
-      ) {
-        setDisplayValue("");
+        return;
       }
-    }, [propValue]); // Removed displayValue from deps to prevent loops
+
+      const stringValue = String(propValue);
+      const currentDisplay = displayValueRef.current;
+
+      // Preserve empty string while user intentionally cleared the input and parent coerces "" -> 0
+      if (userClearedRef.current && currentDisplay === "" && Number(stringValue) === 0) {
+        return;
+      }
+      userClearedRef.current = false;
+
+      if (stringValue === currentDisplay) {
+        return;
+      }
+
+      // Preserve intermediate decimal representations ("12.", "12.0", "-0.") when numerically equal
+      if (currentDisplay !== "" && currentDisplay !== "-") {
+        const currentNum = Number(currentDisplay);
+        const propNum = Number(stringValue);
+        if (!isNaN(currentNum) && !isNaN(propNum) && currentNum === propNum) {
+          return;
+        }
+      }
+
+      setDisplayValue(stringValue);
+    }, [propValue]);
 
     const validateValue = useCallback(
       (value: string): string | null => {
@@ -89,10 +112,12 @@ export const NumericInput = forwardRef<HTMLInputElement, NumericInputProps>(
     );
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const inputValue = e.target.value;
+      // Normalize comma decimal separator (e.g. pt-BR keyboards) to dot
+      const inputValue = e.target.value.replace(/,/g, ".");
 
       // Allow empty input
       if (inputValue === "") {
+        userClearedRef.current = true;
         setDisplayValue("");
         setLocalError("");
         if (propOnChange) {
@@ -104,6 +129,8 @@ export const NumericInput = forwardRef<HTMLInputElement, NumericInputProps>(
         }
         return;
       }
+
+      userClearedRef.current = false;
 
       // Handle negative sign
       if (allowNegative && inputValue === "-") {
@@ -123,25 +150,22 @@ export const NumericInput = forwardRef<HTMLInputElement, NumericInputProps>(
       }
 
       // Check if it's a valid number
-      if (inputValue !== "-" && isNaN(Number(inputValue))) {
+      if (inputValue !== "-" && inputValue !== "." && isNaN(Number(inputValue))) {
         return;
       }
 
-      // Format the value
+      // Format the value while preserving trailing decimal points and trailing zeros
       let formattedValue = inputValue;
 
-      // Only format if not actively typing a decimal
       if (!inputValue.endsWith(".") && inputValue !== "-") {
         if (inputValue.includes(".")) {
-          // For decimal numbers
           const [intPart, decPart] = inputValue.split(".");
           const sign = allowNegative && intPart.startsWith("-") ? "-" : "";
           const absIntPart = intPart.replace("-", "");
           const cleanIntPart =
             absIntPart === "" ? "0" : absIntPart.replace(/^0+/, "") || "0";
           formattedValue = `${sign}${cleanIntPart}.${decPart}`;
-        } else if (inputValue !== "-") {
-          // For whole numbers
+        } else {
           const sign = allowNegative && inputValue.startsWith("-") ? "-" : "";
           const absValue = inputValue.replace("-", "");
           formattedValue = sign + (absValue.replace(/^0+/, "") || "0");
@@ -166,6 +190,11 @@ export const NumericInput = forwardRef<HTMLInputElement, NumericInputProps>(
         } as React.ChangeEvent<HTMLInputElement>;
         propOnChange(syntheticEvent);
       }
+    };
+
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+      userClearedRef.current = false;
+      props.onBlur?.(e);
     };
 
     const hasError = !!(error || localError);
@@ -209,11 +238,13 @@ export const NumericInput = forwardRef<HTMLInputElement, NumericInputProps>(
             </div>
           )}
           <Input
+            {...props}
             ref={ref}
             type="text"
             inputMode="decimal"
             value={displayValue}
             onChange={handleChange}
+            onBlur={handleBlur}
             className={cn(
               prefix && "pl-8",
               suffix && "pr-8",
@@ -229,7 +260,6 @@ export const NumericInput = forwardRef<HTMLInputElement, NumericInputProps>(
                 ? `${props.id}-helper`
                 : undefined
             }
-            {...props}
           />
         </div>
         {errorMessage && (

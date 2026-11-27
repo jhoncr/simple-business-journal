@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState, Suspense, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
-import { redirect } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useAuth, functions } from "@/lib/auth_handler";
 import { httpsCallable } from "firebase/functions";
 import * as z from "zod";
@@ -9,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -16,10 +16,12 @@ import { useTranslations } from "next-intl";
 
 function SharePageContent() {
   const t = useTranslations();
+  const router = useRouter();
   const { authUser, loading, signOut, signInWithGoogle } = useAuth();
   const searchParams = useSearchParams();
-  const [error, setError] = useState(null as string | null);
+  const [error, setError] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(false);
+  const [isAccepting, setIsAccepting] = useState(false);
   const [journalId, setJournalId] = useState<string | null>(null);
 
   const schema = useMemo(
@@ -37,43 +39,45 @@ function SharePageContent() {
     setJournalId(journal_id);
 
     if (authUser && journal_id) {
-      // validate journal_id
       const r = schema.safeParse({ journalID: journal_id });
       if (!r.success) {
-        setError(r.error.message);
+        setError(r.error.issues[0]?.message || t("Share.invalidJournalId"));
+      } else {
+        setError(null);
       }
     }
-  }, [authUser, searchParams]);
+  }, [authUser, searchParams, schema, t]);
 
-  const GoToJournal = () => {
-    console.log("redirecting to journal", accepted);
-    redirect(`/journal?jid=${journalId}`);
-  };
+  useEffect(() => {
+    if (accepted && journalId) {
+      router.replace(`/journal?jid=${journalId}`);
+    }
+  }, [accepted, journalId, router]);
 
-  const accept = () => {
-    if (!journalId) return;
+  const accept = async () => {
+    if (!journalId || isAccepting) return;
 
-    console.log("sending accept call to the backend");
+    setIsAccepting(true);
     const acceptShare = httpsCallable(functions, "acceptShare", {
       limitedUseAppCheckTokens: true,
     });
 
-    async function sendAccept(data: any) {
-      try {
-        const result = await acceptShare(data);
-        setAccepted(true);
-      } catch (error: any) {
-        console.log("ops, something went wrong :/", error);
-        setError(error?.message ?? t("Share.genericError"));
-      }
+    try {
+      await acceptShare({ jid: journalId, operation: "accept" });
+      setAccepted(true);
+    } catch (err: unknown) {
+      console.error("Error accepting share invitation:", err);
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : t("Share.genericError");
+      setError(message);
+    } finally {
+      setIsAccepting(false);
     }
-
-    let payload = { jid: journalId, operation: "accept" };
-    console.log("payload", payload);
-    sendAccept(payload);
   };
 
-  if (loading) {
+  if (loading || accepted) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <p>{t("common.loading")}</p>
@@ -89,22 +93,31 @@ function SharePageContent() {
             <DialogTitle>{t("common.error")}</DialogTitle>
           </DialogHeader>
           <p>{error}</p>
-          <Button
-            variant="destructive"
-            onClick={() => {
-              setError(null);
-              signOut();
-            }}
-          >
-            {t("navigation.logout")}
-          </Button>
+          <DialogFooter className="gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setError(null);
+                router.replace("/");
+              }}
+            >
+              {t("entryPage.goHome")}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => {
+                setError(null);
+                signOut();
+              }}
+            >
+              {t("navigation.logout")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     );
-  }
-
-  if (accepted) {
-    return <GoToJournal />;
   }
 
   return (
@@ -125,9 +138,9 @@ function SharePageContent() {
             <Button
               onClick={accept}
               className="w-full mb-2"
-              disabled={!journalId}
+              disabled={!journalId || isAccepting}
             >
-              {t("Share.acceptInvitation")}
+              {isAccepting ? t("common.loading") : t("Share.acceptInvitation")}
             </Button>
           </>
         )}

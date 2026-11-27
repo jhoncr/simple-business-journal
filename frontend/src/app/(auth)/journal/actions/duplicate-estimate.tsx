@@ -40,7 +40,6 @@ export function DuplicateEstimateBtn({
   const t = useTranslations("journal");
 
   const onDuplicate = async () => {
-    console.log(`Duplicating estimate ${entryId} in journal ${jid}`);
     setPending(true);
 
     const payload: DuplicatePayload = {
@@ -49,7 +48,6 @@ export function DuplicateEstimateBtn({
       entryType: "estimate",
     };
 
-    // Validate payload client-side
     const validation = duplicateEstimateSchema.safeParse(payload);
     if (!validation.success) {
       console.error("Invalid duplicate payload:", validation.error.format());
@@ -63,36 +61,28 @@ export function DuplicateEstimateBtn({
     }
 
     try {
-      console.log(
-        "Calling duplicateEstimateFn with payload:",
-        validation.data,
-      );
       const result = await duplicateEstimateFn(validation.data);
 
-      // Extract the new entry ID from the result
       const resultData = result.data as { id?: string; message?: string };
-      const newEntryId = resultData.id;
+      const newEntryId = resultData?.id;
 
       if (!newEntryId) {
-        throw new Error("No entry ID returned from duplicate function");
+        throw new Error(t("couldNotDuplicate"));
       }
 
       toast({
-        title: t("estimateDuplicated") || "Estimate Duplicated",
-        description:
-          t("duplicateSuccess", { entryName }) ||
-          `Estimate "${entryName}" created successfully`,
+        title: t("estimateDuplicated"),
+        description: t("duplicateSuccess"),
       });
 
       onDuplicated(newEntryId);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error during duplication:", error);
+      const message =
+        error instanceof Error ? error.message : t("couldNotDuplicate");
       toast({
-        title: t("duplicationFailed") || "Duplication Failed",
-        description:
-          error.message ||
-          t("couldNotDuplicate") ||
-          "Could not duplicate estimate",
+        title: t("duplicationFailed"),
+        description: message || t("couldNotDuplicate"),
         variant: "destructive",
       });
     } finally {
@@ -108,9 +98,7 @@ export function DuplicateEstimateBtn({
       disabled={pending}
     >
       <Copy className="h-4 w-4 inline mr-2" />
-      {pending
-        ? t("duplicating") || "Duplicating..."
-        : t("duplicateEstimate") || "Duplicate Estimate"}
+      {pending ? t("duplicating") : t("duplicateEstimate")}
     </Button>
   );
 }

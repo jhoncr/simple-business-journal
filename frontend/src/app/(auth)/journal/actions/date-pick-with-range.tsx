@@ -1,8 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CalendarSearch } from "lucide-react";
-import { addDays, format } from "date-fns";
-// import { DateRange } from "react-day-picker"
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -10,16 +8,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { on } from "events";
 import { useTranslations } from "next-intl";
-
-/*
-  * Date picker with range
-  * @param date - date range
-  * @param setDate - set date range
-  * @returns JSX.Element
-
-*/
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface DateRange {
   from: Date;
@@ -34,8 +24,15 @@ export function DatePickerWithRange({
   setDate: React.Dispatch<React.SetStateAction<DateRange | undefined>>;
 }) {
   const t = useTranslations("common");
+  const tJournal = useTranslations("journal");
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const [selected, setSelected] = useState<DateRange | undefined>(daterange);
   const [open, setOpen] = useState(false);
+
+  // Sync internal selection when parent resets or updates the date range
+  useEffect(() => {
+    setSelected(daterange);
+  }, [daterange]);
 
   const handleGo = () => {
     setDate(selected);
@@ -50,7 +47,12 @@ export function DatePickerWithRange({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button id="daterange" variant={"outline"} size={"icon"}>
+        <Button
+          id="daterange"
+          variant={"outline"}
+          size={"icon"}
+          aria-label={tJournal("dateFilter")}
+        >
           <CalendarSearch className="h-5 w-5" />
         </Button>
       </PopoverTrigger>
@@ -61,15 +63,16 @@ export function DatePickerWithRange({
           defaultMonth={daterange?.from ?? new Date()}
           selected={selected}
           onSelect={(date) => {
-            date && setSelected(date as DateRange);
+            setSelected(date as DateRange | undefined);
           }}
-          numberOfMonths={2}
+          numberOfMonths={isDesktop ? 2 : 1}
         />
         <div className="flex justify-end gap-2 p-2">
-          <Button variant="outline" onClick={handleCancel}>
+          <Button type="button" variant="outline" onClick={handleCancel}>
             {t("cancel")}
           </Button>
           <Button
+            type="button"
             onClick={handleGo}
             disabled={!selected?.from || !selected?.to}
           >

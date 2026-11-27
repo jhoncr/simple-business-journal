@@ -24,12 +24,11 @@ import {
   ENTRY_CONFIG,
   EntryType,
 } from "@/lib/config_shared"; // Updated imports
-
+import { JournalSchema } from "@backend/common/schemas/JournalSchema";
 
 export const db = getFirestore(app);
 
 if (process.env.NODE_ENV === "development") {
-  console.log("Firestore connected to emulator");
   connectFirestoreEmulator(db, emulatorIP, 8080);
 }
 
@@ -46,10 +45,18 @@ function getEntryConfig(entryType: EntryType) {
 // Frontend parsing helpers to enforce strict types and validate data without `any`.
 export function parseDBEntry(id: string, entryType: EntryType, data: DocumentData): DBentry {
   const config = getEntryConfig(entryType);
+  let validatedDetails =
+    data.details && typeof data.details === "object" ? data.details : {};
+
   if (config && config.schema) {
     const parsedValidDetails = config.schema.safeParse(data.details);
-    if (!parsedValidDetails.success) {
-      console.warn(`Validation failed for details of ${entryType} entry ${id}:`, parsedValidDetails.error);
+    if (parsedValidDetails.success) {
+      validatedDetails = parsedValidDetails.data;
+    } else {
+      console.warn(
+        `Validation failed for details of ${entryType} entry ${id}:`,
+        parsedValidDetails.error.issues,
+      );
     }
   }
 
@@ -62,17 +69,32 @@ export function parseDBEntry(id: string, entryType: EntryType, data: DocumentDat
     createdBy: String(data.createdBy || ""),
     createdAt: data.createdAt,
     updatedAt: data.updatedAt,
-    details: data.details, 
+    details: validatedDetails,
   };
-  
+
   if (data.deletedAt !== undefined) entry.deletedAt = data.deletedAt;
   if (data.deletedBy !== undefined) entry.deletedBy = String(data.deletedBy);
   if (data.status !== undefined) entry.status = data.status;
-  
+
   return entry;
 }
 
 export function parseJournalDoc(id: string, data: DocumentData): Journal {
+  const parsed = JournalSchema.safeParse({ ...data, id });
+  if (parsed.success) {
+    return {
+      ...parsed.data,
+      id,
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
+    } as unknown as Journal;
+  }
+
+  console.warn(
+    `Validation failed for journal ${id}:`,
+    parsed.error.issues,
+  );
+
   return {
     id,
     title: String(data.title || ""),
@@ -134,13 +156,10 @@ export async function fetchDateRangeEntries(
     const docsList: DBentry[] = querySnapshot.docs.map((doc) =>
       parseDBEntry(doc.id, entryType, doc.data())
     );
-    console.log(
-      `Fetched ${docsList.length} ${entryType} entries for date range.`,
-    );
     return docsList;
   } catch (error) {
     console.error(`fetchDateRangeEntries (${entryType}): error`, error);
-    return [];
+    throw error;
   }
 }
 
@@ -204,13 +223,10 @@ export async function fetchOlderEntrys(
     querySnapshot.forEach((doc) => {
       docsDict[doc.id] = parseDBEntry(doc.id, entryType, doc.data());
     });
-    console.log(
-      `Fetched ${Object.keys(docsDict).length} older ${entryType} entries.`,
-    );
     return docsDict;
   } catch (error) {
     console.error(`fetchOlderEntrys (${entryType}): error`, error);
-    return {};
+    throw error;
   }
 }
 
@@ -245,9 +261,6 @@ export function useEntriesSubCol(
 
     try {
       const colPath = `${JOURNAL_COLLECTION}/${journalId}/${subcollectionName}`;
-      console.log(
-        `Watching entries in: ${colPath} ordered by ${primarySortField}`,
-      );
 
       const q = query(
         collection(db, colPath),
@@ -269,54 +282,34 @@ export function useEntriesSubCol(
                   JSON.stringify(newDocs[change.doc.id]) !==
                   JSON.stringify(docData)
                 ) {
-                  // Basic change check
                   newDocs[change.doc.id] = docData;
                   changed = true;
-                  console.log(
-                    `Doc ${change.type}: ${change.doc.id} in ${subcollectionName}`,
-                  );
                 }
               } else if (change.type === "removed") {
                 if (newDocs[change.doc.id]) {
                   delete newDocs[change.doc.id];
                   changed = true;
-                  console.log(
-                    `Doc removed: ${change.doc.id} from ${subcollectionName}`,
-                  );
                 }
               }
             });
-            return changed ? newDocs : prevDocs; // Only update state if changes occurred
+            return changed ? newDocs : prevDocs;
           });
         },
         (error) => {
-          // Error handler for onSnapshot
-          // Critical: Log the error but don't throw to prevent memory leaks
           console.error(`Error watching collection ${colPath}: `, error);
-          // Clear the docs state on error to show data is no longer reliable
           setDocs({});
-          // Note: The listener is automatically unsubscribed by Firestore on error,
-          // but we still need to clean up our reference in the cleanup function
         },
       );
     } catch (error) {
-      // Catch synchronous errors during setup
       console.error(`useEntriesSubCol (${entryType}): setup error`, error);
-      // Clear docs on setup error
       setDocs({});
     }
 
-    // Cleanup function - guaranteed to run on unmount or when dependencies change
-    // This prevents memory leaks by ensuring listeners are always cleaned up
     return () => {
       if (unsubscribe) {
-        console.log(
-          `Unsubscribing from ${entryType} entries for journal ${journalId}`,
-        );
         try {
           unsubscribe();
         } catch (cleanupError) {
-          // Catch any errors during unsubscribe to prevent React errors
           console.error(
             `Error during unsubscribe for ${entryType}:`,
             cleanupError,
@@ -332,67 +325,58 @@ export function useEntriesSubCol(
 // --- useWatchJournal ---
 // Path updated to JOURNAL_COLLECTION
 export function useWatchJournal(journalId: string | null) {
-  // Allow null journalId
   const [journal, setJournal] = useState<Journal | undefined | null>(
     undefined,
-  ); // Allow null for not found
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setJournal(undefined); // Reset on ID change
+    setJournal(undefined);
     setLoading(true);
 
     if (!journalId) {
       setLoading(false);
-      setJournal(null); // Set to null if no ID
-      return () => {}; // Return empty cleanup
+      setJournal(null);
+      return () => {};
     }
 
-    console.log("Watching journal: ", journalId);
-    const docRef = doc(db, JOURNAL_COLLECTION, journalId); // Use JOURNAL_COLLECTION
+    const docRef = doc(db, JOURNAL_COLLECTION, journalId);
 
     const unsubscribe = onSnapshot(
       docRef,
-      (doc) => {
-        if (doc.exists()) {
-          setJournal({ id: doc.id, ...doc.data() } as Journal); // Use updated Journal type
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setJournal(parseJournalDoc(docSnap.id, docSnap.data()));
         } else {
           console.warn(`Journal ${journalId} not found.`);
-          setJournal(null); // Set to null if not found
+          setJournal(null);
         }
         setLoading(false);
       },
       (error) => {
-        // Add error handler
         console.error(`Error watching journal ${journalId}: `, error);
         setJournal(null);
         setLoading(false);
-        // Optionally set an error state
       },
     );
 
     return () => {
-      console.log(`Unsubscribing from journal ${journalId}`);
       unsubscribe();
     };
-  }, [journalId]); // Depend on journalId
+  }, [journalId]);
 
   return { journal, loading };
 }
 
-
-
 // --- fetchJournals ---
 // Query simplified, filtering by type happens client-side if needed
 export async function fetchJournals(userID: string): Promise<Journal[]> {
-  // Return Journal[]
-  console.log("Fetching journals for user ", userID);
   try {
     const q = query(
-      collection(db, JOURNAL_COLLECTION), // Use JOURNAL_COLLECTION
+      collection(db, JOURNAL_COLLECTION),
       where("isActive", "==", true),
       where("access_array", "array-contains", userID),
-      orderBy("createdAt", "desc"), // Optional: order by creation date
+      orderBy("createdAt", "desc"),
     );
 
     const querySnapshot = await getDocs(q);
@@ -400,11 +384,10 @@ export async function fetchJournals(userID: string): Promise<Journal[]> {
       parseJournalDoc(doc.id, doc.data())
     );
 
-    console.log("Journals fetched:", journals.length);
     return journals;
   } catch (error) {
     console.error("Error fetching journals:", error);
-    return [];
+    throw error;
   }
 }
 
@@ -412,24 +395,21 @@ export async function fetchJournals(userID: string): Promise<Journal[]> {
 // Now requires entryType
 export async function fetchEntry(
   journalId: string,
-  entryType: EntryType, // --- ADD entryType ---
+  entryType: EntryType,
   entryId: string,
 ): Promise<DBentry | null> {
-  // Return type updated
   const config = getEntryConfig(entryType);
   if (!config) return null;
   const subcollectionName = config.subcollection;
 
   try {
     const docPath = `${JOURNAL_COLLECTION}/${journalId}/${subcollectionName}/${entryId}`;
-    console.info(`Getting DocPath ${docPath}`);
     const docRef = doc(db, docPath);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
       return parseDBEntry(docSnap.id, entryType, docSnap.data());
     } else {
-      console.log(`No such entry document: ${docPath}`);
       return null;
     }
   } catch (error) {
@@ -443,15 +423,12 @@ export async function fetchEntry(
 export async function fetchJournal(
   journalId: string,
 ): Promise<Journal | null> {
-  // Return Journal | null
   try {
-    console.log("Fetching journal ", journalId);
-    const docRef = doc(db, JOURNAL_COLLECTION, journalId); // Use JOURNAL_COLLECTION
+    const docRef = doc(db, JOURNAL_COLLECTION, journalId);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
-      return { id: docSnap.id, ...docSnap.data() } as Journal; // Use updated Journal type
+      return parseJournalDoc(docSnap.id, docSnap.data());
     } else {
-      console.log(`No such journal document: ${journalId}`);
       return null;
     }
   } catch (error) {

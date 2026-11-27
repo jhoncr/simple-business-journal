@@ -1,6 +1,6 @@
 // frontend/src/app/(auth)/journal/comp/Entry.tsx
 import React, { memo } from "react";
-import { DBentry, AccessUser } from "../../../../lib/custom_types";
+import { DBentry, AccessUser } from "@/lib/custom_types";
 import { getEntryComponent } from "../journal-types/config";
 import { EntryType } from "@backend/common/schemas/configmap"; // Import EntryType
 import { useTranslations } from "next-intl";

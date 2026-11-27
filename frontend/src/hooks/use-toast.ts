@@ -106,14 +106,6 @@ export const reducer = (state: State, action: Action): State => {
 
     case "DISMISS_TOAST": {
       const { toastId } = action;
-      // Side effect of calling addToRemoveQueue is removed from the reducer.
-      // Clearing timeouts is a state management concern related to toast lifecycle.
-      if (toastId) {
-        clearToastTimeout(toastId); // Clear specific timeout
-      } else {
-        clearAllToastTimeouts(); // Clear all timeouts if dismissing all
-      }
-
       return {
         ...state,
         toasts: state.toasts.map((t) =>
@@ -170,8 +162,10 @@ function toast({ ...props }: Toast) {
       toast: { ...props, id },
     });
 
-  // Original dismiss function, now primarily for external calls or if onOpenChange doesn't cover all dismiss cases.
-  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id });
+  const dismiss = () => {
+    addToRemoveQueue(id);
+    dispatch({ type: "DISMISS_TOAST", toastId: id });
+  };
 
   // Before adding a new toast, clear any existing timeout for this ID.
   // This handles cases where a toast might be rapidly re-added or updated.
@@ -185,12 +179,7 @@ function toast({ ...props }: Toast) {
       open: true,
       onOpenChange: (open) => {
         if (!open) {
-          // When toast is closed (e.g., by user action or auto-hide from component),
-          // schedule its removal from the state.
           addToRemoveQueue(id);
-          // We can still call dismiss to ensure the state's `open` flag is set to false,
-          // though addToRemoveQueue will eventually remove it.
-          // This also handles any other logic that might be in dismiss (currently none beyond setting open:false).
           dispatch({ type: "DISMISS_TOAST", toastId: id });
         }
       },
@@ -215,14 +204,20 @@ function useToast() {
         listeners.splice(index, 1);
       }
     };
-  }, [state]);
+  }, []);
 
   return {
     ...state,
     toast,
     // Expose a general dismiss function that can take an ID or dismiss all
-    dismiss: (toastId?: string) =>
-      dispatch({ type: "DISMISS_TOAST", toastId }),
+    dismiss: (toastId?: string) => {
+      if (toastId) {
+        addToRemoveQueue(toastId);
+      } else {
+        memoryState.toasts.forEach((t) => addToRemoveQueue(t.id));
+      }
+      dispatch({ type: "DISMISS_TOAST", toastId });
+    },
   };
 }
 

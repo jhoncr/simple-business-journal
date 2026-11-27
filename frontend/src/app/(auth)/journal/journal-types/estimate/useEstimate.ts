@@ -18,6 +18,7 @@ import {
   allowedCurrencySchemaType,
   ROLES,
 } from "@backend/common/schemas/common_schemas";
+import { ROLES_THAT_ADD } from "@backend/common/const";
 import {
   WorkStatus,
   EntryItf,
@@ -105,7 +106,6 @@ export const useEstimate = ({
   const [confirmedItems, setConfirmedItems] = useState<LineItem[]>([]);
   const [status, setStatus] = useState<WorkStatus>(WorkStatus.DRAFT);
   const [customer, setCustomer] = useState<contactInfoSchemaType>(initInfo);
-  const [canUpdate, setCanUpdate] = useState(false);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
   const [taxPercentage, setTaxPercentage] = useState(0);
   const [notes, setNotes] = useState<string>("");
@@ -152,6 +152,8 @@ export const useEstimate = ({
       "viewer") as (typeof ROLES)[number];
   }, [authUser, journal]);
 
+  const canUpdate = useMemo(() => ROLES_THAT_ADD.has(userRole), [userRole]);
+
   const loadEntryData = useCallback(async () => {
       setLoading(true);
       setEntryError(null);
@@ -194,11 +196,10 @@ export const useEstimate = ({
             setEntryUpdatedAtMillis(
               entry.updatedAt ? entry.updatedAt.toMillis() : null,
             );
-            console.log("Fetched estimate entry createdAt:", newCreatedAt);
             const processedDetails = {
               ...details,
               payments:
-                details.payments?.map((payment: any) => ({
+                details.payments?.map((payment: Record<string, unknown>) => ({
                   ...payment,
                   date: parseDateField(payment.date),
                   createdAt: parseDateField(payment.createdAt),
@@ -226,7 +227,6 @@ export const useEstimate = ({
               setAdjustments((validData.adjustments as Adjustment[]) || []);
               setTaxPercentage(validData.taxPercentage || 0);
               setNotes(validData.notes || "");
-              setCanUpdate(true);
               setPayments((validData.payments as Payment[]) || []);
             }
           }
@@ -245,7 +245,6 @@ export const useEstimate = ({
         setNotes("");
         setPayments([]);
         setLoading(false);
-        setCanUpdate(true); // Allow creating a new estimate
         setCreatedAt(new Date()); // Set created date for new estimate
         setEntryUpdatedAtMillis(null);
       }
@@ -378,6 +377,9 @@ export const useEstimate = ({
 
   const handleSave = useCallback(
     async (updates: Partial<estimateDetailsState> = {}): Promise<boolean> => {
+      if (!canUpdate) {
+        return false;
+      }
       if (jtype !== ESTIMATE_ENTRY_TYPE) {
         toast({
           description: t("errors.incorrectFormType"),
@@ -414,6 +416,7 @@ export const useEstimate = ({
       }
     },
     [
+      canUpdate,
       jtype,
       isSaving,
       journalId,
@@ -427,6 +430,7 @@ export const useEstimate = ({
       taxPercentage,
       notes,
       entryId,
+      entryUpdatedAtMillis,
       payments,
       router,
       buildPayload,
@@ -436,6 +440,7 @@ export const useEstimate = ({
   );
 
   const addConfirmedItem = async (items: LineItem[]) => {
+    if (!canUpdate || isSaving) return false;
     let currentItems = [...confirmedItems];
 
     // Handle updates and additions from the input `items`
@@ -470,7 +475,11 @@ export const useEstimate = ({
     return success;
   };
 
-  const removeConfirmedItem = (id: string) => {
+  const removeConfirmedItem = async (id: string): Promise<boolean> => {
+    if (!canUpdate || isSaving) return false;
+    const previousItems = confirmedItems;
+    const previousEditing = editingItem;
+
     // remove edited item if it's being deleted
     if (editingItem && editingItem.id === id) {
       setEditingItem(null);
@@ -480,12 +489,17 @@ export const useEstimate = ({
       (item) => item.id !== id && item.parentId !== id,
     );
     setConfirmedItems(newItems);
-    handleSave({ confirmedItems: newItems });
+    const success = await handleSave({ confirmedItems: newItems });
+    if (!success) {
+      setConfirmedItems(previousItems);
+      setEditingItem(previousEditing);
+    }
+    return success;
   };
 
   const editItem = (item: LineItem) => {
-    // Prevent editing if already editing or saving
-    if (isSaving || editingItem) {
+    // Prevent editing if already editing or saving or read-only
+    if (!canUpdate || isSaving || editingItem) {
       return;
     }
     setEditingItem(item);
@@ -495,9 +509,65 @@ export const useEstimate = ({
     setEditingItem(null);
   };
 
-  const handleStatusChange = (newStatus: WorkStatus) => {
+  const handleStatusChange = async (newStatus: WorkStatus): Promise<boolean> => {
+    if (!canUpdate || isSaving) return false;
+    const previousStatus = status;
     setStatus(newStatus);
-    handleSave({ status: newStatus });
+    const success = await handleSave({ status: newStatus });
+    if (!success) {
+      setStatus(previousStatus);
+    }
+    return success;
+  };
+
+  const handleCustomerChange = async (
+    newCustomer: contactInfoSchemaType,
+  ): Promise<boolean> => {
+    if (!canUpdate || isSaving) return false;
+    const previousCustomer = customer;
+    setCustomer(newCustomer);
+    const success = await handleSave({ customer: newCustomer });
+    if (!success) {
+      setCustomer(previousCustomer);
+    }
+    return success;
+  };
+
+  const handleAdjustmentsChange = async (
+    newAdjustments: Adjustment[],
+  ): Promise<boolean> => {
+    if (!canUpdate || isSaving) return false;
+    const previousAdjustments = adjustments;
+    setAdjustments(newAdjustments);
+    const success = await handleSave({ adjustments: newAdjustments });
+    if (!success) {
+      setAdjustments(previousAdjustments);
+    }
+    return success;
+  };
+
+  const handleTaxPercentageChange = async (
+    newTaxPercentage: number,
+  ): Promise<boolean> => {
+    if (!canUpdate || isSaving) return false;
+    const previousTax = taxPercentage;
+    setTaxPercentage(newTaxPercentage);
+    const success = await handleSave({ taxPercentage: newTaxPercentage });
+    if (!success) {
+      setTaxPercentage(previousTax);
+    }
+    return success;
+  };
+
+  const handleNotesChange = async (newNotes: string): Promise<boolean> => {
+    if (!canUpdate || isSaving) return false;
+    const previousNotes = notes;
+    setNotes(newNotes);
+    const success = await handleSave({ notes: newNotes });
+    if (!success) {
+      setNotes(previousNotes);
+    }
+    return success;
   };
 
   const calculateSubtotal = useCallback(() => {
@@ -788,6 +858,10 @@ export const useEstimate = ({
     editItem,
     cancelEdit,
     handleStatusChange,
+    handleCustomerChange,
+    handleAdjustmentsChange,
+    handleTaxPercentageChange,
+    handleNotesChange,
     handleSave,
     calculateSubtotal,
     currencyFormat,

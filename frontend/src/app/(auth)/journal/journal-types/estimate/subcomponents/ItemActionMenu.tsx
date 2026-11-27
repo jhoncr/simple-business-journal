@@ -27,15 +27,18 @@ export const ItemActionMenu = ({
   isSaving,
 }: ItemActionMenuProps) => {
   const t = useTranslations("estimate.itemsList");
+  const tCommon = useTranslations("common");
+  const isRoot = !item.parentId || item.parentId === "root";
   return (
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
+          type="button"
           variant="ghost"
           size="icon"
           disabled={isSaving || !canUpdate}
           className="h-6 w-6"
-          onAbort={(e) => e.preventDefault()}
+          aria-label={tCommon("openMenu")}
         >
           <EllipsisVertical className="h-4 w-4" />
         </Button>
@@ -43,10 +46,10 @@ export const ItemActionMenu = ({
       <DropdownMenuContent>
         <DropdownMenuItem
           onSelect={(e) => e.preventDefault()}
-          onClick={(e) => {
+          onClick={() => {
             editItem(item);
           }}
-          disabled={!canUpdate || item.parentId !== "root" || !!editingItem}
+          disabled={!canUpdate || !isRoot || !!editingItem}
         >
           {editingItem?.id === item.id
             ? t("editingInProgress")

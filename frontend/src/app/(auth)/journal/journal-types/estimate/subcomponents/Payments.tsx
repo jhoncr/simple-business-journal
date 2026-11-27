@@ -40,16 +40,17 @@ import {
   Zap,
   HelpCircle,
 } from "lucide-react";
-import { cn, formattedDate, formatCurrency } from "@/lib/utils";
+import { cn, formattedDate } from "@/lib/utils";
 import { Payment } from "@backend/common/schemas/estimate_schema";
 import { allowedCurrencySchemaType, ROLES } from "@backend/common/schemas/common_schemas";
 import {
   getActivePayments,
   calculatePaymentsTotal,
   calculateBalanceDue,
+  getPaymentStatus,
 } from "@/lib/financials";
 import { ROLES_THAT_ADD } from "@backend/common/const";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { PaymentDialog } from "./PaymentDialog";
 
 interface PaymentsProps {
@@ -80,6 +81,7 @@ export const Payments = ({
   isSaving,
 }: PaymentsProps) => {
   const t = useTranslations("payments");
+  const locale = useLocale();
 
   // Permissions
   const canModify = useMemo(() => ROLES_THAT_ADD.has(userRole), [userRole]);
@@ -153,12 +155,13 @@ export const Payments = ({
     setDialogOpen(true);
   };
 
-  const handleSavePayment = async (payment: Payment) => {
+  const handleSavePayment = async (
+    payment: Payment,
+  ): Promise<boolean | void> => {
     if (editingPayment && handleUpdatePayment) {
-      await handleUpdatePayment(payment);
-    } else {
-      await handleAddPayment(payment);
+      return await handleUpdatePayment(payment);
     }
+    return await handleAddPayment(payment);
   };
 
   // Handlers for Void & Restore
@@ -181,37 +184,43 @@ export const Payments = ({
     }
   };
 
-  // Status badge calculation
+  // Status badge calculation using shared financials helper
   const renderStatusBadge = () => {
-    if (activePayments.length === 0) {
-      return (
-        <Badge variant="outline" className="text-muted-foreground">
-          {t("status.unpaid")}
-        </Badge>
-      );
-    }
-    if (totalPaid > grandTotal) {
-      return (
-        <Badge className="bg-purple-600 hover:bg-purple-700 text-white gap-1">
-          <AlertCircle className="h-3 w-3" />
-          {t("status.credit")}
-        </Badge>
-      );
-    }
-    if (totalPaid >= grandTotal && grandTotal > 0) {
-      return (
-        <Badge className="bg-green-600 hover:bg-green-700 text-white gap-1">
-          <CheckCircle2 className="h-3 w-3" />
-          {t("status.paid")}
-        </Badge>
-      );
-    }
-    return (
-      <Badge className="bg-amber-500 hover:bg-amber-600 text-white gap-1">
-        <AlertCircle className="h-3 w-3" />
-        {t("status.partial")}
-      </Badge>
+    const paymentStatus = getPaymentStatus(
+      activePayments.length,
+      totalPaid,
+      grandTotal,
     );
+    switch (paymentStatus) {
+      case "unpaid":
+        return (
+          <Badge variant="outline" className="text-muted-foreground">
+            {t("status.unpaid")}
+          </Badge>
+        );
+      case "credit":
+        return (
+          <Badge className="bg-purple-600 hover:bg-purple-700 text-white gap-1">
+            <AlertCircle className="h-3 w-3" />
+            {t("status.credit")}
+          </Badge>
+        );
+      case "paid":
+        return (
+          <Badge className="bg-green-600 hover:bg-green-700 text-white gap-1">
+            <CheckCircle2 className="h-3 w-3" />
+            {t("status.paid")}
+          </Badge>
+        );
+      case "partial":
+      default:
+        return (
+          <Badge className="bg-amber-500 hover:bg-amber-600 text-white gap-1">
+            <AlertCircle className="h-3 w-3" />
+            {t("status.partial")}
+          </Badge>
+        );
+    }
   };
 
   return (
@@ -335,7 +344,7 @@ export const Payments = ({
 
                         {/* Date */}
                         <span className="text-xs text-muted-foreground">
-                          {formattedDate(new Date(payment.date))}
+                          {formattedDate(payment.date, locale)}
                         </span>
 
                         {/* Voided badge */}
@@ -369,7 +378,7 @@ export const Payments = ({
                       {isVoided && payment.deletedAt && (
                         <p className="text-2xs text-destructive">
                           {t("voidedOn", {
-                            date: formattedDate(new Date(payment.deletedAt)),
+                            date: formattedDate(payment.deletedAt, locale),
                           })}
                         </p>
                       )}
@@ -497,7 +506,7 @@ export const Payments = ({
                   return (
                     <tr key={p.id || idx}>
                       <td className="py-1.5">
-                        {formattedDate(new Date(p.date))}
+                        {formattedDate(p.date, locale)}
                       </td>
                       <td className="py-1.5">{methodInfo.label}</td>
                       <td className="py-1.5 font-mono text-2xs">

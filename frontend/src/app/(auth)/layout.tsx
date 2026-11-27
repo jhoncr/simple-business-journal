@@ -1,46 +1,44 @@
 "use client";
 import { useAuth } from "@/lib/auth_handler";
-// import { JournalListProvider } from "@/lib/db_handler";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { User } from "firebase/auth";
 import { UserNav } from "@/components/ui/user-nav";
 import { toolbarContext } from "./nav_tool_handler";
+import { useTranslations } from "next-intl";
 
 function Header({
   user,
   signOut,
   tools,
 }: {
-  user: any;
-  signOut: any;
+  user: User;
+  signOut: () => Promise<void> | void;
   tools: React.ReactNode;
 }) {
+  const tNav = useTranslations("navigation");
   const [atTop, setAtTop] = useState(true);
   useEffect(() => {
     const handleScroll = () => {
       const isAtTop = window.scrollY < 10;
-      if (isAtTop !== atTop) {
-        setAtTop(isAtTop);
-      }
+      setAtTop((prev) => (prev !== isAtTop ? isAtTop : prev));
     };
-    document.addEventListener("scroll", handleScroll);
+    document.addEventListener("scroll", handleScroll, { passive: true });
     return () => {
       document.removeEventListener("scroll", handleScroll);
     };
-  }, [atTop]);
-
-  // header is fixed at the top of the page with a shadow and border at the bottom
+  }, []);
 
   return (
-    <header 
+    <header
       className={`flex flex-row items-center justify-between w-full px-3 py-2 print:hidden sticky top-0 z-50 transition-all duration-200 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 ${
         !atTop ? "border-b shadow-sm" : ""
       }`}
     >
-      <Link href="/" className="text-xl font-semibold mr-4">
+      <Link href="/" className="text-xl font-semibold mr-4" aria-label={tNav("home")}>
         <div className="flex items-center">
-          <Image src="/logo.svg" alt="logo" width={24} height={24} />
+          <Image src="/logo.svg" alt={tNav("home")} width={24} height={24} />
         </div>
       </Link>
 
@@ -58,24 +56,28 @@ export default function NeedLoginLayout({
   children: React.ReactNode;
   login: React.ReactNode;
 }) {
-  const { authUser, signOut } = useAuth();
-  const [toolbar, setToolBar] = useState(null as React.ReactNode);
+  const { authUser, loading, signOut } = useAuth();
+  const tCommon = useTranslations("common");
+  const [toolbar, setToolBar] = useState<React.ReactNode>(null);
+  const toolbarValue = useMemo(() => ({ setToolBar }), []);
 
-  useEffect(() => {
-    console.log("Loading Layout. User:", authUser);
-  }, [authUser]);
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p className="text-muted-foreground">{tCommon("loading")}</p>
+      </div>
+    );
+  }
 
   return (
     <>
       {authUser ? (
-        <>
-          <toolbarContext.Provider value={{ setToolBar }}>
-            <div className="flex flex-col h-screen print:h-auto print:block print:overflow-visible">
-              <Header user={authUser} signOut={signOut} tools={toolbar} />
-              {children}
-            </div>
-          </toolbarContext.Provider>
-        </>
+        <toolbarContext.Provider value={toolbarValue}>
+          <div className="flex flex-col h-screen print:h-auto print:block print:overflow-visible">
+            <Header user={authUser} signOut={signOut} tools={toolbar} />
+            {children}
+          </div>
+        </toolbarContext.Provider>
       ) : (
         login
       )}

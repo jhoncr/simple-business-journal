@@ -1,4 +1,4 @@
-import { PencilRuler, Box } from "lucide-react";
+import { PencilRuler, Box, Building2 } from "lucide-react";
 import React from "react";
 import { AddNewEstimateBtn } from "./estimate/addEstimate";
 import { EstimateEntry } from "./estimate/EstimateEntry";
@@ -30,7 +30,14 @@ const JOURNAL_CONFIG: {
 };
 
 export const getJournalIcon = (type: string) => {
-  return JOURNAL_CONFIG[type as keyof typeof JOURNAL_CONFIG]?.icon ?? null;
+  if (type === "business") {
+    return <Building2 className="h-4 w-4" />;
+  }
+  return (
+    JOURNAL_CONFIG[type as keyof typeof JOURNAL_CONFIG]?.icon ?? (
+      <Building2 className="h-4 w-4" />
+    )
+  );
 };
 
 export const getEntryComponent = (type: string) => {

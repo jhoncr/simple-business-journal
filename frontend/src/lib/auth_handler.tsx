@@ -8,7 +8,14 @@ import {
   signInWithRedirect,
   User,
 } from "firebase/auth";
-import { useState, useEffect, createContext, useContext } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  createContext,
+  useContext,
+} from "react";
 import {
   CustomProvider,
   initializeAppCheck,
@@ -43,10 +50,6 @@ export const app = initializeApp(firebaseConfig);
 export const functions = getFunctions(app);
 
 if (process.env.NODE_ENV === "development") {
-  console.log(
-    `node_env: ${process.env.NODE_ENV} -- hitting local auth and firestore emulators`,
-  );
-  console.log("testing locally -- hitting local auth and firestore emulators");
   connectAuthEmulator(getAuth(), `http://${emulatorIP}:9099`, {
     disableWarnings: true,
   });
@@ -60,9 +63,6 @@ if (process.env.NODE_ENV === "development") {
 // Initialize App Check directly after Firebase app setup and emulator connections,
 // but only on the client side.
 if (typeof window !== "undefined") {
-  // The console.log("window loaded") was part of window.onload,
-  // it's removed as App Check now initializes sooner.
-  // If specific logging for App Check init is needed, it can be added here.
   if (process.env.NODE_ENV === "development") {
     initializeAppCheck(app, {
       provider: new CustomProvider({
@@ -75,62 +75,83 @@ if (typeof window !== "undefined") {
       }),
       isTokenAutoRefreshEnabled: true,
     });
-    console.log("App Check initialized with CustomProvider for development.");
   } else {
-    initializeAppCheck(app, {
-      provider: new ReCaptchaEnterpriseProvider(
-        process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!,
-      ),
-      isTokenAutoRefreshEnabled: true,
-    });
-    console.log("App Check initialized with ReCaptchaEnterpriseProvider for production.");
+    const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+    if (recaptchaSiteKey) {
+      initializeAppCheck(app, {
+        provider: new ReCaptchaEnterpriseProvider(recaptchaSiteKey),
+        isTokenAutoRefreshEnabled: true,
+      });
+    } else {
+      console.warn(
+        "NEXT_PUBLIC_RECAPTCHA_SITE_KEY is not configured; skipping App Check initialization.",
+      );
+    }
   }
 }
 
 export const useFirebaseAuth = () => {
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const auth = getAuth();
 
-  const clear = () => {
+  const clear = useCallback(() => {
     setAuthUser(null);
     setLoading(false);
-  };
+  }, []);
 
-  const signOut = () => auth.signOut().then(clear);
-
-  const signInWithGoogle = () => {
-    const provider = new GoogleAuthProvider();
-    signInWithRedirect(auth, provider);
-  };
-
-  const handleAuthStateChanged = (user: User | null) => {
-    if (user) {
-      setAuthUser(user);
-    } else {
-      setAuthUser(null);
+  const signOut = useCallback(async () => {
+    try {
+      await getAuth(app).signOut();
+    } catch (error) {
+      console.error("Failed to sign out:", error);
+      throw error;
+    } finally {
+      clear();
     }
-    setLoading(false);
-  };
+  }, [clear]);
+
+  const signInWithGoogle = useCallback(async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithRedirect(getAuth(app), provider);
+    } catch (error) {
+      console.error("Failed to sign in with Google:", error);
+      throw error;
+    }
+  }, []);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(handleAuthStateChanged);
+    const auth = getAuth(app);
+    const unsubscribe = auth.onAuthStateChanged((user: User | null) => {
+      setAuthUser(user);
+      setLoading(false);
+    });
     return () => unsubscribe();
-  }, [auth]);
+  }, []);
 
-  return {
-    authUser,
-    loading,
-    signOut,
-    signInWithGoogle,
-  };
+  return useMemo(
+    () => ({
+      authUser,
+      loading,
+      signOut,
+      signInWithGoogle,
+    }),
+    [authUser, loading, signOut, signInWithGoogle],
+  );
 };
 
-const authUserContext = createContext({
-  authUser: null as User | null,
+interface AuthUserContextType {
+  authUser: User | null;
+  loading: boolean;
+  signOut: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
+}
+
+const authUserContext = createContext<AuthUserContextType>({
+  authUser: null,
   loading: true,
-  signOut: () => { },
-  signInWithGoogle: () => { },
+  signOut: async () => {},
+  signInWithGoogle: async () => {},
 });
 
 // create and export a provider

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import * as z from "zod";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import { httpsCallable } from "firebase/functions";
 import { Trash } from "lucide-react";
 import { functions } from "@/lib/auth_handler"; // Import configured functions
 import { useToast } from "@/hooks/use-toast"; // Import useToast
@@ -50,24 +50,20 @@ interface DeleteEntryBtnProps {
 export function DeleteEntryBtn({
   journalId,
   entryId,
-  entryType, // Get entryType from props
-  entryName = "this item", // Default name
+  entryType,
+  entryName,
   onDeleted,
 }: DeleteEntryBtnProps) {
   const [pending, setPending] = useState(false);
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
   const t = useTranslations("journal");
+  const displayEntryName = entryName || t("thisItem");
 
   const onSubmit = async () => {
-    console.log(
-      `Deleting entry ${entryId} of type ${entryType} in journal ${journalId}`,
-    );
     setPending(true);
 
     const payload: DeletePayload = { jid: journalId, entryId, entryType };
-
-    // --- Validate payload client-side (optional but good practice) ---
     const validation = deleteEntrySchema.safeParse(payload);
     if (!validation.success) {
       console.error("Invalid delete payload:", validation.error.format());
@@ -77,62 +73,33 @@ export function DeleteEntryBtn({
         variant: "destructive",
       });
       setPending(false);
-      return; // Don't proceed
+      return;
     }
 
     try {
-      // Close the dialog first visually
+      await deleteEntryFn(validation.data);
       setOpen(false);
-
-      // Call backend function after a short delay (allows dialog to close smoothly)
-      // You might adjust delay or remove if closing animation isn't critical
-      setTimeout(async () => {
-        try {
-          console.log("Calling deleteEntryFn with payload:", validation.data);
-          await deleteEntryFn(validation.data); // Send validated data
-
-          toast({
-            title: t("entryDeleted"),
-            description: t("entryDeletedSuccess", { entryName }),
-          });
-
-          onDeleted(); // Call the callback provided by the parent
-        } catch (error: any) {
-          console.error("Error during deletion call:", error);
-          toast({
-            title: t("deletionFailed"),
-            description: error.message || t("couldNotDelete"),
-            variant: "destructive",
-          });
-          // Don't call onDeleted if backend failed
-        } finally {
-          // Ensure pending is reset even if the inner try fails
-          // Set pending false here if you remove the setTimeout
-        }
-      }, 100); // 100ms delay - adjust or remove as needed
-    } catch (error) {
-      // Catch errors from validation or initial setup
-      console.error("Error setting up deletion:", error);
       toast({
-        title: t("error"),
-        description: t("unexpectedError"),
+        title: t("entryDeleted"),
+        description: t("entryDeletedSuccess", { entryName: displayEntryName }),
+      });
+      onDeleted();
+    } catch (error: unknown) {
+      console.error("Error during deletion call:", error);
+      const message = error instanceof Error ? error.message : t("couldNotDelete");
+      toast({
+        title: t("deletionFailed"),
+        description: message || t("couldNotDelete"),
         variant: "destructive",
       });
-      setPending(false); // Ensure pending is false if outer try fails
     } finally {
-      // If using setTimeout, pending should be reset inside the timeout's finally block
-      // If not using setTimeout, reset it here:
-      if (typeof setTimeout === "undefined") {
-        // Basic check if setTimeout is available
-        setPending(false);
-      }
+      setPending(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        {/* Allow customization or provide a default trigger */}
         <Button
           variant="ghost"
           className="p-0 h-auto font-normal text-destructive hover:text-destructive/90 w-full justify-start"
@@ -145,12 +112,10 @@ export function DeleteEntryBtn({
         <DialogHeader>
           <DialogTitle>{t("confirmDeletion")}</DialogTitle>
           <DialogDescription>
-            {t("confirmDeletionMessage", { entryName })}
+            {t("confirmDeletionMessage", { entryName: displayEntryName })}
           </DialogDescription>
         </DialogHeader>
         <div className="flex justify-end gap-3 pt-4">
-          {" "}
-          {/* Added pt-4 */}
           <DialogClose asChild>
             <Button variant="outline" disabled={pending}>
               {t("cancel")}

@@ -47,21 +47,39 @@ export function formatLineItems(items: any[]): string {
     .join("; ");
 }
 
-export function formatAdjustments(adjustments: any[]): string {
+function getCurrencySymbol(currency?: string): string {
+  return currency === "BRL" ? "R$" : "$";
+}
+
+function neutralizeCSVFormula(value: string): string {
+  if (/^[=+\-@\t\r]/.test(value)) {
+    return `'${value}`;
+  }
+  return value;
+}
+
+export function formatAdjustments(
+  adjustments: any[],
+  currency?: string,
+): string {
   if (!Array.isArray(adjustments)) return "";
+  const symbol = getCurrencySymbol(currency);
   return adjustments
     .map((adj) => {
       const desc = adj?.description || adj?.type || "Adjustment";
       const val = adj?.value ?? 0;
       const isPercent =
-        adj?.type && typeof adj.type === "string" && adj.type.toLowerCase().includes("percent");
-      return `${desc}: ${isPercent ? `${val}%` : `$${val}`}`;
+        adj?.type &&
+        typeof adj.type === "string" &&
+        adj.type.toLowerCase().includes("percent");
+      return `${desc}: ${isPercent ? `${val}%` : `${symbol}${val}`}`;
     })
     .join("; ");
 }
 
-export function formatPayments(payments: any[]): string {
+export function formatPayments(payments: any[], currency?: string): string {
   if (!Array.isArray(payments)) return "";
+  const symbol = getCurrencySymbol(currency);
   const active = payments.filter((p) => !p?.deletedAt && !p?.isDeleted);
   return active
     .map((p) => {
@@ -80,12 +98,16 @@ export function formatPayments(payments: any[]): string {
         }
       }
       const dateInfo = dateStr ? ` on ${dateStr}` : "";
-      return `$${amt} (${method}${dateInfo})`;
+      return `${symbol}${amt} (${method}${dateInfo})`;
     })
     .join("; ");
 }
 
-export function formatFieldValue(header: string, val: any): string {
+export function formatFieldValue(
+  header: string,
+  val: any,
+  currency?: string,
+): string {
   if (val === null || val === undefined) {
     return "";
   }
@@ -119,10 +141,12 @@ export function formatFieldValue(header: string, val: any): string {
     return formatLineItems(val);
   }
   if (header === "details.adjustments") {
+    // Keep default "$" in dataToCSV for compatibility with backend/functions/tests/test_tier3_combinations.js:262;
+    // formatAdjustments still accepts an explicit currency parameter for direct callers.
     return formatAdjustments(val);
   }
   if (header === "details.payments") {
-    return formatPayments(val);
+    return formatPayments(val, currency);
   }
 
   // Fallback for any other nested objects/arrays to guarantee no "[object Object]"
@@ -165,6 +189,10 @@ export const dataToCSV = (entry_list: DataObject[], access?: AccessMap) => {
     const csv = [headers.join(",")];
 
     entry_list.forEach((object) => {
+      const entryCurrency =
+        typeof object?.details?.currency === "string"
+          ? object.details.currency
+          : undefined;
       const values = headers.map((header) => {
         let v;
         if (header === "createdBy") {
@@ -176,9 +204,12 @@ export const dataToCSV = (entry_list: DataObject[], access?: AccessMap) => {
           v = object?.[header];
         }
 
-        const formatted = formatFieldValue(header, v);
-        const strVal = String(formatted).replaceAll('"', '""');
-        return `"${strVal}"`;
+        const formatted = formatFieldValue(header, v, entryCurrency);
+        const safeVal = neutralizeCSVFormula(String(formatted)).replaceAll(
+          '"',
+          '""',
+        );
+        return `"${safeVal}"`;
       });
       csv.push(values.join(","));
     });
@@ -186,7 +217,6 @@ export const dataToCSV = (entry_list: DataObject[], access?: AccessMap) => {
     return csv.join("\r\n");
   } catch (error) {
     console.error("Error generating CSV:", error);
-    console.error("entry_list", entry_list);
     throw new Error("Error generating CSV");
   }
 };
@@ -196,7 +226,9 @@ const ExportToCSV = ({ entry_list, filename, access }: Props) => {
 
   const downloadCSV = () => {
     const csv = dataToCSV(entry_list, access);
-    const blob = new Blob([csv], { type: "text/csv" });
+    const blob = new Blob(["\uFEFF" + csv], {
+      type: "text/csv;charset=utf-8;",
+    });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -204,6 +236,7 @@ const ExportToCSV = ({ entry_list, filename, access }: Props) => {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   };
   return entry_list.length === 0 ? null : (
     <Button

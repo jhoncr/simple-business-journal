@@ -69,33 +69,46 @@ const GoogleIcon = () => (
     </svg>
   </div>
 );
+const SignInButton = ({
+  isLoggingIn,
+  onClick,
+  label,
+}: {
+  isLoggingIn: boolean;
+  onClick: () => void;
+  label: string;
+}) => (
+  <Button
+    variant="outline"
+    className="bg-primary text-primary-foreground hover:bg-primary-foreground hover:text-primary"
+    size="lg"
+    onClick={onClick}
+    disabled={isLoggingIn}
+  >
+    {isLoggingIn ? (
+      <Loader2 className="h-6 w-6 animate-spin" />
+    ) : (
+      <GoogleIcon />
+    )}
+    <span className="ml-2">{label}</span>
+  </Button>
+);
+
 export default function LandingPage() {
   useAiAutoLogin();
-  const { authUser, signInWithGoogle } = useAuth();
+  const { signInWithGoogle } = useAuth();
   const t = useTranslations("LandingPage");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const handleLoginClick = () => {
+  const handleLoginClick = async () => {
     setIsLoggingIn(true);
-    signInWithGoogle();
+    try {
+      await signInWithGoogle();
+    } catch {
+      setIsLoggingIn(false);
+    }
   };
 
-  const SignInButton = () => (
-    <Button
-      variant="outline"
-      className="bg-primary text-primary-foreground hover:bg-primary-foreground hover:text-primary"
-      size="lg"
-      onClick={handleLoginClick}
-      disabled={isLoggingIn}
-    >
-      {isLoggingIn ? (
-        <Loader2 className="h-6 w-6 animate-spin" />
-      ) : (
-        <GoogleIcon />
-      )}
-      <span className="ml-2">{t("hero.signInWithGoogle")}</span>
-    </Button>
-  );
   return (
     <div className="flex flex-col min-h-screen bg-background">
       {/* Hero Section */}
@@ -116,7 +129,11 @@ export default function LandingPage() {
             />
           </div>
           <h3 className="text-2xl font-bold mt-8 mb-4">{t("hero.tryFree")}</h3>
-          <SignInButton />
+          <SignInButton
+            isLoggingIn={isLoggingIn}
+            onClick={handleLoginClick}
+            label={t("hero.signInWithGoogle")}
+          />
         </div>
       </header>
 
@@ -226,7 +243,11 @@ export default function LandingPage() {
       <section className=" py-16">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-8">{t("finalCta.title")}</h2>
-          <SignInButton />
+          <SignInButton
+            isLoggingIn={isLoggingIn}
+            onClick={handleLoginClick}
+            label={t("hero.signInWithGoogle")}
+          />
         </div>
       </section>
 

@@ -119,9 +119,9 @@ const FilterStatusBadge = ({ status, onRemove }: FilterStatusBadgeProps) => {
 const NotFound = () => {
   const t = useTranslations("journal");
   return (
-    <main className="flex flex-col items-center justify-center w-full mt-12 h-screen">
+    <div className="flex flex-col items-center justify-center w-full mt-12 h-screen">
       <p className="text-2xl font-bold">{t("notFound")}</p>
-    </main>
+    </div>
   );
 };
 
@@ -374,41 +374,52 @@ export default function ListJournalPage() {
     t_j,
   ]);
 
-  const fetchFilterList = useCallback(async () => {
-    if (!dateRange || !journalId) return;
-    const entries = await fetchDateRangeEntries(
-      journalId,
-      displayEntryType,
-      dateRange.from,
-      dateRange.to,
-    );
-    setFilterList(entries);
-  }, [dateRange, journalId, displayEntryType]);
-
   useEffect(() => {
-    if (dateRange) {
-      fetchFilterList();
-    } else {
+    if (!dateRange || !journalId) {
       setFilterList([]);
+      return;
     }
-  }, [dateRange, fetchFilterList]);
+
+    let cancelled = false;
+
+    const loadFiltered = async () => {
+      try {
+        const entries = await fetchDateRangeEntries(
+          journalId,
+          displayEntryType,
+          dateRange.from,
+          dateRange.to,
+        );
+        if (!cancelled) {
+          setFilterList(entries);
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          console.error("Error fetching filtered entries:", err);
+          setFilterList([]);
+          toast({
+            title: t_j("error"),
+            description:
+              err instanceof Error ? err.message : t_j("failedToFilterEntries"),
+            variant: "destructive",
+          });
+        }
+      }
+    };
+
+    loadFiltered();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dateRange, journalId, displayEntryType, toast, t_j]);
 
   const removeFilterEntry = useCallback((entry: DBentry) => {
     setFilterList((prevList) => prevList.filter((x) => x.id !== entry.id));
   }, []);
 
-  const handleDuplicated = useCallback(
-    (_newEntryId: string) => {
-      // Show success toast - the real-time subscription will handle showing the new entry
-      toast({
-        title: t_j("estimateDuplicated") || "Estimate Duplicated",
-        description:
-          t_j("duplicateSuccess") ||
-          "The estimate has been duplicated successfully.",
-      });
-    },
-    [toast, t_j],
-  );
+  // DuplicateEstimateBtn already displays the success toast; realtime subscription updates the list.
+  const handleDuplicated = useCallback((_newEntryId: string) => {}, []);
 
   const filteredExportList = useMemo(() => {
     if (hasStatusFilter) {

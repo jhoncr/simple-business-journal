@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -113,26 +113,50 @@ export function AddContributers({
     defaultValues: { email: "", role: "viewer" },
   });
 
-  const callAddContributor = async (data: any) => {
+  // Sync people list whenever dialog opens (handles both internal trigger and externalOpen)
+  useEffect(() => {
+    if (!isOpen) return;
+    const activePeople = Object.values(access || {}).map((x: UserSchemaType) => ({
+      email: x.email,
+      role: x.role,
+      is_pending: false,
+    }));
+    const pendingPeople =
+      (pendingAccess &&
+        Object.entries(pendingAccess).map(([k, v]) => ({
+          email: k.replace(/,/g, "."),
+          role: v,
+          is_pending: true,
+        }))) ||
+      [];
+    setPeople(activePeople.concat(pendingPeople));
+    setError(null);
+    form.reset();
+  }, [isOpen, access, pendingAccess, form]);
+
+  const callAddContributor = async (data: {
+    email: string;
+    role: string;
+    operation: "add" | "remove";
+    jid: string | undefined;
+  }) => {
     setPending(true);
     setError(null);
     try {
       const addContributor = httpsCallable(functions, "addContributor", {
         limitedUseAppCheckTokens: true,
       });
-      const result = await addContributor(data);
-      console.log("Successfully updated contributors");
+      await addContributor(data);
       return true;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to update contributors:", error);
-      // Extract error message for display
-      const errorMessage = error.message || t("errorUpdatingContributors");
-      setError(errorMessage);
-      // Handle specific error codes if the Firebase function returns them
-      if (error.code === "functions/permission-denied") {
+      const errObj = error as { code?: string; message?: string } | null;
+      if (errObj?.code === "functions/permission-denied") {
         setError(t("noPermissionModify"));
-      } else if (error.code === "functions/invalid-argument") {
+      } else if (errObj?.code === "functions/invalid-argument") {
         setError(t("invalidContributorInfo"));
+      } else {
+        setError(errObj?.message || t("errorUpdatingContributors"));
       }
       return false;
     } finally {
@@ -140,100 +164,79 @@ export function AddContributers({
     }
   };
 
-  const onClose = () => {
+  const onClose = useCallback(() => {
     form.reset();
     setIsOpen(false);
-  };
+  }, [form]);
 
   const onOpenHandler = (open: boolean) => {
-    if (open) {
-      const a = Object.values(access).map((x: UserSchemaType) => ({
-        email: x.email,
-        role: x.role,
-        is_pending: false,
-      }));
-      const p =
-        (pendingAccess &&
-          Object.entries(pendingAccess).map(([k, v]) => ({
-            email: k.replace(/,/g, "."),
-            role: v,
-            is_pending: true,
-          }))) ||
-        [];
-      setPeople(a.concat(p));
-      form.reset();
-    }
     setIsOpen(open);
   };
 
   const onAddClick = async () => {
-    form.trigger().then(async (isValid) => {
-      if (isValid) {
-        const email = form.getValues().email;
-        const role = form.getValues().role;
-        // Check if the email is already in the list
-        const cur = people.find((person) => person.email === email);
-        if (cur) {
-          if (role === cur.role) {
-            setError(t("emailAlreadyInList"));
-            return;
-          }
-          if (cur.role == "admin") {
-            setError(t("cannotChangeAdminRole"));
-            return;
-          }
-        }
-        // Submit changes immediately
-        await callAddContributor({
-          email,
-          role: form.getValues().role,
-          operation: "add",
-          jid: journalId,
-        })
-          .then((result) => {
-            if (result) {
-              const newPerson = {
-                email,
-                role: form.getValues().role,
-                is_pending: cur ? cur.is_pending : true,
-              };
-              setPeople((prevPeople) => [...prevPeople, newPerson]);
-              form.reset();
-              setError(null);
-              console.log("Contributor added successfully");
-              return true;
-            }
-          })
-          .catch((error) => {
-            console.error("Error adding contributor:", error);
-            setError(t("failedToAdd"));
-          });
+    const isValid = await form.trigger();
+    if (!isValid) return;
+
+    const email = form.getValues().email;
+    const role = form.getValues().role;
+    const cur = people.find((person) => person.email === email);
+    if (cur) {
+      if (role === cur.role) {
+        setError(t("emailAlreadyInList"));
+        return;
       }
-    });
+      if (cur.role === "admin") {
+        setError(t("cannotChangeAdminRole"));
+        return;
+      }
+    }
+
+    try {
+      const result = await callAddContributor({
+        email,
+        role,
+        operation: "add",
+        jid: journalId,
+      });
+      if (result) {
+        setPeople((prevPeople) => {
+          const exists = prevPeople.some((p) => p.email === email);
+          if (exists) {
+            return prevPeople.map((p) =>
+              p.email === email ? { ...p, role } : p,
+            );
+          }
+          return [...prevPeople, { email, role, is_pending: true }];
+        });
+        form.reset();
+        setError(null);
+      }
+    } catch (err) {
+      console.error("Error adding contributor:", err);
+      setError(t("failedToAdd"));
+    }
   };
 
   const onClickRemove = async (idx: number) => {
-    const updatedPeople = people.filter((person, index) => index !== idx);
+    const target = people[idx];
+    if (!target) return;
 
-    // Submit changes immediately
-    await callAddContributor({
-      email: people[idx].email,
-      role: people[idx].role,
-      operation: "remove",
-      jid: journalId,
-    })
-      .then((result) => {
-        if (result) {
-          setPeople(updatedPeople);
-          console.log("Contributor removed successfully");
-        } else {
-          setError(t("failedToRemove"));
-        }
-      })
-      .catch((error) => {
-        console.error("Error removing contributor:", error);
-        setError(t("failedToRemove"));
+    try {
+      const result = await callAddContributor({
+        email: target.email,
+        role: target.role,
+        operation: "remove",
+        jid: journalId,
       });
+      if (result) {
+        setPeople((prev) => prev.filter((_, index) => index !== idx));
+      } else {
+        setError(t("failedToRemove"));
+      }
+    } catch (err) {
+      console.error("Error removing contributor:", err);
+      setError(t("failedToRemove"));
+    }
   };
 
   // Generate the share link dynamically from runtime origin
@@ -256,7 +259,7 @@ export function AddContributers({
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="" onCloseAutoFocus={onClose}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto" onCloseAutoFocus={onClose}>
         <DialogHeader>
           <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>{t("description")}</DialogDescription>
@@ -305,7 +308,7 @@ export function AddContributers({
                           value={field.value}
                           defaultValue={field.value}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger id="role">
                             <SelectValue placeholder={t("selectRole")} />
                           </SelectTrigger>
                           <SelectContent>
@@ -345,7 +348,7 @@ export function AddContributers({
           {/* Display error message */}
           {error && (
             <div
-              className="text-destructive-foreground px-4 py-3 rounded relative mt-2"
+              className="bg-destructive text-destructive-foreground px-4 py-3 rounded relative mt-2 text-sm"
               role="alert"
             >
               <span className="block sm:inline">{error}</span>
@@ -373,6 +376,7 @@ export function AddContributers({
                     variant="outline"
                     size="icon"
                     type="button"
+                    aria-label={t("remove")}
                     className={
                       person.role === "admin" && !person.is_pending
                         ? "hidden"

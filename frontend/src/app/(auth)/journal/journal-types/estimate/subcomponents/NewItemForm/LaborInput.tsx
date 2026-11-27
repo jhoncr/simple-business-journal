@@ -61,7 +61,7 @@ export function LaborInput({ form, canAdd, currency }: LaborInputProps) {
                 value={field.value?.toString() ?? "0"}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   const value = Number(e.target.value);
-                  if (form.watch("laborType") === "percentage" && value > 1000) {
+                  if (form.watch("laborType") === "percentage" && value > 100) {
                     field.onChange(100);
                   } else {
                     field.onChange(value >= 0 ? value : 0);
