@@ -1,9 +1,12 @@
-// import { NextConfig } from "next";
+const path = require("path");
 const createNextIntlPlugin = require("next-intl/plugin");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "export",
+  turbopack: {
+    root: path.join(__dirname, ".."),
+  },
   images: {
     unoptimized: true, // required for static export
     remotePatterns: [

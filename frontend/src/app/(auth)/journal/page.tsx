@@ -342,12 +342,10 @@ export default function ListJournalPage() {
       );
 
       const AddEntryForm = getAddEntryForm(displayEntryType);
-      if (
-        AddEntryForm &&
-        authUser?.uid &&
-        journal.access?.[authUser.uid] &&
-        ROLES_THAT_ADD.has(journal.access[authUser.uid].role)
-      ) {
+      const currentUserRole = authUser?.uid
+        ? journal.access?.[authUser.uid]?.role
+        : undefined;
+      if (AddEntryForm && currentUserRole && ROLES_THAT_ADD.has(currentUserRole)) {
         setActionButton(<AddEntryForm journalId={journalId!} />);
       } else {
         setActionButton(null);

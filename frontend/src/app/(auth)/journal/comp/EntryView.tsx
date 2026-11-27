@@ -23,7 +23,7 @@ export interface EntryViewProps<T extends DBentry> {
   journalId: string; // Use journalId for clarity
   entry: T;
   entryType: EntryType; // --- ADD entryType prop ---
-  user: AccessUser; // User who created the entry (from access map)
+  user: AccessUser | null; // User who created the entry (from access map)
   role: string; // Role of the *logged-in* user viewing the entry
   removeFn: (entry: T) => void; // Callback for UI removal
   onDuplicated?: (newEntryId: string) => void; // Callback for when entry is duplicated

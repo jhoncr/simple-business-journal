@@ -2,14 +2,16 @@
 
 # ==============================================================================
 # Simple Business Journal - Fullstack Deployment Script
-# Deploys Backend Cloud Functions and Frontend Next.js / Firebase Hosting.
+# Deploys Backend (Cloud Functions, Firestore rules/indexes, Storage rules)
+# and Frontend Next.js / Firebase Hosting.
 # ==============================================================================
 
 set -euo pipefail
 
 # Determine script root directory
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKEND_FUNCTIONS_DIR="$ROOT_DIR/backend/functions"
+BACKEND_DIR="$ROOT_DIR/backend"
+BACKEND_FUNCTIONS_DIR="$BACKEND_DIR/functions"
 FRONTEND_DIR="$ROOT_DIR/frontend"
 
 # Colors for terminal output
@@ -48,32 +50,32 @@ log_error() {
 show_usage() {
   echo -e "${BOLD}Usage:${NC} $0 [OPTIONS]"
   echo ""
-  echo "Deploy backend functions, frontend hosting, or both."
+  echo "Deploy backend (Cloud Functions, Firestore rules/indexes, Storage rules), frontend hosting, or both."
   echo ""
   echo -e "${BOLD}Options:${NC}"
-  echo "  -a, --all            Deploy both backend functions and frontend (default)"
-  echo "  -b, --backend        Deploy only backend functions (backend/functions)"
+  echo "  -a, --all            Deploy both backend and frontend (default)"
+  echo "  -b, --backend        Deploy only backend (functions, firestore:rules, firestore:indexes, storage)"
   echo "  -f, --frontend       Deploy only frontend (frontend)"
   echo "  -h, --help           Display this help message"
   echo ""
   echo -e "${BOLD}Examples:${NC}"
-  echo "  $0                   # Deploys backend functions followed by frontend"
-  echo "  $0 --backend         # Deploys only backend/functions"
+  echo "  $0                   # Deploys backend followed by frontend"
+  echo "  $0 --backend         # Deploys only backend (functions + security rules/indexes)"
   echo "  $0 --frontend        # Deploys only frontend"
 }
 
 deploy_backend() {
-  log_info "Deploying Backend Functions (${BACKEND_FUNCTIONS_DIR})..."
+  log_info "Deploying Backend Functions, Firestore Rules/Indexes, and Storage Rules (${BACKEND_DIR})..."
   if [[ ! -d "$BACKEND_FUNCTIONS_DIR" ]]; then
     log_error "Backend functions directory not found at $BACKEND_FUNCTIONS_DIR"
     return 1
   fi
 
   (
-    cd "$BACKEND_FUNCTIONS_DIR"
-    npm run deploy
+    cd "$BACKEND_DIR"
+    npm run deploy:backend
   )
-  log_success "Backend functions deployed successfully."
+  log_success "Backend functions, Firestore rules/indexes, and Storage rules deployed successfully."
 }
 
 deploy_frontend() {

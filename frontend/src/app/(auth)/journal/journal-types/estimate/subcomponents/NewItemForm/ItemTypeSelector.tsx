@@ -34,7 +34,15 @@ export function ItemTypeSelector({ form, canAdd, currency, onOpenGallery, onClea
                 className="grid-cols-2 md:grid-cols-4"
                 layout="vertical"
                 value={field.value}
-                onValueChange={(value: "none" | "gallery" | "window-sill" | "tile-edge") => {
+                onValueChange={(value: string) => {
+                  if (
+                    value !== "none" &&
+                    value !== "gallery" &&
+                    value !== "window-sill" &&
+                    value !== "tile-edge"
+                  ) {
+                    return;
+                  }
                   field.onChange(value);
 
                   if (value !== "gallery") {

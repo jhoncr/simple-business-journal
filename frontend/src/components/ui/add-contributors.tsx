@@ -101,12 +101,15 @@ export function AddContributers({
 
   // Support external or internal control
   const isOpen = externalOpen !== undefined ? externalOpen : internalOpen;
-  const setIsOpen = (open: boolean) => {
-    if (onExternalOpenChange) {
-      onExternalOpenChange(open);
-    }
-    setInternalOpen(open);
-  };
+  const setIsOpen = useCallback(
+    (open: boolean) => {
+      if (onExternalOpenChange) {
+        onExternalOpenChange(open);
+      }
+      setInternalOpen(open);
+    },
+    [onExternalOpenChange],
+  );
 
   const form = useForm<PersonType>({
     resolver: zodResolver(schema),
@@ -167,7 +170,7 @@ export function AddContributers({
   const onClose = useCallback(() => {
     form.reset();
     setIsOpen(false);
-  }, [form]);
+  }, [form, setIsOpen]);
 
   const onOpenHandler = (open: boolean) => {
     setIsOpen(open);

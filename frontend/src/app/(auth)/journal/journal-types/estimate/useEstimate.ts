@@ -40,6 +40,7 @@ import {
 
 const ADD_LOG_FN_NAME = "addLogFn";
 const ESTIMATE_ENTRY_TYPE = "estimate";
+const START_STATE = WorkStatus.DRAFT;
 
 const initInfo: contactInfoSchemaType = {
   name: "",
@@ -128,8 +129,6 @@ export const useEstimate = ({
   const router = useRouter();
   const { authUser } = useAuth();
   const { journal } = useJournalContext();
-
-  const START_STATE = WorkStatus.DRAFT;
 
   const parseDateField = (val: unknown): Date | null | undefined => {
     if (!val) return val as null | undefined;
@@ -260,7 +259,7 @@ export const useEstimate = ({
     await loadEntryData();
   }, [loadEntryData]);
 
-  const validateCustomer = async () => {
+  const validateCustomer = useCallback(async () => {
     if (customerRef.current) {
       const isValid = await customerRef.current.validate();
       if (!isValid) {
@@ -280,100 +279,125 @@ export const useEstimate = ({
       return false;
     }
     return true;
-  };
+  }, [t, toast]);
 
-  const buildPayload = (updates: Partial<estimateDetailsState>) => {
-    const estimateDetailsData: estimateDetailsState = {
-      confirmedItems: updates.confirmedItems ?? confirmedItems,
-      status: updates.status ?? status ?? WorkStatus.DRAFT,
-      customer: updates.customer ?? customer,
-      supplier: supplierInfo || initInfo,
-      logo: supplierLogo || null,
-      adjustments: updates.adjustments ?? adjustments,
-      taxPercentage: updates.taxPercentage ?? taxPercentage,
-      currency: journalCurrency,
-      notes: updates.notes ?? notes,
-      payments: updates.payments ?? payments,
-    };
+  const buildPayload = useCallback(
+    (updates: Partial<estimateDetailsState>) => {
+      const estimateDetailsData: estimateDetailsState = {
+        confirmedItems: updates.confirmedItems ?? confirmedItems,
+        status: updates.status ?? status ?? WorkStatus.DRAFT,
+        customer: updates.customer ?? customer,
+        supplier: supplierInfo || initInfo,
+        logo: supplierLogo || null,
+        adjustments: updates.adjustments ?? adjustments,
+        taxPercentage: updates.taxPercentage ?? taxPercentage,
+        currency: journalCurrency,
+        notes: updates.notes ?? notes,
+        payments: updates.payments ?? payments,
+      };
 
-    const detailsValidation =
-      estimateDetailsStateSchema.safeParse(estimateDetailsData);
-    if (!detailsValidation.success) {
-      console.error(
-        "Estimate details validation failed before save:",
-        detailsValidation.error.format(),
-        estimateDetailsData,
-      );
+      const detailsValidation =
+        estimateDetailsStateSchema.safeParse(estimateDetailsData);
+      if (!detailsValidation.success) {
+        console.error(
+          "Estimate details validation failed before save:",
+          detailsValidation.error.format(),
+          estimateDetailsData,
+        );
+        toast({
+          description: t("errors.invalidEstimateData"),
+          variant: "destructive",
+        });
+        return null;
+      }
+
+      return {
+        jid: journalId,
+        entryType: ESTIMATE_ENTRY_TYPE,
+        name: t("estimateForCustomer", {
+          name: detailsValidation.data.customer.name || t("unknownCustomer"),
+        }),
+        details: detailsValidation.data,
+        ...(entryId && { entryId }),
+        // Optimistic-concurrency guard: the server rejects the write when the
+        // entry changed since we loaded it, instead of silently overwriting.
+        ...(entryId && entryUpdatedAtMillis != null
+          ? { expectedUpdatedAtMillis: entryUpdatedAtMillis }
+          : {}),
+      };
+    },
+    [
+      confirmedItems,
+      status,
+      customer,
+      supplierInfo,
+      supplierLogo,
+      adjustments,
+      taxPercentage,
+      journalCurrency,
+      notes,
+      payments,
+      journalId,
+      entryId,
+      entryUpdatedAtMillis,
+      t,
+      toast,
+    ],
+  );
+
+  const handleSaveSuccess = useCallback(
+    (
+      result: { data?: { id?: string; updatedAtMillis?: number | null } } | unknown,
+      validatedDetails: estimateDetailsState,
+    ) => {
+      const data = (result as { data?: { id?: string; updatedAtMillis?: number | null } })?.data;
+      const returnedId = data?.id;
+      if (returnedId && !entryId) {
+        setEntryId(returnedId);
+        const url = new URL(window.location.href);
+        url.searchParams.set("eid", returnedId);
+        router.replace(url.toString(), { scroll: false });
+      }
+      if (typeof data?.updatedAtMillis === "number") {
+        setEntryUpdatedAtMillis(data.updatedAtMillis);
+      }
       toast({
-        description: t("errors.invalidEstimateData"),
-        variant: "destructive",
+        description: t("estimateSaved", {
+          name: validatedDetails.customer.name || t("unknownCustomer"),
+        }),
       });
-      return null;
-    }
+      setIsSaving(false);
+      return true;
+    },
+    [entryId, router, t, toast],
+  );
 
-    return {
-      jid: journalId,
-      entryType: ESTIMATE_ENTRY_TYPE,
-      name: t("estimateForCustomer", {
-        name: detailsValidation.data.customer.name || t("unknownCustomer"),
-      }),
-      details: detailsValidation.data,
-      ...(entryId && { entryId }),
-      // Optimistic-concurrency guard: the server rejects the write when the
-      // entry changed since we loaded it, instead of silently overwriting.
-      ...(entryId && entryUpdatedAtMillis != null
-        ? { expectedUpdatedAtMillis: entryUpdatedAtMillis }
-        : {}),
-    };
-  };
-
-  const handleSaveSuccess = (
-    result: { data?: { id?: string; updatedAtMillis?: number | null } } | unknown,
-    validatedDetails: estimateDetailsState,
-  ) => {
-    const data = (result as { data?: { id?: string; updatedAtMillis?: number | null } })?.data;
-    const returnedId = data?.id;
-    if (returnedId && !entryId) {
-      setEntryId(returnedId);
-      const url = new URL(window.location.href);
-      url.searchParams.set("eid", returnedId);
-      router.replace(url.toString(), { scroll: false });
-    }
-    if (typeof data?.updatedAtMillis === "number") {
-      setEntryUpdatedAtMillis(data.updatedAtMillis);
-    }
-    toast({
-      description: t("estimateSaved", {
-        name: validatedDetails.customer.name || t("unknownCustomer"),
-      }),
-    });
-    setIsSaving(false);
-    return true;
-  };
-
-  const handleSaveError = (error: unknown) => {
-    console.error("Error saving estimate:", error);
-    const code = (error as { code?: string } | null)?.code;
-    if (code === "failed-precondition") {
-      // Version conflict: someone else modified the entry. Reload so the
-      // user sees the latest state instead of unknowingly overwriting it.
+  const handleSaveError = useCallback(
+    (error: unknown) => {
+      console.error("Error saving estimate:", error);
+      const code = (error as { code?: string } | null)?.code;
+      if (code === "failed-precondition") {
+        // Version conflict: someone else modified the entry. Reload so the
+        // user sees the latest state instead of unknowingly overwriting it.
+        toast({
+          description: t("errors.entryChangedElsewhere"),
+          variant: "destructive",
+        });
+        setIsSaving(false);
+        reloadEntry();
+        return false;
+      }
+      const errorMessage =
+        error instanceof Error ? error.message : t("errors.couldNotSave");
       toast({
-        description: t("errors.entryChangedElsewhere"),
+        description: t("errors.saveFailed", { message: errorMessage }),
         variant: "destructive",
       });
       setIsSaving(false);
-      reloadEntry();
       return false;
-    }
-    const errorMessage =
-      error instanceof Error ? error.message : t("errors.couldNotSave");
-    toast({
-      description: t("errors.saveFailed", { message: errorMessage }),
-      variant: "destructive",
-    });
-    setIsSaving(false);
-    return false;
-  };
+    },
+    [reloadEntry, t, toast],
+  );
 
   const handleSave = useCallback(
     async (updates: Partial<estimateDetailsState> = {}): Promise<boolean> => {
@@ -421,20 +445,11 @@ export const useEstimate = ({
       isSaving,
       journalId,
       journalCurrency,
-      confirmedItems,
-      status,
-      customer,
-      supplierInfo,
-      supplierLogo,
-      adjustments,
-      taxPercentage,
-      notes,
-      entryId,
-      entryUpdatedAtMillis,
-      payments,
-      router,
+      toast,
+      validateCustomer,
       buildPayload,
       handleSaveSuccess,
+      handleSaveError,
       t,
     ],
   );

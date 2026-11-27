@@ -71,7 +71,7 @@ function EntryDetailsPageContent() {
     // if (jtype === "template") {
     //   router.replace(`/studio?jid=${journalId}${entryId ? `&eid=${entryId}` : ''}`);
     // }
-  }, [journalId, entryId, jtype]);
+  }, [journalId, entryId, jtype, t]);
 
   let supplierInfo: contactInfoSchemaType = initInfo;
   let supplierLogo: string | null = null;

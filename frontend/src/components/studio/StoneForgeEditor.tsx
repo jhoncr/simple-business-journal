@@ -1188,7 +1188,10 @@ export const StoneForgeEditor = () => {
                               <option value="">{t("entireModel")}</option>
                               {/* Flatten components to populate list recursively */}
                               {(() => {
-                                const renderOptions = (comps: SlabComponent[], indent = '') => {
+                                const renderOptions = (
+                                  comps: SlabComponent[],
+                                  indent = '',
+                                ): React.ReactElement[] => {
                                   return comps.flatMap((c) => [
                                     <option key={c.id} value={c.id}>{indent}{c.name}</option>,
                                     ...(c.dimensionLabels ? c.dimensionLabels.map(l => (
