@@ -10,6 +10,25 @@ if (getApps().length === 0) {
 const db = getFirestore();
 
 /**
+ * Maximum age of a Firestore trigger event before retries are dropped,
+ * preventing permanent errors from spinning for Firebase's 7-day retry window.
+ */
+export const MAX_RETRY_AGE_MS = 5 * 60 * 1000;
+
+/**
+ * Returns true if the event timestamp is older than MAX_RETRY_AGE_MS.
+ */
+export function isExpiredRetryEvent(
+  eventTime: string | undefined,
+  nowMs = Date.now(),
+): boolean {
+  if (!eventTime) return false;
+  const parsedMs = Date.parse(eventTime);
+  if (!Number.isFinite(parsedMs)) return false;
+  return nowMs - parsedMs > MAX_RETRY_AGE_MS;
+}
+
+/**
  * Checks whether any template fields mirrored into `fast-cache/templates` changed.
  */
 function hasCachedFieldsChanged(
@@ -34,6 +53,13 @@ export const onTemplateWritten = onDocumentWritten(
   },
   async (event) => {
     const { journalId, templateId } = event.params;
+
+    if (isExpiredRetryEvent(event.time)) {
+      logger.warn(
+        `Dropping expired retry for template ${templateId} (event.time=${event.time})`,
+      );
+      return;
+    }
 
     const beforeExists = event.data?.before.exists ?? false;
     const afterExists = event.data?.after.exists ?? false;

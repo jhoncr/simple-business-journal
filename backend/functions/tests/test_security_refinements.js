@@ -484,3 +484,35 @@ test('firestore.rules and storage.rules include auth, exists, and isActive guard
   );
   assert.ok(storageRules.includes("!('isActive' in docData)"));
 });
+
+// ---------------------------------------------------------------------------
+// 11. bg-template-cache: retry event-age cutoff
+// ---------------------------------------------------------------------------
+test('isExpiredRetryEvent drops events older than MAX_RETRY_AGE_MS and allows fresh events', () => {
+  const { isExpiredRetryEvent, MAX_RETRY_AGE_MS } = require('../lib/bg-template-cache');
+  const now = Date.parse('2026-11-27T20:00:00.000Z');
+
+  assert.equal(MAX_RETRY_AGE_MS, 5 * 60 * 1000);
+  // Fresh event (30 seconds old)
+  assert.equal(
+    isExpiredRetryEvent(new Date(now - 30_000).toISOString(), now),
+    false,
+  );
+  // Exact boundary (5 minutes old) is still allowed
+  assert.equal(
+    isExpiredRetryEvent(new Date(now - MAX_RETRY_AGE_MS).toISOString(), now),
+    false,
+  );
+  // Expired event (5 minutes + 1ms old) is dropped
+  assert.equal(
+    isExpiredRetryEvent(new Date(now - MAX_RETRY_AGE_MS - 1).toISOString(), now),
+    true,
+  );
+  // Future clock skew and invalid/missing timestamps do not drop
+  assert.equal(
+    isExpiredRetryEvent(new Date(now + 10_000).toISOString(), now),
+    false,
+  );
+  assert.equal(isExpiredRetryEvent(undefined, now), false);
+  assert.equal(isExpiredRetryEvent('not-a-timestamp', now), false);
+});

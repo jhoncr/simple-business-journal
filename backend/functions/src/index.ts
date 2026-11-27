@@ -19,4 +19,4 @@ exports.deleteJournal = deleteJournal; // Export new function
 exports.deleteEntry = deleteEntry; // Export new function
 exports.duplicateEntry = duplicateEntry; // Export generic duplicate function
 exports.mutatePayments = mutatePayments; // Export transactional payments function
-export * from './bg-template-cache';
+export { onTemplateWritten } from './bg-template-cache';
