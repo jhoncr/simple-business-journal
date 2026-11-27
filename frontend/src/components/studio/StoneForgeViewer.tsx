@@ -1,13 +1,29 @@
 "use client";
 
-import React, { useMemo, useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls, Environment, Bounds, useBounds } from "@react-three/drei";
 import * as THREE from "three";
 import { SlabComponent, CameraView } from "@backend/common/schemas/studio";
-import { evaluateExpression } from "../../lib/evaluator";
+import { evaluateExpression } from "@/lib/evaluator";
 import { Slab3D } from "./Slab3D";
+import { getEdgeGeometry } from "./DimensionLabel3D";
 import { useTranslations } from "next-intl";
+
+interface OrbitControlsTarget {
+  target: THREE.Vector3;
+  update: () => void;
+}
+
+function isOrbitControlsTarget(value: unknown): value is OrbitControlsTarget {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "target" in value &&
+    "update" in value &&
+    typeof (value as OrbitControlsTarget).update === "function"
+  );
+}
 
 export interface StoneForgeViewerProps {
   components: SlabComponent[];
@@ -19,9 +35,19 @@ export interface StoneForgeViewerProps {
   onSnapshotReady?: (dataUrl: string) => void;
 }
 
-const CameraController = ({ focusTargetName, variables, components }: { focusTargetName?: string, variables: any, components: any }) => {
+const CameraController = ({
+  focusTargetName,
+  variables,
+  components,
+}: {
+  focusTargetName?: string;
+  variables: Record<string, number>;
+  components: SlabComponent[];
+}) => {
   const bounds = useBounds();
-  const { scene } = useThree();
+  const { scene, camera, size } = useThree();
+  const sizeRef = useRef(size);
+  sizeRef.current = size;
 
   useEffect(() => {
     // Wait a brief moment for R3F to update the 3D meshes based on the new variables
@@ -34,15 +60,17 @@ const CameraController = ({ focusTargetName, variables, components }: { focusTar
         }
       }
       bounds.refresh(target).fit().clip();
+      const { width, height } = sizeRef.current;
+      if (width > 0 && height > 0) {
+        camera.userData.fittedSize = `${width}x${height}`;
+      }
     }, 50);
 
     return () => clearTimeout(timeoutId);
-  }, [bounds, scene, focusTargetName, variables, components]);
+  }, [bounds, scene, camera, size.width, size.height, focusTargetName, variables, components]);
 
   return null;
 };
-
-import { getEdgeGeometry } from "./DimensionLabel3D";
 
 /**
  * Mathematically computes all 3D world-space points for all slabs and dimension labels
@@ -52,7 +80,7 @@ function collectAssemblyPoints(
   components: SlabComponent[],
   variables: Record<string, number>,
   focusTargetId?: string,
-): { points: THREE.Vector3[]; center: THREE.Vector3; maxDim: number } {
+): { points: THREE.Vector3[]; center: THREE.Vector3; maxDim: number; fullMaxDim: number } {
   const allPoints: THREE.Vector3[] = [];
   let focusPoints: THREE.Vector3[] = [];
   let focusCenter: THREE.Vector3 | null = null;
@@ -60,7 +88,6 @@ function collectAssemblyPoints(
   function traverse(
     comps: SlabComponent[],
     currentMatrix: THREE.Matrix4,
-    parentSlabPoints?: THREE.Vector3[],
   ) {
     for (const slab of comps) {
       const L = evaluateExpression(slab.length, variables);
@@ -157,7 +184,7 @@ function collectAssemblyPoints(
 
       // Recurse children
       if (slab.children && slab.children.length > 0) {
-        traverse(slab.children, worldMatrix, currentSlabPoints);
+        traverse(slab.children, worldMatrix);
       }
     }
   }
@@ -181,11 +208,18 @@ function collectAssemblyPoints(
     worldBox.expandByPoint(pt);
   }
 
+  const fullBox = new THREE.Box3();
+  for (const pt of allPoints.length > 0 ? allPoints : targetPoints) {
+    fullBox.expandByPoint(pt);
+  }
+
   const center = focusCenter || worldBox.getCenter(new THREE.Vector3());
   const boxSize = worldBox.getSize(new THREE.Vector3());
   const maxDim = Math.max(boxSize.x, boxSize.y, boxSize.z, 100);
+  const fullBoxSize = fullBox.getSize(new THREE.Vector3());
+  const fullMaxDim = Math.max(fullBoxSize.x, fullBoxSize.y, fullBoxSize.z, maxDim);
 
-  return { points: targetPoints, center, maxDim };
+  return { points: targetPoints, center, maxDim, fullMaxDim };
 }
 
 export const PresetCameraFitter = ({
@@ -204,24 +238,28 @@ export const PresetCameraFitter = ({
   components?: SlabComponent[];
 }) => {
   const { camera, controls, size } = useThree();
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sizeRef = useRef(size);
+  sizeRef.current = size;
 
   useEffect(() => {
     let isMounted = true;
 
     const attemptFit = () => {
       if (!isMounted) return;
-      if (!size.width || !size.height) {
+      const currentSize = sizeRef.current;
+      if (!currentSize.width || !currentSize.height) {
         timeoutRef.current = setTimeout(attemptFit, 50);
         return;
       }
 
       if (!components || components.length === 0) return;
 
-      const { points, center, maxDim } = collectAssemblyPoints(components, variables, focusTargetId);
+      const { points, center, fullMaxDim } = collectAssemblyPoints(components, variables, focusTargetId);
 
-      // 1. Initial camera positioning based on preset orientation
-      const camDistance = Math.max(maxDim * 4, 200);
+      // 1. Initial camera positioning based on preset orientation.
+      // Use full assembly maxDim so detail views never clip inside foreground slabs.
+      const camDistance = Math.max(fullMaxDim * 4, 200);
 
       let camDir = new THREE.Vector3(1, 1, 1).normalize();
       let camUp = new THREE.Vector3(0, 1, 0);
@@ -312,9 +350,9 @@ export const PresetCameraFitter = ({
       camera.lookAt(finalCenter);
       camera.updateMatrixWorld(true);
 
-      if (controls) {
-        (controls as any).target.copy(finalCenter);
-        (controls as any).update();
+      if (isOrbitControlsTarget(controls)) {
+        controls.target.copy(finalCenter);
+        controls.update();
       }
 
       // 4. Compute exact 2D bounding dimensions
@@ -331,13 +369,13 @@ export const PresetCameraFitter = ({
       const orthoCam = camera as THREE.OrthographicCamera;
       if (orthoCam.isOrthographicCamera) {
         // Ensure orthographic frustum matches current canvas size even before R3F internal resize effect settles
-        orthoCam.left = -size.width / 2;
-        orthoCam.right = size.width / 2;
-        orthoCam.top = size.height / 2;
-        orthoCam.bottom = -size.height / 2;
+        orthoCam.left = -currentSize.width / 2;
+        orthoCam.right = currentSize.width / 2;
+        orthoCam.top = currentSize.height / 2;
+        orthoCam.bottom = -currentSize.height / 2;
 
-        const frustumWidth = size.width;
-        const frustumHeight = size.height;
+        const frustumWidth = currentSize.width;
+        const frustumHeight = currentSize.height;
 
         const zoomX = frustumWidth / boundingWidth;
         const zoomY = frustumHeight / boundingHeight;
@@ -356,7 +394,7 @@ export const PresetCameraFitter = ({
         const perspCam = camera as THREE.PerspectiveCamera;
         const fovRad = THREE.MathUtils.degToRad(perspCam.fov);
         const visibleHeight = 2 * Math.tan(fovRad / 2) * camDistance;
-        const visibleWidth = visibleHeight * (size.width / (size.height || 1));
+        const visibleWidth = visibleHeight * (currentSize.width / (currentSize.height || 1));
 
         const zoomX = visibleWidth / boundingWidth;
         const zoomY = visibleHeight / boundingHeight;
@@ -371,7 +409,7 @@ export const PresetCameraFitter = ({
         perspCam.far = camDistance * 10;
         perspCam.updateProjectionMatrix();
       }
-      (camera as any).__presetFittedSize = `${size.width}x${size.height}`;
+      camera.userData.fittedSize = `${currentSize.width}x${currentSize.height}`;
     };
 
     attemptFit();
@@ -399,29 +437,6 @@ export const PresetCameraFitter = ({
   return null;
 };
 
-const calculateMinY = (
-  components: SlabComponent[],
-  variables: Record<string, number>,
-  currentY = 0,
-): number => {
-  let minY = currentY;
-  for (const comp of components) {
-    const posY = evaluateExpression(comp.position[1], variables);
-    const compMinY = currentY + posY;
-    if (compMinY < minY) minY = compMinY;
-
-    if (comp.children && comp.children.length > 0) {
-      const childrenMinY = calculateMinY(
-        comp.children,
-        variables,
-        currentY + posY,
-      );
-      if (childrenMinY < minY) minY = childrenMinY;
-    }
-  }
-  return minY;
-};
-
 /**
  * Component running inside R3F <Canvas> that forces immediate WebGL context disposal
  * when unmounting in print mode, releasing hardware context back to browser pool.
@@ -434,7 +449,7 @@ function WebGLContextDisposer({ printMode }: { printMode?: boolean }) {
       if (printMode) {
         try {
           // Native Three.js forceContextLoss invokes WEBGL_lose_context extension
-          (gl as any).forceContextLoss?.();
+          gl.forceContextLoss?.();
         } catch {
           // fallback
         }
@@ -497,7 +512,7 @@ function collectDimensionLabelsWorld(
         for (const lbl of slab.dimensionLabels) {
           const geom = getEdgeGeometry(lbl, L, D, T, variables);
           const worldMidpoint = new THREE.Vector3(...geom.midpoint).applyMatrix4(worldMatrix);
-          const val = evaluateExpression(lbl.text as any, variables);
+          const val = evaluateExpression(lbl.text, variables);
           const text = Number.isInteger(val) ? val.toString() : val.toFixed(1);
           result.push({ id: lbl.id, text, worldMidpoint });
         }
@@ -513,9 +528,25 @@ function collectDimensionLabelsWorld(
   return result;
 }
 
+interface PlacedLabelBox {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+function boxesOverlap(a: PlacedLabelBox, b: PlacedLabelBox, gap: number): boolean {
+  return !(
+    a.right + gap <= b.left ||
+    a.left >= b.right + gap ||
+    a.bottom + gap <= b.top ||
+    a.top >= b.bottom + gap
+  );
+}
+
 /**
  * Composites the rendered WebGL canvas with crisp 2D dimension label badges
- * matching DimensionLabel3D's HTML overlay appearance.
+ * matching DimensionLabel3D's HTML overlay appearance, nudging overlapping badges apart.
  */
 function compositeSnapshotWithLabels(
   gl: THREE.WebGLRenderer,
@@ -526,7 +557,7 @@ function compositeSnapshotWithLabels(
 ): string {
   const srcCanvas = gl.domElement;
   if (typeof document === "undefined" || !srcCanvas.width || !srcCanvas.height) {
-    return srcCanvas.toDataURL("image/png");
+    return "";
   }
 
   const outCanvas = document.createElement("canvas");
@@ -555,6 +586,9 @@ function compositeSnapshotWithLabels(
 
   camera.updateMatrixWorld(true);
 
+  const placedBoxes: PlacedLabelBox[] = [];
+  const gap = 3 * dpr;
+
   for (const lbl of labels) {
     const ndc = lbl.worldMidpoint.clone().project(camera);
     // Skip labels outside the visible camera frustum
@@ -572,17 +606,47 @@ function compositeSnapshotWithLabels(
     const radius = 3.5 * dpr;
     const edgePad = 3 * dpr;
 
-    const cx = Math.max(
-      badgeWidth / 2 + edgePad,
-      Math.min(outCanvas.width - badgeWidth / 2 - edgePad, rawX),
-    );
-    const cy = Math.max(
-      badgeHeight / 2 + edgePad,
-      Math.min(outCanvas.height - badgeHeight / 2 - edgePad, rawY),
-    );
+    const minCx = badgeWidth / 2 + edgePad;
+    const maxCx = Math.max(minCx, outCanvas.width - badgeWidth / 2 - edgePad);
+    const minCy = badgeHeight / 2 + edgePad;
+    const maxCy = Math.max(minCy, outCanvas.height - badgeHeight / 2 - edgePad);
+
+    const cx = Math.max(minCx, Math.min(maxCx, rawX));
+    const baseCy = Math.max(minCy, Math.min(maxCy, rawY));
+
+    const makeBox = (yCenter: number): PlacedLabelBox => ({
+      left: cx - badgeWidth / 2,
+      right: cx + badgeWidth / 2,
+      top: yCenter - badgeHeight / 2,
+      bottom: yCenter + badgeHeight / 2,
+    });
+
+    let chosenCy = baseCy;
+    let candidateBox = makeBox(chosenCy);
+
+    if (placedBoxes.some((b) => boxesOverlap(candidateBox, b, gap))) {
+      const step = badgeHeight + gap;
+      for (let attempt = 1; attempt <= 6; attempt++) {
+        const offsets = [-attempt * step, attempt * step];
+        let foundFree = false;
+        for (const dy of offsets) {
+          const nextCy = Math.max(minCy, Math.min(maxCy, baseCy + dy));
+          const nextBox = makeBox(nextCy);
+          if (!placedBoxes.some((b) => boxesOverlap(nextBox, b, gap))) {
+            chosenCy = nextCy;
+            candidateBox = nextBox;
+            foundFree = true;
+            break;
+          }
+        }
+        if (foundFree) break;
+      }
+    }
+
+    placedBoxes.push(candidateBox);
 
     const bx = cx - badgeWidth / 2;
-    const by = cy - badgeHeight / 2;
+    const by = chosenCy - badgeHeight / 2;
 
     ctx.save();
     ctx.beginPath();
@@ -598,7 +662,7 @@ function compositeSnapshotWithLabels(
     ctx.stroke();
 
     ctx.fillStyle = "#1e1b4b";
-    ctx.fillText(lbl.text, cx, cy + 0.5 * dpr);
+    ctx.fillText(lbl.text, cx, chosenCy + 0.5 * dpr);
     ctx.restore();
   }
 
@@ -607,18 +671,20 @@ function compositeSnapshotWithLabels(
 
 /**
  * Component running inside R3F <Canvas> that captures a clean frame
- * after PresetCameraFitter has positioned the camera and R3F renders.
+ * after camera fitting has positioned the camera and R3F renders.
  */
 function SnapshotCapture({
   onSnapshot,
   components,
   variables,
   hasPresetCamera,
+  viewKey,
 }: {
   onSnapshot: (dataUrl: string) => void;
   components: SlabComponent[];
   variables: Record<string, number>;
   hasPresetCamera: boolean;
+  viewKey: string;
 }) {
   const { gl, scene, camera, size } = useThree();
   const capturedRef = useRef(false);
@@ -630,12 +696,19 @@ function SnapshotCapture({
   variablesRef.current = variables;
 
   useEffect(() => {
+    capturedRef.current = false;
     let isMounted = true;
     let frameCount = 0;
     let animId: number;
 
     const doCapture = () => {
       try {
+        const srcCanvas = gl.domElement;
+        if (!srcCanvas || srcCanvas.width <= 0 || srcCanvas.height <= 0) {
+          capturedRef.current = true;
+          onSnapshotRef.current("");
+          return;
+        }
         const orthoCam = camera as THREE.OrthographicCamera;
         if (orthoCam.isOrthographicCamera && size.width > 0 && size.height > 0) {
           orthoCam.left = -size.width / 2;
@@ -670,10 +743,7 @@ function SnapshotCapture({
         return;
       }
 
-      if (
-        hasPresetCamera &&
-        (camera as any).__presetFittedSize !== `${size.width}x${size.height}`
-      ) {
+      if (camera.userData.fittedSize !== `${size.width}x${size.height}`) {
         animId = requestAnimationFrame(checkAndCapture);
         return;
       }
@@ -706,7 +776,7 @@ function SnapshotCapture({
       clearTimeout(safetyTimer);
       cancelAnimationFrame(animId);
     };
-  }, [gl, scene, camera, size, hasPresetCamera]);
+  }, [gl, scene, camera, size, hasPresetCamera, viewKey]);
 
   return null;
 }
@@ -723,12 +793,8 @@ export const StoneForgeViewer = ({
   const t = useTranslations("studio");
   const handleSnapshotCallback = onSnapshotReady || onSnapshot;
   const hasPresetCamera = Boolean(fixedCameraView && fixedCameraView.preset);
-
-  const minY = useMemo(() => {
-    return calculateMinY(components, variables);
-  }, [components, variables]);
-
   const hasFocusTarget = Boolean(focusTargetName || fixedCameraView?.focusTargetId);
+  const viewKey = `${fixedCameraView?.id ?? "single"}:${fixedCameraView?.preset ?? ""}:${fixedCameraView?.focusTargetId ?? focusTargetName ?? ""}`;
 
   // If no components exist, fire snapshot callback immediately so queue does not stall
   useEffect(() => {
@@ -752,7 +818,7 @@ export const StoneForgeViewer = ({
       <Canvas
         orthographic
         gl={{ antialias: true, preserveDrawingBuffer: true }}
-        dpr={printMode ? [2, 4] : [1, 2]}
+        dpr={printMode ? 2 : [1, 2]}
       >
         <WebGLContextDisposer printMode={printMode} />
         <ambientLight intensity={1.6} />
@@ -766,12 +832,12 @@ export const StoneForgeViewer = ({
         )}
 
         <Bounds
-          fit={!hasFocusTarget && !fixedCameraView}
-          observe={!hasFocusTarget && !fixedCameraView}
+          fit={!hasFocusTarget && !hasPresetCamera}
+          observe={!hasFocusTarget && !hasPresetCamera}
           margin={1.35}
           maxDuration={printMode ? 0 : 1}
         >
-          {!fixedCameraView && (
+          {!hasPresetCamera && (
             <CameraController focusTargetName={focusTargetName} variables={variables} components={components} />
           )}
           {fixedCameraView && fixedCameraView.preset && (
@@ -794,6 +860,8 @@ export const StoneForgeViewer = ({
               selectedEdge={null}
               selectedDimensionLabelId={null}
               variables={variables}
+              interactive={false}
+              printMode={printMode}
             />
           ))}
         </Bounds>
@@ -804,6 +872,7 @@ export const StoneForgeViewer = ({
             components={components}
             variables={variables}
             hasPresetCamera={hasPresetCamera}
+            viewKey={viewKey}
           />
         )}
 

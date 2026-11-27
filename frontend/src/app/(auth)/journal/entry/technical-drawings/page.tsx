@@ -4,9 +4,16 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { fetchEntry, fetchJournal } from "@/lib/db_handler";
-import { LineItem, estimateDetailsStateSchema } from "@backend/common/schemas/estimate_schema";
+import {
+  LineItem,
+  estimateDetailsState,
+  estimateDetailsStateSchema,
+} from "@backend/common/schemas/estimate_schema";
+import { Journal } from "@/lib/custom_types";
 import { TemplatePrintLayout, PrintableItem, DrawingItem } from "@/components/studio/TemplatePrintLayout";
 import { RectangleData } from "@/components/RectangleViewer";
+
+type LoadedEstimateData = estimateDetailsState & { createdAt: string };
 
 /**
  * Converts dimension values from meters (stored in Firestore line items)
@@ -24,8 +31,8 @@ export default function TechnicalDrawingsPrintLayout() {
   const entryId = searchParams.get("eid");
 
   const [loading, setLoading] = useState(true);
-  const [estimateData, setEstimateData] = useState<any>(null);
-  const [journalData, setJournalData] = useState<any>(null);
+  const [estimateData, setEstimateData] = useState<LoadedEstimateData | null>(null);
+  const [journalData, setJournalData] = useState<Journal | null>(null);
   const hasPrintedRef = useRef(false);
 
   const handleReadyToPrint = useCallback(() => {
@@ -39,17 +46,22 @@ export default function TechnicalDrawingsPrintLayout() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    hasPrintedRef.current = false;
+
     async function loadData() {
       if (!journalId || !entryId) {
         setLoading(false);
         return;
       }
 
+      setLoading(true);
       try {
         const [entryRes, journalRes] = await Promise.all([
           fetchEntry(journalId, "estimate", entryId),
           fetchJournal(journalId),
         ]);
+        if (cancelled) return;
 
         if (entryRes) {
           const parsed = estimateDetailsStateSchema.safeParse(entryRes.details);
@@ -69,13 +81,20 @@ export default function TechnicalDrawingsPrintLayout() {
           setJournalData(journalRes);
         }
       } catch (err) {
-        console.error("Failed to fetch data for technical drawings", err);
+        if (!cancelled) {
+          console.error("Failed to fetch data for technical drawings", err);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     loadData();
+    return () => {
+      cancelled = true;
+    };
   }, [journalId, entryId]);
 
   if (loading) {
@@ -96,6 +115,7 @@ export default function TechnicalDrawingsPrintLayout() {
     .map((item: LineItem) => ({
       id: item.id,
       description: item.description || item.attachedTemplate!.snapshot.name,
+      quantity: item.quantity,
       template: item.attachedTemplate!.snapshot,
       variableOverrides: item.attachedTemplate!.variableOverrides || {},
     }));
@@ -109,12 +129,16 @@ export default function TechnicalDrawingsPrintLayout() {
       const width = metersToCentimeters(item.dimensions?.width);
       const length = metersToCentimeters(item.dimensions?.length);
       const isWindowSill = item.itemCategory === "window-sill";
+      const displayLabel =
+        item.quantity > 1
+          ? `${item.description} (×${item.quantity})`
+          : item.description;
 
       const rect: RectangleData = {
         id: item.id,
         width,
         length,
-        label: item.description,
+        label: displayLabel,
         hasCrossLeft: true,
         hasLeftCornerCrosses: isWindowSill,
         hasStroke: isWindowSill,
@@ -122,7 +146,7 @@ export default function TechnicalDrawingsPrintLayout() {
 
       return {
         id: item.id,
-        description: item.description,
+        description: displayLabel,
         rectangles: [rect],
       };
     });

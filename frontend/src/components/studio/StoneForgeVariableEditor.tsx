@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
-import { AssemblyTemplate } from '@backend/common/schemas/studio';
+import React, { useState } from 'react';
+import { AssemblyTemplate, Expression } from '@backend/common/schemas/studio';
 import { Ruler, Info } from 'lucide-react';
-import { evaluateExpression } from '../../lib/evaluator';
+import { tryEvaluateExpression } from '@/lib/evaluator';
 import { useTranslations } from 'next-intl';
 
 interface StoneForgeVariableEditorProps {
@@ -11,6 +11,7 @@ interface StoneForgeVariableEditorProps {
   overrides?: Record<string, number>;
   onVariableChange: (id: string, value: number) => void;
   scrollable?: boolean;
+  showFooterHint?: boolean;
 }
 
 /** Converts `snake_case` or `camelCase` labels into a friendly "Title Case" label. */
@@ -21,14 +22,27 @@ function humanizeLabel(label: string): string {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function evaluateLimit(
+  expr: Expression | undefined,
+  variables: Record<string, number>,
+): number | undefined {
+  if (expr === undefined || expr === null) return undefined;
+  if (typeof expr === 'string' && expr.trim() === '') return undefined;
+  const val = tryEvaluateExpression(expr, variables);
+  return val === null ? undefined : val;
+}
+
 export const StoneForgeVariableEditor = ({
   template,
   overrides = {},
   onVariableChange,
   scrollable = true,
+  showFooterHint,
 }: StoneForgeVariableEditorProps) => {
   const t = useTranslations("studio.variableEditor");
   const variables = template.variables;
+  const [draftValues, setDraftValues] = useState<Record<string, string>>({});
+  const shouldShowFooterHint = showFooterHint ?? scrollable;
 
   const currentVariables = React.useMemo(() => {
     const vars: Record<string, number> = {};
@@ -67,9 +81,16 @@ export const StoneForgeVariableEditor = ({
       {/* Variable List */}
       <div className={`${scrollable ? 'flex-1 overflow-y-auto' : ''} p-4 space-y-4`}>
         {variables.map((v) => {
-          const minLimit = v.min !== undefined ? evaluateExpression(v.min, currentVariables) : undefined;
-          const maxLimit = v.max !== undefined ? evaluateExpression(v.max, currentVariables) : undefined;
+          const rawMinLimit = evaluateLimit(v.min, currentVariables);
+          const rawMaxLimit = evaluateLimit(v.max, currentVariables);
+          const hasConflictingBounds =
+            rawMinLimit !== undefined &&
+            rawMaxLimit !== undefined &&
+            rawMinLimit > rawMaxLimit;
+          const minLimit = hasConflictingBounds ? undefined : rawMinLimit;
+          const maxLimit = hasConflictingBounds ? undefined : rawMaxLimit;
           const currentValue = overrides[v.id] !== undefined ? overrides[v.id] : v.default;
+          const inputValue = draftValues[v.id] !== undefined ? draftValues[v.id] : String(currentValue);
 
           let isError = false;
           let errorMessage = '';
@@ -82,8 +103,26 @@ export const StoneForgeVariableEditor = ({
             errorMessage = t("maxLimitMessage", { max: maxLimit });
           }
 
+          const handleChange = (raw: string) => {
+            setDraftValues((prev) => ({ ...prev, [v.id]: raw }));
+            if (raw.trim() === '') return;
+            const parsed = parseFloat(raw);
+            if (Number.isFinite(parsed)) {
+              onVariableChange(v.id, parsed);
+            }
+          };
+
           const handleBlur = () => {
-            let clamped = currentValue;
+            const draft = draftValues[v.id];
+            setDraftValues((prev) => {
+              if (!(v.id in prev)) return prev;
+              const next = { ...prev };
+              delete next[v.id];
+              return next;
+            });
+
+            const parsedDraft = draft !== undefined && draft.trim() !== '' ? parseFloat(draft) : currentValue;
+            let clamped = Number.isFinite(parsedDraft) ? parsedDraft : currentValue;
             if (minLimit !== undefined && clamped < minLimit) clamped = minLimit;
             if (maxLimit !== undefined && clamped > maxLimit) clamped = maxLimit;
             if (clamped !== currentValue) {
@@ -112,13 +151,11 @@ export const StoneForgeVariableEditor = ({
                 <input
                   id={`var-${v.id}`}
                   type="number"
-                  value={currentValue}
+                  value={inputValue}
                   step="0.1"
                   min={minLimit}
                   max={maxLimit}
-                  onChange={(e) =>
-                    onVariableChange(v.id, parseFloat(e.target.value) || 0)
-                  }
+                  onChange={(e) => handleChange(e.target.value)}
                   onBlur={handleBlur}
                   className={`w-full text-sm border rounded-md px-3 py-2 pr-12 focus:outline-none focus:ring-2 transition-colors ${isError
                       ? 'border-red-500 ring-1 ring-red-500 focus:ring-red-500 focus:border-red-500 bg-red-50'
@@ -143,14 +180,16 @@ export const StoneForgeVariableEditor = ({
       </div>
 
       {/* Info footer */}
-      <div className="p-3 border-t border-gray-100 bg-gray-50 flex items-start gap-2">
-        <Info className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
-        <p className="text-[10px] text-gray-400 leading-relaxed">
-          {t("footerPrefix")}{' '}
-          <strong className="text-gray-500">{t("saveTemplateButton")}</strong>{' '}
-          {t("footerSuffix")}
-        </p>
-      </div>
+      {shouldShowFooterHint && (
+        <div className="p-3 border-t border-gray-100 bg-gray-50 flex items-start gap-2">
+          <Info className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
+          <p className="text-[10px] text-gray-400 leading-relaxed">
+            {t("footerPrefix")}{' '}
+            <strong className="text-gray-500">{t("saveTemplateButton")}</strong>{' '}
+            {t("footerSuffix")}
+          </p>
+        </div>
+      )}
     </div>
   );
 };

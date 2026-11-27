@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import * as THREE from 'three';
 import { Html, Line } from '@react-three/drei';
 import { DimensionLabel, Expression } from '@backend/common/schemas/studio';
-import { evaluateExpression } from '../../lib/evaluator';
+import { evaluateExpression } from '@/lib/evaluator';
 
 interface DimensionLabel3DProps {
   label: DimensionLabel;
@@ -14,6 +14,7 @@ interface DimensionLabel3DProps {
   variables: Record<string, number>;
   isSelected: boolean;
   onSelect: (id: string) => void;
+  printMode?: boolean;
 }
 
 /**
@@ -41,63 +42,65 @@ export const getEdgeGeometry = (
 ): { midpoint: [number, number, number]; lineStart: [number, number, number]; lineEnd: [number, number, number]; extensionA: [number, number, number][]; extensionB: [number, number, number][] } => {
   const { edge, offset = 15, startPos, endPos, offsetDirection } = label;
 
-  if (edge === 'custom' && startPos && endPos) {
-    // Evaluate expressions to get absolute positions relative to the component
-    const startVector = evaluateVector(startPos as [Expression, Expression, Expression], variables);
-    const endVector = evaluateVector(endPos as [Expression, Expression, Expression], variables);
+  if (edge === 'custom') {
+    if (startPos && endPos) {
+      // Evaluate expressions to get absolute positions relative to the component
+      const startVector = evaluateVector(startPos as [Expression, Expression, Expression], variables);
+      const endVector = evaluateVector(endPos as [Expression, Expression, Expression], variables);
 
-    const lineDir = new THREE.Vector3().subVectors(endVector, startVector);
-    const length = lineDir.length();
+      const lineDir = new THREE.Vector3().subVectors(endVector, startVector);
+      const length = lineDir.length();
 
-    if (length > 0) {
-      lineDir.normalize();
+      if (length > 0) {
+        lineDir.normalize();
 
-      let offsetVec = new THREE.Vector3();
+        let offsetVec = new THREE.Vector3();
 
-      if (offsetDirection) {
-        offsetVec = evaluateVector(offsetDirection as [Expression, Expression, Expression], variables)
-          .normalize()
-          .multiplyScalar(offset);
-      } else {
-        // Default offset calculation
-        // Try to cross with Y axis. If line is vertical, cross with X axis.
-        const up = new THREE.Vector3(0, 1, 0);
-        if (Math.abs(lineDir.dot(up)) > 0.99) {
-          up.set(1, 0, 0);
+        if (offsetDirection) {
+          offsetVec = evaluateVector(offsetDirection as [Expression, Expression, Expression], variables)
+            .normalize()
+            .multiplyScalar(offset);
+        } else {
+          // Default offset calculation
+          // Try to cross with Y axis. If line is vertical, cross with X axis.
+          const up = new THREE.Vector3(0, 1, 0);
+          if (Math.abs(lineDir.dot(up)) > 0.99) {
+            up.set(1, 0, 0);
+          }
+
+          offsetVec.crossVectors(lineDir, up).normalize().multiplyScalar(offset);
+
+          // For horizontal planes, we want the offset to go outward/upward.
+          if (lineDir.y === 0 && offsetVec.y === 0) {
+            offsetVec.set(0, offset, 0);
+          }
         }
 
-        offsetVec.crossVectors(lineDir, up).normalize().multiplyScalar(offset);
+        const lineStartVector = new THREE.Vector3().addVectors(startVector, offsetVec);
+        const lineEndVector = new THREE.Vector3().addVectors(endVector, offsetVec);
+        const midVector = new THREE.Vector3().addVectors(lineStartVector, lineEndVector).multiplyScalar(0.5);
 
-        // For horizontal planes, we want the offset to go outward/upward.
-        if (lineDir.y === 0 && offsetVec.y === 0) {
-          offsetVec.set(0, offset, 0);
-        }
+        // Extending slightly beyond the dimension line
+        const extDir = offsetVec.clone().normalize();
+        const extAmount = 3;
+
+        return {
+          midpoint: [midVector.x, midVector.y, midVector.z],
+          lineStart: [lineStartVector.x, lineStartVector.y, lineStartVector.z],
+          lineEnd: [lineEndVector.x, lineEndVector.y, lineEndVector.z],
+          extensionA: [
+            [startVector.x, startVector.y, startVector.z],
+            [lineStartVector.x + extDir.x * extAmount, lineStartVector.y + extDir.y * extAmount, lineStartVector.z + extDir.z * extAmount]
+          ],
+          extensionB: [
+            [endVector.x, endVector.y, endVector.z],
+            [lineEndVector.x + extDir.x * extAmount, lineEndVector.y + extDir.y * extAmount, lineEndVector.z + extDir.z * extAmount]
+          ]
+        };
       }
-
-      const lineStartVector = new THREE.Vector3().addVectors(startVector, offsetVec);
-      const lineEndVector = new THREE.Vector3().addVectors(endVector, offsetVec);
-      const midVector = new THREE.Vector3().addVectors(lineStartVector, lineEndVector).multiplyScalar(0.5);
-
-      // Extending slightly beyond the dimension line
-      const extDir = offsetVec.clone().normalize();
-      const extAmount = 3;
-
-      return {
-        midpoint: [midVector.x, midVector.y, midVector.z],
-        lineStart: [lineStartVector.x, lineStartVector.y, lineStartVector.z],
-        lineEnd: [lineEndVector.x, lineEndVector.y, lineEndVector.z],
-        extensionA: [
-          [startVector.x, startVector.y, startVector.z],
-          [lineStartVector.x + extDir.x * extAmount, lineStartVector.y + extDir.y * extAmount, lineStartVector.z + extDir.z * extAmount]
-        ],
-        extensionB: [
-          [endVector.x, endVector.y, endVector.z],
-          [lineEndVector.x + extDir.x * extAmount, lineEndVector.y + extDir.y * extAmount, lineEndVector.z + extDir.z * extAmount]
-        ]
-      };
     }
 
-    // When start and end points are the same, return an empty geometry to avoid fall-through.
+    // When start/end points are missing or identical, return an empty geometry to avoid fall-through.
     // Drei's Line component requires at least 2 points to avoid negative typed array lengths.
     return {
       midpoint: [0, 0, 0],
@@ -169,6 +172,7 @@ export const DimensionLabel3D: React.FC<DimensionLabel3DProps> = ({
   variables,
   isSelected,
   onSelect,
+  printMode = false,
 }) => {
   const evaluatedText = useMemo(() => {
     const val = evaluateExpression(label.text as Expression, variables);
@@ -180,6 +184,11 @@ export const DimensionLabel3D: React.FC<DimensionLabel3DProps> = ({
     return getEdgeGeometry(label, parentLength, parentDepth, parentThickness, variables);
   }, [label, parentLength, parentDepth, parentThickness, variables]);
 
+  const mainLinePoints = useMemo<[number, number, number][]>(
+    () => [geometry.lineStart, geometry.lineEnd],
+    [geometry.lineStart, geometry.lineEnd],
+  );
+
   const lineColor = isSelected ? '#f59e0b' : '#6366f1';
   const textColor = isSelected ? '#78350f' : '#1e1b4b';
   const bgColor = isSelected ? 'bg-amber-500' : 'bg-white';
@@ -190,15 +199,7 @@ export const DimensionLabel3D: React.FC<DimensionLabel3DProps> = ({
     <group name={label.id} onClick={(e) => { e.stopPropagation(); onSelect(label.id); }}>
       {/* Main dimension line */}
       <Line
-        points={[geometry.lineStart, geometry.lineEnd]}
-        color={lineColor}
-        lineWidth={mainLineWidth}
-        raycast={() => null}
-      />
-
-      {/* Arrow heads (small triangles at each end) */}
-      <Line
-        points={[geometry.lineStart, geometry.lineEnd]}
+        points={mainLinePoints}
         color={lineColor}
         lineWidth={mainLineWidth}
         raycast={() => null}
@@ -208,19 +209,21 @@ export const DimensionLabel3D: React.FC<DimensionLabel3DProps> = ({
       <Line points={geometry.extensionA} color={lineColor} lineWidth={extLineWidth} raycast={() => null} />
       <Line points={geometry.extensionB} color={lineColor} lineWidth={extLineWidth} raycast={() => null} />
 
-      {/* Text label - rendered as HTML overlaid on the canvas to maintain readable size */}
-      <Html position={geometry.midpoint} center zIndexRange={[100, 0]}>
-        <div
-          onClick={(e) => { e.stopPropagation(); onSelect(label.id); }}
-          className={`px-2 py-0 rounded shadow-sm border text-xs font-semibold select-none whitespace-nowrap cursor-pointer ${bgColor}`}
-          style={{
-            color: textColor,
-            borderColor: isSelected ? '#f59e0b' : '#d1d5db',
-          }}
-        >
-          {evaluatedText}
-        </div>
-      </Html>
+      {/* Text label - skipped in printMode because snapshots composite crisp 2D badges */}
+      {!printMode && (
+        <Html position={geometry.midpoint} center zIndexRange={[100, 0]}>
+          <div
+            onClick={(e) => { e.stopPropagation(); onSelect(label.id); }}
+            className={`px-2 py-0 rounded shadow-sm border text-xs font-semibold select-none whitespace-nowrap cursor-pointer ${bgColor}`}
+            style={{
+              color: textColor,
+              borderColor: isSelected ? '#f59e0b' : '#d1d5db',
+            }}
+          >
+            {evaluatedText}
+          </div>
+        </Html>
+      )}
     </group>
   );
 };

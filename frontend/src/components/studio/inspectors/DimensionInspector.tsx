@@ -10,11 +10,11 @@ interface DimensionInspectorProps {
     label: DimensionLabel;
   };
   variablesMap: Record<string, number>;
-  handleUpdateDimensionLabel: (
+  handleUpdateDimensionLabel: <K extends keyof DimensionLabel>(
     slabId: string,
     labelId: string,
-    field: keyof DimensionLabel,
-    value: any,
+    field: K,
+    value: DimensionLabel[K],
   ) => void;
   handleRemoveDimensionLabel: (slabId: string, labelId: string) => void;
 }
@@ -69,7 +69,7 @@ export const DimensionInspector: React.FC<DimensionInspectorProps> = ({
         </label>
         <input
           type="text"
-          value={selectedDimLabel.label.text as string}
+          value={String(selectedDimLabel.label.text)}
           onChange={(e) =>
             handleUpdateDimensionLabel(
               selectedDimLabel.slabId,

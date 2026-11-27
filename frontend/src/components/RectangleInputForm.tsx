@@ -33,6 +33,7 @@ export interface RectangleFormEntry {
 
 export const RectangleInputForm: React.FC = () => {
   const t = useTranslations("draw.form");
+  const tCommon = useTranslations("common");
   const [entries, setEntries] = useState<RectangleFormEntry[]>([
     { id: crypto.randomUUID(), width: "", length: "", color: "", type: "" },
   ]);
@@ -124,13 +125,13 @@ export const RectangleInputForm: React.FC = () => {
         // If it's the first in its group, add the label
         if (idx === 0) {
           let displayType = entry.type;
-          if (entry.type === "window still") displayType = t("windowStill");
+          if (entry.type === "window sill") displayType = t("windowStill");
           else if (entry.type === "tile edge") displayType = t("tileEdge");
           mappedProps.label = `${displayType} | ${entry.color}`;
         }
 
         // Apply type-specific flags
-        if (entry.type === "window still") {
+        if (entry.type === "window sill") {
           mappedProps.hasCrossLeft = true;
           mappedProps.hasLeftCornerCrosses = true;
           mappedProps.hasStroke = true;
@@ -158,27 +159,30 @@ export const RectangleInputForm: React.FC = () => {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-card p-4 rounded-md border">
           <div className="space-y-2">
-            <label className="text-sm font-medium">{t("namesOptional")}</label>
-            <Input 
-              value={names} 
-              onChange={(e) => setNames(e.target.value)} 
-              placeholder={t("namesPlaceholder")} 
+            <label htmlFor="rectangle-form-names" className="text-sm font-medium">{t("namesOptional")}</label>
+            <Input
+              id="rectangle-form-names"
+              value={names}
+              onChange={(e) => setNames(e.target.value)}
+              placeholder={t("namesPlaceholder")}
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">{t("addressOptional")}</label>
-            <Input 
-              value={deliveryAddress} 
-              onChange={(e) => setDeliveryAddress(e.target.value)} 
-              placeholder={t("addressPlaceholder")} 
+            <label htmlFor="rectangle-form-address" className="text-sm font-medium">{t("addressOptional")}</label>
+            <Input
+              id="rectangle-form-address"
+              value={deliveryAddress}
+              onChange={(e) => setDeliveryAddress(e.target.value)}
+              placeholder={t("addressPlaceholder")}
             />
           </div>
           <div className="space-y-2 md:col-span-2">
-            <label className="text-sm font-medium">{t("annotationsOptional")}</label>
-            <Textarea 
-              value={annotations} 
-              onChange={(e) => setAnnotations(e.target.value)} 
-              placeholder={t("annotationsPlaceholder")} 
+            <label htmlFor="rectangle-form-annotations" className="text-sm font-medium">{t("annotationsOptional")}</label>
+            <Textarea
+              id="rectangle-form-annotations"
+              value={annotations}
+              onChange={(e) => setAnnotations(e.target.value)}
+              placeholder={t("annotationsPlaceholder")}
               className="resize-y"
             />
           </div>
@@ -201,6 +205,7 @@ export const RectangleInputForm: React.FC = () => {
                 <TableCell>
                   <Input
                     type="number"
+                    aria-label={t("width")}
                     placeholder={t("placeholderW")}
                     value={entry.width}
                     onChange={(e) => handleChange(index, "width", e.target.value)}
@@ -209,6 +214,7 @@ export const RectangleInputForm: React.FC = () => {
                 <TableCell>
                   <Input
                     type="number"
+                    aria-label={t("length")}
                     placeholder={t("placeholderL")}
                     value={entry.length}
                     onChange={(e) => handleChange(index, "length", e.target.value)}
@@ -217,6 +223,7 @@ export const RectangleInputForm: React.FC = () => {
                 <TableCell>
                   <Input
                     type="text"
+                    aria-label={t("color")}
                     placeholder={t("colorPlaceholder")}
                     value={entry.color}
                     onChange={(e) => handleChange(index, "color", e.target.value)}
@@ -227,11 +234,11 @@ export const RectangleInputForm: React.FC = () => {
                     value={entry.type}
                     onValueChange={(val) => handleChange(index, "type", val)}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full" aria-label={t("type")}>
                       <SelectValue placeholder={t("selectType")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="window still">{t("windowStill")}</SelectItem>
+                      <SelectItem value="window sill">{t("windowStill")}</SelectItem>
                       <SelectItem value="tile edge">{t("tileEdge")}</SelectItem>
                     </SelectContent>
                   </Select>
@@ -240,6 +247,7 @@ export const RectangleInputForm: React.FC = () => {
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label={tCommon("delete")}
                     onClick={() => handleRemove(index)}
                     disabled={entries.length === 1}
                     className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"

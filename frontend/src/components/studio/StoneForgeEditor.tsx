@@ -1,21 +1,22 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useToolbar } from "@/app/(auth)/nav_tool_handler";
 import { useTranslations } from "next-intl";
 import * as THREE from "three";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Environment, Bounds } from "@react-three/drei";
 import { PresetCameraFitter } from "./StoneForgeViewer";
 import {
   SlabComponent,
-  AssemblyTemplate,
   Cutout,
   Expression,
   DimensionLabel,
   CameraView,
+  EdgeType,
+  AssemblyTemplate,
 } from "@backend/common/schemas/studio";
-import { evaluateExpression } from "../../lib/evaluator";
+import { evaluateExpression } from "@/lib/evaluator";
 import { Slab3D } from "./Slab3D";
 import {
   Box,
@@ -25,7 +26,6 @@ import {
   Download,
   Plus,
   Trash2,
-  CheckCircle2,
   Copy,
   LayoutTemplate,
   Eye,
@@ -34,13 +34,28 @@ import {
 } from "lucide-react";
 import { StoneForgeVariableEditor } from "./StoneForgeVariableEditor";
 import { useSearchParams } from "next/navigation";
-import { findComponentDeep, updateComponentDeep, deleteComponentDeep, findDimensionLabelDeep } from "../../lib/tree-utils";
+import {
+  findComponentDeep,
+  updateComponentDeep,
+  deleteComponentDeep,
+  findDimensionLabelDeep,
+  collectSubtreeIds,
+} from "@/lib/tree-utils";
 import { ISOMETRIC_PRESETS } from "./constants";
-import { useStoneForgeData } from "../../hooks/useStoneForgeData";
+import { useStoneForgeData } from "@/hooks/useStoneForgeData";
 import { EdgeInspector } from "./inspectors/EdgeInspector";
 import { DimensionInspector } from "./inspectors/DimensionInspector";
 import { ComponentInspector } from "./inspectors/ComponentInspector";
 import { GlobalInspector } from "./inspectors/GlobalInspector";
+
+type AssemblyVariable = AssemblyTemplate["variables"][number];
+
+const createId = (prefix: string): string => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${prefix}_${crypto.randomUUID()}`;
+  }
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+};
 
 export const StoneForgeEditor = () => {
   const t = useTranslations("studio");
@@ -63,7 +78,7 @@ export const StoneForgeEditor = () => {
   );
   const [selectedEdge, setSelectedEdge] = useState<{
     slabId: string;
-    edge: "front" | "back" | "left" | "right";
+    edge: string;
   } | null>(null);
   const [selectedDimensionLabelId, setSelectedDimensionLabelId] = useState<
     string | null
@@ -77,8 +92,7 @@ export const StoneForgeEditor = () => {
 
   const { setToolBar } = useToolbar();
 
-  const canvasRef = React.useRef<HTMLCanvasElement>(null);
-  const canvasContainerRef = React.useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [selectedPreviewViewId, setSelectedPreviewViewId] = useState<string | null>(null);
   const [previewRefreshCount, setPreviewRefreshCount] = useState<number>(0);
@@ -90,10 +104,16 @@ export const StoneForgeEditor = () => {
   };
 
   const resizeImage = (dataUrl: string, maxWidth = 400): Promise<string> => {
-    return new Promise((resolve) => {
+    if (!dataUrl || dataUrl === "data:,") {
+      return Promise.reject(new Error("Empty canvas snapshot data URL"));
+    }
+    return new Promise((resolve, reject) => {
       const img = new window.Image();
-      img.src = dataUrl;
       img.onload = () => {
+        if (img.width <= 0 || img.height <= 0) {
+          reject(new Error("Canvas thumbnail image has zero dimensions"));
+          return;
+        }
         const canvas = document.createElement("canvas");
         const scaleSize = maxWidth / img.width;
 
@@ -112,17 +132,23 @@ export const StoneForgeEditor = () => {
         // Compress as WebP at 80% quality for a massive size reduction
         resolve(canvas.toDataURL("image/webp", 0.8));
       };
+      img.onerror = () => {
+        reject(new Error("Failed to load canvas thumbnail image"));
+      };
+      img.src = dataUrl;
     });
   };
 
   const onSave = async () => {
     let thumbnailBase64;
-    if (canvasRef.current) {
+    if (canvasRef.current && canvasRef.current.width > 0 && canvasRef.current.height > 0) {
       try {
         // Capture the raw canvas
         const rawDataUrl = canvasRef.current.toDataURL("image/png");
-        // Resize and compress it before sending to the backend
-        thumbnailBase64 = await resizeImage(rawDataUrl, 400);
+        if (rawDataUrl && rawDataUrl !== "data:,") {
+          // Resize and compress it before sending to the backend
+          thumbnailBase64 = await resizeImage(rawDataUrl, 400);
+        }
       } catch (err) {
         console.warn("Failed to capture canvas thumbnail:", err);
       }
@@ -148,10 +174,7 @@ export const StoneForgeEditor = () => {
     setSelectedDimensionLabelId(null);
   };
 
-  const handleSelectEdge = (
-    id: string,
-    edge: "front" | "back" | "left" | "right",
-  ) => {
+  const handleSelectEdge = (id: string, edge: string) => {
     setSelectedEdge({ slabId: id, edge });
     setSelectedComponentId(null);
     setSelectedDimensionLabelId(null);
@@ -167,8 +190,37 @@ export const StoneForgeEditor = () => {
     return map;
   }, [template.variables]);
 
+  const mapEdgeToPolish = (
+    slab: SlabComponent | null,
+    edge: string,
+  ): EdgeType | null => {
+    const isVertical =
+      !edge.includes("top") &&
+      !edge.includes("bottom") &&
+      (edge.includes("front") || edge.includes("back")) &&
+      (edge.includes("left") || edge.includes("right"));
+
+    if (isVertical && slab) {
+      const L = evaluateExpression(slab.length, variablesMap);
+      const D = evaluateExpression(slab.depth, variablesMap);
+      const T = evaluateExpression(slab.thickness, variablesMap);
+      const isThicknessT = T <= L && T <= D;
+      const isThicknessD = !isThicknessT && D <= L && D < T;
+      if (isThicknessD) {
+        if (edge.includes("left")) return "left";
+        if (edge.includes("right")) return "right";
+      }
+    }
+
+    if (edge.includes("front")) return "front";
+    if (edge.includes("back")) return "back";
+    if (edge.includes("left")) return "left";
+    if (edge.includes("right")) return "right";
+    return null;
+  };
+
   const handleAddComponent = () => {
-    const newId = `slab_${Date.now()}`;
+    const newId = createId("slab");
 
     // Find the largest Z coordinate in the existing design
     let maxZ = 0;
@@ -209,23 +261,38 @@ export const StoneForgeEditor = () => {
 
   const handleRemoveComponent = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setTemplate((prev) => ({
-      ...prev,
-      components: deleteComponentDeep(prev.components, id),
-    }));
-    if (selectedComponentId === id) setSelectedComponentId(null);
-    if (selectedEdge?.slabId === id) setSelectedEdge(null);
+    const { componentIds, labelIds } = collectSubtreeIds(template.components, id);
+    const removedTargetIds = new Set<string>([...componentIds, ...labelIds]);
+
+    setTemplate((prev) => {
+      const nextCameraViews = prev.cameraViews?.map((view) =>
+        view.focusTargetId && removedTargetIds.has(view.focusTargetId)
+          ? { ...view, focusTargetId: undefined }
+          : view,
+      );
+      return {
+        ...prev,
+        components: deleteComponentDeep(prev.components, id),
+        ...(nextCameraViews ? { cameraViews: nextCameraViews } : {}),
+      };
+    });
+
+    if (selectedComponentId && componentIds.has(selectedComponentId)) {
+      setSelectedComponentId(null);
+    }
+    if (selectedEdge && componentIds.has(selectedEdge.slabId)) {
+      setSelectedEdge(null);
+    }
+    if (selectedDimensionLabelId && labelIds.has(selectedDimensionLabelId)) {
+      setSelectedDimensionLabelId(null);
+    }
   };
 
   const handleTogglePolish = (edge: string) => {
     if (!selectedEdge) return;
     const { slabId } = selectedEdge;
-
-    let mapEdge: "front" | "back" | "left" | "right" | null = null;
-    if (edge.includes("front")) mapEdge = "front";
-    else if (edge.includes("back")) mapEdge = "back";
-    else if (edge.includes("left")) mapEdge = "left";
-    else if (edge.includes("right")) mapEdge = "right";
+    const slab = findComponentDeep(template.components, slabId);
+    const mapEdge = mapEdgeToPolish(slab, edge);
 
     if (!mapEdge) return;
 
@@ -233,16 +300,17 @@ export const StoneForgeEditor = () => {
       ...prev,
       components: updateComponentDeep(prev.components, slabId, (c) => {
         // Strip any existing invalid strings to avoid zod errors from previous attempts
-        const currentEdges = (c.polishedEdges || []).filter(e => 
-          e === 'front' || e === 'back' || e === 'left' || e === 'right'
-        ) as ("front" | "back" | "left" | "right")[];
+        const currentEdges = (c.polishedEdges || []).filter(
+          (e): e is EdgeType =>
+            e === "front" || e === "back" || e === "left" || e === "right",
+        );
 
-        const isPolished = currentEdges.includes(mapEdge!);
+        const isPolished = currentEdges.includes(mapEdge);
         return {
           ...c,
           polishedEdges: isPolished
             ? currentEdges.filter((e) => e !== mapEdge)
-            : [...currentEdges, mapEdge!],
+            : [...currentEdges, mapEdge],
         };
       }),
     }));
@@ -256,7 +324,7 @@ export const StoneForgeEditor = () => {
     const parent = findComponentDeep(template.components, slabId);
     if (!parent) return;
 
-    const newId = `comp_${Date.now()}`;
+    const newId = createId("comp");
     let newComp: SlabComponent = {
       id: newId,
       type: "slab",
@@ -478,20 +546,27 @@ export const StoneForgeEditor = () => {
   };
 
   const handleAddVariable = () => {
-    const newId = `var_${Date.now()}`;
-    setTemplate((prev) => ({
-      ...prev,
-      variables: [
-        ...prev.variables,
-        { id: newId, label: "new_var", default: 0 },
-      ],
-    }));
+    const newId = createId("var");
+    setTemplate((prev) => {
+      const existingLabels = new Set(prev.variables.map((v) => v.label));
+      let counter = 1;
+      while (existingLabels.has(`var_${counter}`)) {
+        counter++;
+      }
+      return {
+        ...prev,
+        variables: [
+          ...prev.variables,
+          { id: newId, label: `var_${counter}`, default: 0 },
+        ],
+      };
+    });
   };
 
-  const handleUpdateVariable = (
+  const handleUpdateVariable = <K extends "label" | "default" | "min" | "max">(
     id: string,
-    field: "label" | "default" | "min" | "max",
-    value: any,
+    field: K,
+    value: AssemblyVariable[K],
   ) => {
     setTemplate((prev) => ({
       ...prev,
@@ -516,7 +591,7 @@ export const StoneForgeEditor = () => {
         cutouts: [
           ...c.cutouts,
           {
-            id: `cut_${Date.now()}`,
+            id: createId("cut"),
             shape: "rectangular",
             width: 40,
             depth: 30,
@@ -528,11 +603,11 @@ export const StoneForgeEditor = () => {
     }));
   };
 
-  const handleUpdateCutout = (
+  const handleUpdateCutout = <K extends keyof Cutout>(
     slabId: string,
     cutoutId: string,
-    field: keyof Cutout,
-    value: any,
+    field: K,
+    value: Cutout[K],
   ) => {
     setTemplate((prev) => ({
       ...prev,
@@ -565,50 +640,54 @@ export const StoneForgeEditor = () => {
       return;
     }
 
-    setTemplate((prev) => ({
-      ...prev,
-      cameraViews: [
-        ...existingViews,
-        {
-          id: `cam_${Date.now()}`,
-          name: `${t("tabViews")} ${existingViews.length + 1}`,
-          preset: 'iso-tfr',
-          isDefault: existingViews.length === 0,
-        },
-      ],
-    }));
+    setTemplate((prev) => {
+      const currentViews = prev.cameraViews || [];
+      return {
+        ...prev,
+        cameraViews: [
+          ...currentViews,
+          {
+            id: createId("cam"),
+            name: `${t("tabViews")} ${currentViews.length + 1}`,
+            preset: "iso-tfr",
+            zoomMultiplier: 1,
+            isDefault: currentViews.length === 0,
+          },
+        ],
+      };
+    });
     showToast(t("cameraViewAdded"));
   };
-
-
 
   const handlePromoteToDefault = (id: string) => {
     setTemplate((prev) => {
       const views = prev.cameraViews || [];
       const index = views.findIndex((v) => v.id === id);
-      if (index <= 0) return prev; // already default or not found
+      if (index === -1) return prev;
+      const target = views[index];
+      if (index === 0 && target.isDefault) return prev;
 
-      const newViews = [...views];
-      const [promotedView] = newViews.splice(index, 1);
+      const rest = views
+        .filter((v) => v.id !== id)
+        .map((v) => ({ ...v, isDefault: false }));
 
-      promotedView.isDefault = true;
-      for (let i = 0; i < newViews.length; i++) {
-        newViews[i].isDefault = false;
-      }
-      newViews.unshift(promotedView);
-
-      return { ...prev, cameraViews: newViews };
+      return {
+        ...prev,
+        cameraViews: [{ ...target, isDefault: true }, ...rest],
+      };
     });
   };
 
-  const handleRemoveCameraView = (id: string) => {
+  const handleRemoveCameraView = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setTemplate((prev) => ({
       ...prev,
       cameraViews: (prev.cameraViews || []).filter((v) => v.id !== id),
     }));
+    if (selectedPreviewViewId === id) {
+      setSelectedPreviewViewId(null);
+    }
   };
-
-
 
   // ── Dimension Label Handlers ──────────────────────────
 
@@ -622,7 +701,7 @@ export const StoneForgeEditor = () => {
 
     if (isCustom) {
       newLabel = {
-        id: `dim_${Date.now()}`,
+        id: createId("dim"),
         type: "dimension_label",
         name: t("customDimension"),
         edge: "custom",
@@ -633,7 +712,6 @@ export const StoneForgeEditor = () => {
       };
     } else {
       // Default text expression: use the dimension that the edge measures
-      const isXEdge = edge.includes("front") || edge.includes("back");
       const isZEdge = edge.includes("left") || edge.includes("right");
       const isVertical = !edge.includes("top") && !edge.includes("bottom");
       let defaultText: Expression = parent.length;
@@ -641,7 +719,7 @@ export const StoneForgeEditor = () => {
       if (isVertical) defaultText = parent.thickness;
 
       newLabel = {
-        id: `dim_${Date.now()}`,
+        id: createId("dim"),
         type: "dimension_label",
         name: `${t(`edges.${edge}`)} ${t("dimension")}`,
         edge: edge,
@@ -661,11 +739,11 @@ export const StoneForgeEditor = () => {
     setSelectedEdge(null);
   };
 
-  const handleUpdateDimensionLabel = (
+  const handleUpdateDimensionLabel = <K extends keyof DimensionLabel>(
     slabId: string,
     labelId: string,
-    field: keyof DimensionLabel,
-    value: any,
+    field: K,
+    value: DimensionLabel[K],
   ) => {
     setTemplate((prev) => ({
       ...prev,
@@ -684,15 +762,23 @@ export const StoneForgeEditor = () => {
     e?: React.MouseEvent,
   ) => {
     if (e) e.stopPropagation();
-    setTemplate((prev) => ({
-      ...prev,
-      components: updateComponentDeep(prev.components, slabId, (c) => ({
-        ...c,
-        dimensionLabels: (c.dimensionLabels || []).filter(
-          (l) => l.id !== labelId,
-        ),
-      })),
-    }));
+    setTemplate((prev) => {
+      const nextCameraViews = prev.cameraViews?.map((view) =>
+        view.focusTargetId === labelId
+          ? { ...view, focusTargetId: undefined }
+          : view,
+      );
+      return {
+        ...prev,
+        components: updateComponentDeep(prev.components, slabId, (c) => ({
+          ...c,
+          dimensionLabels: (c.dimensionLabels || []).filter(
+            (l) => l.id !== labelId,
+          ),
+        })),
+        ...(nextCameraViews ? { cameraViews: nextCameraViews } : {}),
+      };
+    });
     if (selectedDimensionLabelId === labelId) setSelectedDimensionLabelId(null);
   };
 
@@ -701,10 +787,11 @@ export const StoneForgeEditor = () => {
     : null;
 
   const handleExport = () => {
-    const canvas = document.querySelector("canvas");
-    if (canvas) {
+    const canvas = canvasRef.current;
+    if (canvas && canvas.width > 0 && canvas.height > 0) {
       try {
         const dataURL = canvas.toDataURL("image/png");
+        if (!dataURL || dataURL === "data:,") return;
         const link = document.createElement("a");
         link.download = "stoneforge-design.png";
         link.href = dataURL;
@@ -717,10 +804,10 @@ export const StoneForgeEditor = () => {
     }
   };
 
-  const handleComponentChange = (
+  const handleComponentChange = <K extends keyof SlabComponent>(
     id: string,
-    field: keyof SlabComponent,
-    value: any,
+    field: K,
+    value: SlabComponent[K],
   ) => {
     setTemplate((prev) => ({
       ...prev,
@@ -730,6 +817,13 @@ export const StoneForgeEditor = () => {
       })),
     }));
   };
+
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
+  const handleDuplicateRef = useRef(handleDuplicateTemplate);
+  handleDuplicateRef.current = handleDuplicateTemplate;
+  const handleExportRef = useRef(handleExport);
+  handleExportRef.current = handleExport;
 
   const renderComponentTree = (components: SlabComponent[], depth = 0) => {
     return components.map((comp) => (
@@ -819,7 +913,7 @@ export const StoneForgeEditor = () => {
 
           {viewMode === "designer" && (
             <button
-              onClick={handleExport}
+              onClick={() => handleExportRef.current()}
               className="bg-white border border-gray-300 text-gray-700 py-1.5 px-3 rounded-md text-xs font-medium hover:bg-gray-50 flex items-center gap-1.5"
             >
               <Download className="w-3.5 h-3.5" /> {t("exportImage")}
@@ -827,7 +921,7 @@ export const StoneForgeEditor = () => {
           )}
           {viewMode === "designer" && template.id !== "temp_1" && (
             <button
-              onClick={handleDuplicateTemplate}
+              onClick={() => handleDuplicateRef.current()}
               disabled={isSaving}
               className="bg-white border border-indigo-200 text-indigo-700 py-1.5 px-3 rounded-md text-xs font-medium hover:bg-indigo-50 flex items-center gap-1.5 disabled:opacity-50"
             >
@@ -835,7 +929,7 @@ export const StoneForgeEditor = () => {
             </button>
           )}
           <button
-            onClick={onSave}
+            onClick={() => onSaveRef.current()}
             disabled={isSaving}
             className="bg-indigo-600 text-white py-1.5 px-3 rounded-md text-xs font-medium hover:bg-indigo-700 flex items-center gap-1.5 disabled:opacity-50"
           >
@@ -846,7 +940,7 @@ export const StoneForgeEditor = () => {
       </div>,
     );
     return () => setToolBar(null);
-  }, [isLoading, template, isSaving, viewMode, setToolBar]);
+  }, [isLoading, template.id, template.name, isSaving, viewMode, setToolBar, setTemplate, t]);
 
   if (isLoading) {
     return (
@@ -884,7 +978,7 @@ export const StoneForgeEditor = () => {
                 />
                 <React.Suspense fallback={null}>
                   <Environment preset="city" />
-                  <group position={[-100, 0, 50]}>
+                  <Bounds fit clip observe margin={1.35}>
                     {template.components.map((comp) => (
                       <Slab3D
                         key={comp.id}
@@ -896,11 +990,12 @@ export const StoneForgeEditor = () => {
                         selectedEdge={null}
                         selectedDimensionLabelId={null}
                         variables={variablesMap}
+                        interactive={false}
                       />
                     ))}
-                  </group>
+                  </Bounds>
                 </React.Suspense>
-                <OrbitControls makeDefault minDistance={50} maxDistance={500} />
+                <OrbitControls makeDefault minZoom={0.2} maxZoom={20} />
               </Canvas>
             </div>
 
@@ -987,6 +1082,7 @@ export const StoneForgeEditor = () => {
                             <input
                               type="text"
                               value={view.name}
+                              onClick={(e) => e.stopPropagation()}
                               onChange={(e) => {
                                 setTemplate((prev) => ({
                                   ...prev,
@@ -999,7 +1095,8 @@ export const StoneForgeEditor = () => {
                             />
                             {!view.isDefault && (
                               <button
-                                onClick={() => handleRemoveCameraView(view.id)}
+                                type="button"
+                                onClick={(e) => handleRemoveCameraView(view.id, e)}
                                 className="p-1 hover:bg-gray-200 rounded shrink-0 ml-2"
                               >
                                 <Trash2 className="w-3.5 h-3.5 text-red-500" />
@@ -1009,12 +1106,14 @@ export const StoneForgeEditor = () => {
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] uppercase font-bold text-gray-500 w-16 shrink-0">{t("preset")}</span>
                             <select
-                              value={view.preset || 'iso-tfr'}
+                              value={view.preset || "iso-tfr"}
+                              onClick={(e) => e.stopPropagation()}
                               onChange={(e) => {
+                                const preset = e.target.value as CameraView["preset"];
                                 setTemplate((prev) => ({
                                   ...prev,
                                   cameraViews: prev.cameraViews?.map((v) =>
-                                    v.id === view.id ? { ...v, preset: e.target.value as any } : v,
+                                    v.id === view.id ? { ...v, preset } : v,
                                   ),
                                 }));
                               }}
@@ -1041,8 +1140,8 @@ export const StoneForgeEditor = () => {
                               </optgroup>
                             </select>
                           </div>
-                          
-                          <div className="grid grid-cols-4 gap-1 mt-1 pl-18">
+
+                          <div className="grid grid-cols-4 gap-1 mt-1 pl-[4.5rem]">
                               {ISOMETRIC_PRESETS.map(preset => {
                                 const isActive = view.preset === preset.id || (view.preset === 'isometric' && preset.id === 'iso-tfr');
                                 return (
@@ -1054,7 +1153,7 @@ export const StoneForgeEditor = () => {
                                       setTemplate((prev) => ({
                                         ...prev,
                                         cameraViews: prev.cameraViews?.map((v) =>
-                                          v.id === view.id ? { ...v, preset: preset.id as any } : v,
+                                          v.id === view.id ? { ...v, preset: preset.id } : v,
                                         ),
                                       }));
                                     }}
@@ -1063,7 +1162,7 @@ export const StoneForgeEditor = () => {
                                         ? "bg-indigo-50 border-indigo-400 text-indigo-700" 
                                         : "bg-white hover:bg-gray-50 text-gray-400 hover:text-gray-600 border-gray-200"
                                     }`}
-                                    title={preset.title}
+                                    title={t(preset.titleKey)}
                                   >
                                     {preset.icon}
                                   </button>
@@ -1074,11 +1173,13 @@ export const StoneForgeEditor = () => {
                             <span className="text-[10px] uppercase font-bold text-gray-500 w-16 shrink-0">{t("target")}</span>
                             <select
                               value={view.focusTargetId || ''}
+                              onClick={(e) => e.stopPropagation()}
                               onChange={(e) => {
+                                const nextTargetId = e.target.value || undefined;
                                 setTemplate((prev) => ({
                                   ...prev,
                                   cameraViews: prev.cameraViews?.map((v) =>
-                                    v.id === view.id ? { ...v, focusTargetId: e.target.value } : v,
+                                    v.id === view.id ? { ...v, focusTargetId: nextTargetId } : v,
                                   ),
                                 }));
                               }}
@@ -1107,7 +1208,11 @@ export const StoneForgeEditor = () => {
                               </span>
                             ) : (
                               <button
-                                onClick={() => handlePromoteToDefault(view.id)}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePromoteToDefault(view.id);
+                                }}
                                 className="text-[10px] font-semibold text-gray-500 hover:text-indigo-600 bg-gray-100 hover:bg-indigo-50 px-2 py-0.5 rounded w-max"
                               >
                                 {t("setAsDefault")}
@@ -1152,11 +1257,10 @@ export const StoneForgeEditor = () => {
                             type="text"
                             value={v.label}
                             onChange={(e) => {
-                              // Only allow alphanumeric and underscores
-                              const safeLabel = e.target.value.replace(
-                                /[^a-zA-Z0-9_]/g,
-                                "",
-                              );
+                              // Enforce valid identifier characters and disallow leading digits
+                              const safeLabel = e.target.value
+                                .replace(/[^a-zA-Z0-9_$]/g, "")
+                                .replace(/^[0-9]+/, "");
                               handleUpdateVariable(v.id, "label", safeLabel);
                             }}
                             className="text-xs font-medium text-gray-700 w-full mb-2 p-1 border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500"
@@ -1222,8 +1326,7 @@ export const StoneForgeEditor = () => {
             </div>
 
             {/* Center Workspace (3D Canvas) */}
-            <div className="flex-1 relative bg-gray-50" ref={canvasContainerRef}>
-
+            <div className="flex-1 relative bg-gray-50">
               <Canvas
                 ref={canvasRef}
                 orthographic
@@ -1246,10 +1349,10 @@ export const StoneForgeEditor = () => {
                       const selectedView = template.cameraViews?.find((v) => v.id === selectedPreviewViewId);
                       if (selectedView && selectedView.preset) {
                         return (
-                          <PresetCameraFitter 
-                            preset={selectedView.preset} 
-                            focusTargetId={selectedView.focusTargetId} 
-                            zoomMultiplier={selectedView.zoomMultiplier} 
+                          <PresetCameraFitter
+                            preset={selectedView.preset}
+                            focusTargetId={selectedView.focusTargetId}
+                            zoomMultiplier={selectedView.zoomMultiplier}
                             forceRenderRefreshCount={previewRefreshCount}
                             variables={variablesMap}
                             components={template.components}
@@ -1258,9 +1361,7 @@ export const StoneForgeEditor = () => {
                       }
                       return null;
                     })()}
-                    
-                    {/* Center the assembly */}
-                    <group position={[-100, 0, 50]}>
+
                     {template.components.map((comp) => (
                       <Slab3D
                         key={comp.id}
@@ -1274,14 +1375,13 @@ export const StoneForgeEditor = () => {
                         variables={variablesMap}
                       />
                     ))}
-                    </group>
                   </Bounds>
                 </React.Suspense>
 
                 <OrbitControls
                   makeDefault
-                  minDistance={50}
-                  maxDistance={500}
+                  minZoom={0.2}
+                  maxZoom={20}
                 />
               </Canvas>
             </div>
@@ -1302,12 +1402,8 @@ export const StoneForgeEditor = () => {
                     handleTogglePolish={handleTogglePolish}
                     isPolished={(() => {
                       const comp = findComponentDeep(template.components, selectedEdge.slabId);
-                      let mapEdge: "front" | "back" | "left" | "right" | null = null;
-                      if (selectedEdge.edge.includes("front")) mapEdge = "front";
-                      else if (selectedEdge.edge.includes("back")) mapEdge = "back";
-                      else if (selectedEdge.edge.includes("left")) mapEdge = "left";
-                      else if (selectedEdge.edge.includes("right")) mapEdge = "right";
-                      return comp?.polishedEdges?.includes(mapEdge as any) ?? false;
+                      const mapEdge = mapEdgeToPolish(comp, selectedEdge.edge);
+                      return mapEdge ? (comp?.polishedEdges?.includes(mapEdge) ?? false) : false;
                     })()}
                   />
                 ) : selectedDimLabel ? (

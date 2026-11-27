@@ -52,15 +52,35 @@ function tokenize(src: string): Token[] {
     if (isDigit(ch) || ch === '.') {
       let j = i;
       let dots = 0;
+      let digits = 0;
       while (j < src.length && (isDigit(src[j]) || src[j] === '.')) {
         if (src[j] === '.') dots++;
+        else digits++;
         j++;
       }
-      const raw = src.slice(i, j);
-      if (dots > 1 || raw === '.') {
-        throw new Error(`Invalid number '${raw}'`);
+      if (dots > 1 || digits === 0) {
+        throw new Error(`Invalid number '${src.slice(i, j)}'`);
       }
-      tokens.push({ kind: 'num', value: parseFloat(raw) });
+      if (j < src.length && (src[j] === 'e' || src[j] === 'E')) {
+        j++;
+        if (j < src.length && (src[j] === '+' || src[j] === '-')) {
+          j++;
+        }
+        let expDigits = 0;
+        while (j < src.length && isDigit(src[j])) {
+          expDigits++;
+          j++;
+        }
+        if (expDigits === 0) {
+          throw new Error(`Invalid exponent in '${src.slice(i, j)}'`);
+        }
+      }
+      const raw = src.slice(i, j);
+      const value = parseFloat(raw);
+      if (!Number.isFinite(value)) {
+        throw new Error(`Non-finite number '${raw}'`);
+      }
+      tokens.push({ kind: 'num', value });
       i = j;
       continue;
     }
@@ -139,8 +159,11 @@ function parseAndEval(
     if (!t) throw new Error('Unexpected end of expression');
     if (t.kind === 'num') return t.value;
     if (t.kind === 'ident') {
+      if (!Object.hasOwn(variables, t.name)) {
+        throw new Error(`Unknown variable '${t.name}'`);
+      }
       const v = variables[t.name];
-      if (typeof v !== 'number' || Number.isNaN(v)) {
+      if (typeof v !== 'number' || !Number.isFinite(v)) {
         throw new Error(`Unknown variable '${t.name}'`);
       }
       return v;
@@ -167,28 +190,34 @@ function parseAndEval(
   return result;
 }
 
-export const evaluateExpression = (
-  expr: Expression,
+export const tryEvaluateExpression = (
+  expr: Expression | null | undefined,
   variables: Record<string, number> = {},
-): number => {
-  if (typeof expr === 'number') return expr;
-  if (!expr || typeof expr !== 'string' || expr.trim() === '') return 0;
-  if (expr.length > MAX_EXPR_LENGTH) return 0;
+): number | null => {
+  if (typeof expr === 'number') return Number.isFinite(expr) ? expr : null;
+  if (!expr || typeof expr !== 'string' || expr.trim() === '') return null;
+  if (expr.length > MAX_EXPR_LENGTH) return null;
 
   try {
-    // Keep the legacy variable-name filter: only safe identifiers are visible.
-    const validVars: Record<string, number> = {};
+    // Keep the legacy variable-name filter: only safe finite identifiers are visible.
+    const validVars: Record<string, number> = Object.create(null);
     if (variables && typeof variables === 'object') {
       for (const [key, val] of Object.entries(variables)) {
-        if (IDENT_RE.test(key) && typeof val === 'number') {
+        if (IDENT_RE.test(key) && typeof val === 'number' && Number.isFinite(val)) {
           validVars[key] = val;
         }
       }
     }
     const result = parseAndEval(tokenize(expr), validVars);
-    return Number.isFinite(result) ? result : 0;
+    return Number.isFinite(result) ? result : null;
   } catch {
-    // Return 0 for invalid expressions (e.g. while the user is typing).
-    return 0;
+    return null;
   }
+};
+
+export const evaluateExpression = (
+  expr: Expression,
+  variables: Record<string, number> = {},
+): number => {
+  return tryEvaluateExpression(expr, variables) ?? 0;
 };

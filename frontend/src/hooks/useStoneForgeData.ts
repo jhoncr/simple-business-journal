@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AssemblyTemplate, AssemblyTemplateSchema } from "@backend/common/schemas/studio";
 import { functions, app } from "@/lib/auth_handler";
 import { fetchEntry } from "@/lib/db_handler";
@@ -7,15 +8,18 @@ import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslations } from "next-intl";
 
-export const INITIAL_TEMPLATE: AssemblyTemplate = {
+const createInitialTemplate = (
+  untitledName = "Untitled Assembly",
+  mainCounterName = "Main Counter",
+): AssemblyTemplate => ({
   id: "temp_1",
-  name: "Untitled Assembly",
+  name: untitledName,
   variables: [],
   components: [
     {
       id: "slab_1",
       type: "slab",
-      name: "Main Counter",
+      name: mainCounterName,
       length: 228.0,
       depth: 60.0,
       thickness: 2.0,
@@ -34,17 +38,26 @@ export const INITIAL_TEMPLATE: AssemblyTemplate = {
       children: [],
     },
   ],
-};
+});
 
-const sanitizeComponent = (comp) => {
-  if (!comp || typeof comp !== "object") return comp;
+export const INITIAL_TEMPLATE: AssemblyTemplate = createInitialTemplate();
 
-  const sanitized = { ...comp };
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+const VALID_POLISHED_EDGES = new Set(["front", "back", "left", "right"]);
+const VALID_CUTOUT_SHAPES = new Set(["rectangular", "circular", "oval"]);
+
+const sanitizeComponent = (comp: unknown): unknown => {
+  if (!isRecord(comp)) return comp;
+
+  const sanitized: Record<string, unknown> = { ...comp };
 
   // Sanitize polishedEdges
   if (Array.isArray(sanitized.polishedEdges)) {
     sanitized.polishedEdges = sanitized.polishedEdges.filter(
-      (e) => e === "front" || e === "back" || e === "left" || e === "right"
+      (e): e is string => typeof e === "string" && VALID_POLISHED_EDGES.has(e),
     );
   } else {
     delete sanitized.polishedEdges;
@@ -54,12 +67,16 @@ const sanitizeComponent = (comp) => {
   if (!Array.isArray(sanitized.cutouts)) {
     sanitized.cutouts = [];
   } else {
-    sanitized.cutouts = sanitized.cutouts.map((cutout) => ({
-      ...cutout,
-      shape: ["rectangular", "circular", "oval"].includes(cutout.shape)
-        ? cutout.shape
-        : "rectangular",
-    }));
+    sanitized.cutouts = sanitized.cutouts.map((cutout) => {
+      if (!isRecord(cutout)) return cutout;
+      return {
+        ...cutout,
+        shape:
+          typeof cutout.shape === "string" && VALID_CUTOUT_SHAPES.has(cutout.shape)
+            ? cutout.shape
+            : "rectangular",
+      };
+    });
   }
 
   // Ensure dimensionLabels is an array if present
@@ -68,7 +85,8 @@ const sanitizeComponent = (comp) => {
       delete sanitized.dimensionLabels;
     } else {
       sanitized.dimensionLabels = sanitized.dimensionLabels.map((lbl) => {
-        const sanitizedLbl = { ...lbl };
+        if (!isRecord(lbl)) return lbl;
+        const sanitizedLbl: Record<string, unknown> = { ...lbl };
         if (sanitizedLbl.type !== "dimension_label") {
           sanitizedLbl.type = "dimension_label";
         }
@@ -87,19 +105,30 @@ const sanitizeComponent = (comp) => {
   return sanitized;
 };
 
-const sanitizeTemplate = (templateData) => {
-  if (!templateData || typeof templateData !== "object") return templateData;
+export const sanitizeTemplate = (templateData: unknown): Record<string, unknown> | null => {
+  if (!isRecord(templateData)) return null;
 
-  const sanitized = { ...templateData };
+  const sanitized: Record<string, unknown> = { ...templateData };
 
   // Ensure variables is an array
   if (!Array.isArray(sanitized.variables)) {
     sanitized.variables = [];
   }
 
-  // Ensure cameraViews is an array if present
-  if (sanitized.cameraViews !== undefined && !Array.isArray(sanitized.cameraViews)) {
-    delete sanitized.cameraViews;
+  // Ensure cameraViews is an array if present and normalize empty focusTargetId
+  if (sanitized.cameraViews !== undefined) {
+    if (!Array.isArray(sanitized.cameraViews)) {
+      delete sanitized.cameraViews;
+    } else {
+      sanitized.cameraViews = sanitized.cameraViews.map((view) => {
+        if (!isRecord(view)) return view;
+        const nextView: Record<string, unknown> = { ...view };
+        if (nextView.focusTargetId === "") {
+          delete nextView.focusTargetId;
+        }
+        return nextView;
+      });
+    }
   }
 
   // Ensure components is an array
@@ -112,44 +141,102 @@ const sanitizeTemplate = (templateData) => {
   return sanitized;
 };
 
+interface AddLogPayload {
+  jid: string;
+  entryType: "template";
+  entryId?: string;
+  name: string;
+  details: AssemblyTemplate;
+  thumbnailBase64?: string;
+}
+
+interface DuplicatePayload {
+  jid: string;
+  entryId: string;
+  entryType: "template";
+}
+
+interface CallableIdResponse {
+  id?: string;
+}
+
 export const useStoneForgeData = (journalId: string | null, entryId: string | null) => {
-  const [template, setTemplate] = useState<AssemblyTemplate>(INITIAL_TEMPLATE);
-  const [isLoading, setIsLoading] = useState(!!entryId);
-  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
   const t = useTranslations("studio");
   const tCommon = useTranslations("common");
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const showToast = (message: string) => {
-    toast({
-      description: message,
-    });
-  };
+  const [template, setTemplate] = useState<AssemblyTemplate>(() =>
+    createInitialTemplate(t("untitledAssembly"), t("mainCounter")),
+  );
+  const [isLoading, setIsLoading] = useState(Boolean(journalId && entryId));
+  const [isSaving, setIsSaving] = useState(false);
+  const lastSavedIdRef = useRef<string | null>(null);
+
+  const showToast = useCallback(
+    (message: string) => {
+      toast({
+        description: message,
+      });
+    },
+    [toast],
+  );
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadTemplate() {
       if (journalId && entryId) {
+        if (lastSavedIdRef.current === entryId) {
+          lastSavedIdRef.current = null;
+          setIsLoading(false);
+          return;
+        }
+        setIsLoading(true);
         try {
           const entry = await fetchEntry(journalId, "template", entryId);
+          if (cancelled) return;
           if (entry && entry.details) {
             const sanitizedDetails = sanitizeTemplate(entry.details);
-            setTemplate({
-              ...sanitizedDetails,
-              id: entryId,
-            });
+            const candidate = sanitizedDetails
+              ? { ...sanitizedDetails, id: entryId }
+              : null;
+            const parsed = AssemblyTemplateSchema.safeParse(candidate);
+            if (!parsed.success) {
+              console.error("Loaded template validation failed:", parsed.error.format());
+              const errors = parsed.error.errors
+                .map((err) => `${err.path.join(".")}: ${err.message}`)
+                .join("\n");
+              toast({
+                title: t("validationErrorTitle"),
+                description: t("validationErrorDescription", { errors }),
+                variant: "destructive",
+              });
+            } else {
+              setTemplate(parsed.data);
+            }
           }
         } catch (error) {
+          if (cancelled) return;
           console.error("Error fetching template:", error);
           showToast(t("failedToLoadTemplate"));
         } finally {
-          setIsLoading(false);
+          if (!cancelled) {
+            setIsLoading(false);
+          }
         }
       } else {
+        setTemplate(createInitialTemplate(t("untitledAssembly"), t("mainCounter")));
         setIsLoading(false);
       }
     }
+
     loadTemplate();
-  }, [journalId, entryId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [journalId, entryId, showToast, toast, t]);
 
   const handleSaveTemplate = async (thumbnailBase64?: string) => {
     if (!journalId) {
@@ -193,11 +280,14 @@ export const useStoneForgeData = (journalId: string | null, entryId: string | nu
       }
 
       if (auth.currentUser) {
-        const addLogFunction = httpsCallable(functions, "addLogFn");
+        const addLogFunction = httpsCallable<AddLogPayload, CallableIdResponse>(
+          functions,
+          "addLogFn",
+        );
         const isNew = template.id === "temp_1";
 
         if (isNew) {
-          const payload = {
+          const payload: AddLogPayload = {
             jid: journalId,
             entryType: "template",
             name: finalTemplate.name,
@@ -205,11 +295,17 @@ export const useStoneForgeData = (journalId: string | null, entryId: string | nu
             ...(thumbnailBase64 && { thumbnailBase64 }),
           };
           const response = await addLogFunction(payload);
-          const newTemplateId = (response.data as any).id;
-          setTemplate((prev) => ({ ...prev, id: newTemplateId }));
+          const newTemplateId = response.data?.id;
+          if (newTemplateId) {
+            lastSavedIdRef.current = newTemplateId;
+            setTemplate((prev) => ({ ...prev, id: newTemplateId }));
+            const nextParams = new URLSearchParams(searchParams.toString());
+            nextParams.set("eid", newTemplateId);
+            router.replace(`?${nextParams.toString()}`);
+          }
           showToast(t("saveSuccess"));
         } else {
-          const payload = {
+          const payload: AddLogPayload = {
             jid: journalId,
             entryType: "template",
             entryId: finalTemplate.id,
@@ -240,17 +336,20 @@ export const useStoneForgeData = (journalId: string | null, entryId: string | nu
     }
     setIsSaving(true);
     try {
-      const duplicateFn = httpsCallable(functions, "duplicateEntry");
+      const duplicateFn = httpsCallable<DuplicatePayload, CallableIdResponse>(
+        functions,
+        "duplicateEntry",
+      );
       const response = await duplicateFn({
         jid: journalId,
         entryId: template.id,
         entryType: "template",
       });
 
-      const newId = (response.data as any).id;
+      const newId = response.data?.id;
       if (newId) {
         showToast(t("duplicateSuccessReloading"));
-        window.location.href = `/journal/entry?jid=${journalId}&eid=${newId}&jtype=template`;
+        window.location.href = `/journal/entry?jid=${encodeURIComponent(journalId)}&eid=${encodeURIComponent(newId)}&jtype=template`;
       }
     } catch (error) {
       console.error("Error duplicating template:", error);

@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useRef, useCallback, useEffect } from "react";
 import { EstimateHeader } from "@/app/(auth)/journal/journal-types/estimate/subcomponents/header";
 import { StoneForgeViewer } from "@/components/studio/StoneForgeViewer";
-import { AssemblyTemplate, SlabComponent } from "@backend/common/schemas/studio";
+import { AssemblyTemplate, CameraView, SlabComponent } from "@backend/common/schemas/studio";
 import { contactInfoSchemaType } from "@backend/common/schemas/common_schemas";
 import { Printer } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -19,51 +19,28 @@ const flattenComponents = (components: SlabComponent[]): SlabComponent[] => {
   }, []);
 };
 
-const formatPrintDimensions = (length: number, depth: number, thickness: number) => {
-  const dims = [length, depth, thickness];
-  const idx = dims.indexOf(2);
-  if (idx !== -1) {
-    dims.splice(idx, 1);
-  } else {
-    dims.pop(); // Fallback if no thickness is exactly 2
+function partitionCameraViews(cameraViews: CameraView[]): {
+  defaultView: CameraView | null;
+  otherMainViews: CameraView[];
+  detailViews: CameraView[];
+} {
+  if (cameraViews.length === 0) {
+    return { defaultView: null, otherMainViews: [], detailViews: [] };
   }
-  dims.sort((a, b) => a - b);
-  return { length: dims[0], width: dims[1], label: `${dims[0]} x ${dims[1]}` };
-};
-
-export function getPolishedSymbolCoords(
-  edge: 'front' | 'back' | 'left' | 'right',
-  slab: { x: number; y: number; width: number; height: number },
-  insideOffset: number = 0
-) {
-  switch (edge) {
-    case 'back': // Top edge
-      return { x: slab.x + slab.width / 2, y: slab.y + insideOffset };
-    case 'front': // Bottom edge
-      return { x: slab.x + slab.width / 2, y: slab.y + slab.height - insideOffset };
-    case 'left':
-      return { x: slab.x + insideOffset, y: slab.y + slab.height / 2 };
-    case 'right':
-      return { x: slab.x + slab.width - insideOffset, y: slab.y + slab.height / 2 };
-  }
-}
-
-interface CameraView {
-  id: string;
-  name: string;
-  focusTargetId?: string;
-}
-
-interface AddressInfo {
-  street?: string;
-  city?: string;
-  state?: string;
-  zipCode?: string;
+  const mainViews = cameraViews.filter((v) => !v.focusTargetId);
+  const defaultView =
+    cameraViews.find((v) => v.isDefault) ?? mainViews[0] ?? cameraViews[0];
+  const otherMainViews = mainViews.filter((v) => v.id !== defaultView.id);
+  const detailViews = cameraViews.filter(
+    (v) => Boolean(v.focusTargetId) && v.id !== defaultView.id,
+  );
+  return { defaultView, otherMainViews, detailViews };
 }
 
 export interface PrintableItem {
   id: string;
   description: string;
+  quantity?: number;
   template: AssemblyTemplate;
   variableOverrides: Record<string, number>;
 }
@@ -80,12 +57,14 @@ export interface TemplatePrintLayoutProps {
   contactInfo?: contactInfoSchemaType;
   logo?: string | null;
   customerContext?: {
-    name?: string;
-    address?: AddressInfo;
-    phone?: string;
-    email?: string;
+    name?: contactInfoSchemaType["name"];
+    address?: Partial<contactInfoSchemaType["address"]>;
+    phone?: contactInfoSchemaType["phone"];
+    email?: contactInfoSchemaType["email"];
   };
   onReadyToPrint?: () => void;
+  hidePrintBanner?: boolean;
+  onReadyStateChange?: (ready: boolean) => void;
 }
 
 export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
@@ -95,21 +74,27 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
   logo,
   customerContext,
   onReadyToPrint,
+  hidePrintBanner = false,
+  onReadyStateChange,
 }) => {
   const t = useTranslations("estimate");
+  const tStudio = useTranslations("studio");
 
-  // Signature of templates and variable overrides to detect live edits / template switches
+  // Signature of templates, components, default variables, views, and overrides
   const itemsSignature = useMemo(() => {
     return JSON.stringify(
       items.map((item) => ({
         id: item.id,
         templateId: item.template?.id,
         templateName: item.template?.name,
+        components: item.template?.components || [],
+        variables: item.template?.variables || [],
         views: (item.template?.cameraViews || []).map((v) => ({
           id: v.id,
           preset: v.preset,
           focusTargetId: v.focusTargetId,
           zoomMultiplier: v.zoomMultiplier,
+          isDefault: v.isDefault,
         })),
         overrides: item.variableOverrides || {},
       }))
@@ -120,16 +105,15 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
   const allViewKeys = useMemo(() => {
     const keys: string[] = [];
     items.forEach((item) => {
-      const cameraViews = (item.template?.cameraViews || []) as CameraView[];
+      const cameraViews = item.template?.cameraViews || [];
       if (cameraViews.length > 0) {
-        const mainViews = cameraViews.filter((v) => !v.focusTargetId);
-        const detailViews = cameraViews.filter((v) => v.focusTargetId);
-        if (mainViews.length > 0) {
-          keys.push(`${item.id}:default:${mainViews[0].id}`);
-          mainViews.slice(1).forEach((v) => keys.push(`${item.id}:other:${v.id}`));
+        const { defaultView, otherMainViews, detailViews } = partitionCameraViews(cameraViews);
+        if (defaultView) {
+          keys.push(`${item.id}:default:${defaultView.id}`);
         }
+        otherMainViews.forEach((v) => keys.push(`${item.id}:other:${v.id}`));
         detailViews.forEach((v) => keys.push(`${item.id}:detail:${v.id}`));
-        if (mainViews.length === 0 && detailViews.length === 0) {
+        if (!defaultView && otherMainViews.length === 0 && detailViews.length === 0) {
           keys.push(`${item.id}:single`);
         }
       } else {
@@ -142,11 +126,17 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
   const [snapshots, setSnapshots] = useState<Record<string, string>>({});
   const [activeQueueIndex, setActiveQueueIndex] = useState<number>(0);
 
+  // Track latest signature synchronously so stale async callbacks are discarded
+  const currentSignatureRef = useRef<string>(itemsSignature);
+  currentSignatureRef.current = itemsSignature;
+  const capturedKeysRef = useRef<Set<string>>(new Set());
+
   // Reset snapshots and queue index whenever the template or variable overrides change
   const prevSignatureRef = useRef<string>(itemsSignature);
   useEffect(() => {
     if (prevSignatureRef.current !== itemsSignature) {
       prevSignatureRef.current = itemsSignature;
+      capturedKeysRef.current.clear();
       setSnapshots({});
       setActiveQueueIndex(0);
       onReadyCalledRef.current = false;
@@ -163,7 +153,14 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
     (activeQueueIndex >= allViewKeys.length && allViewKeys.every((k) => snapshots[k] !== undefined));
   const onReadyCalledRef = useRef(false);
 
-  const handleSnapshot = useCallback((key: string, url: string) => {
+  useEffect(() => {
+    onReadyStateChange?.(isReady);
+  }, [isReady, onReadyStateChange]);
+
+  const handleSnapshot = useCallback((key: string, url: string, signature: string) => {
+    if (signature !== currentSignatureRef.current) return;
+    if (capturedKeysRef.current.has(key)) return;
+    capturedKeysRef.current.add(key);
     setSnapshots((prev) => ({ ...prev, [key]: url }));
     setActiveQueueIndex((prev) => prev + 1);
   }, []);
@@ -218,9 +215,10 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
 
     if (snapshotUrl !== undefined) {
       if (snapshotUrl === "") {
+        // Localized "View unavailable" placeholder when snapshot capture fails
         return (
           <div className="flex items-center justify-center h-full text-xs text-muted-foreground italic">
-            View unavailable
+            {tStudio("printViewUnavailable")}
           </div>
         );
       }
@@ -235,21 +233,22 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
     }
 
     if (isActive) {
+      const capturedSig = itemsSignature;
       return (
         <StoneForgeViewer
-          key={`${key}:${itemsSignature}`}
+          key={`${key}:${capturedSig}`}
           components={components}
           variables={variables}
           printMode={true}
           fixedCameraView={fixedCameraView || undefined}
-          onSnapshot={(url) => handleSnapshot(key, url)}
+          onSnapshot={(url) => handleSnapshot(key, url, capturedSig)}
         />
       );
     }
 
     return (
       <div className="w-full h-full flex items-center justify-center bg-gray-50 text-gray-400 text-xs">
-        <span className="text-[10px] text-gray-400">Loading view...</span>
+        <span className="text-[10px] text-gray-400">{tStudio("printLoadingView")}</span>
       </div>
     );
   };
@@ -305,12 +304,21 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
         }}
       />
 
-      <div className="td-no-print print:hidden w-full max-w-6xl bg-blue-50 border-l-4 border-blue-400 p-2 my-4 mx-auto rounded text-xs text-blue-700 shadow-sm flex items-center gap-2">
-        <Button variant="outline" size="sm" className="flex items-center gap-2 h-9" title={t("quickPrint")} onClick={() => window.print()}>
-          <Printer className="h-3 w-3" />
-          {t("quickPrint")}
-        </Button>
-      </div>
+      {!hidePrintBanner && (
+        <div className="td-no-print print:hidden w-full max-w-6xl bg-blue-50 border-l-4 border-blue-400 p-2 my-4 mx-auto rounded text-xs text-blue-700 shadow-sm flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2 h-9"
+            title={t("quickPrint")}
+            disabled={!isReady}
+            onClick={() => window.print()}
+          >
+            <Printer className="h-3 w-3" />
+            {t("quickPrint")}
+          </Button>
+        </div>
+      )}
 
       <div className="bg-white shadow-xl print:shadow-none mb-8 print:m-0 print:p-0 flex-shrink-0 mx-auto w-full max-w-6xl print:max-w-none print:w-full td-print-container">
         <div className="pt-1">
@@ -326,12 +334,8 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
               if (variable?.label) mergedVariables[variable.label] = val;
             });
 
-            const cameraViews = (template.cameraViews || []) as CameraView[];
-            const mainViews = cameraViews.filter((v) => !v.focusTargetId);
-            const detailViews = cameraViews.filter((v) => v.focusTargetId);
-
-            const defaultView = mainViews.length > 0 ? mainViews[0] : null;
-            const otherMainViews = mainViews.length > 0 ? mainViews.slice(1) : [];
+            const cameraViews = template.cameraViews || [];
+            const { defaultView, otherMainViews, detailViews } = partitionCameraViews(cameraViews);
 
             return (
               <React.Fragment key={item.id}>
@@ -339,9 +343,14 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
                   <PageHeader />
 
                   <div className="border rounded overflow-hidden border-gray-300 flex-1 flex flex-col mt-2">
-                    <div className="td-item-header bg-gray-100 px-3 py-1 border-b border-gray-300">
-                      <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wide">
-                        {index + 1}. {item.description}
+                    <div className="td-item-header bg-gray-100 px-3 py-1 border-b border-gray-300 flex items-center justify-between gap-2">
+                      <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2">
+                        <span>{index + 1}. {item.description}</span>
+                        {item.quantity !== undefined && item.quantity > 1 && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-800 text-white text-[10px] font-bold normal-case">
+                            ×{item.quantity}
+                          </span>
+                        )}
                       </h3>
                     </div>
 
@@ -414,7 +423,7 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
                       <div className="td-view-card w-full h-[300px] relative overflow-hidden bg-white">
                         {renderViewCard(
                           `${item.id}:single`,
-                          "Overview",
+                          tStudio("printOverview"),
                           template.components,
                           mergedVariables,
                           null
@@ -441,55 +450,65 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
                 {/* Component Cut & Polish List */}
                 {template.components && template.components.length > 0 && (() => {
                   const flattened = flattenComponents(template.components);
-                  const rectangles: RectangleData[] = flattened.map((comp) => {
-                    const L = evaluateExpression(comp.length, mergedVariables);
-                    const D = evaluateExpression(comp.depth, mergedVariables);
-                    const T = evaluateExpression(comp.thickness, mergedVariables);
+                  const rectangles: RectangleData[] = flattened
+                    .map((comp) => {
+                      const L = evaluateExpression(comp.length, mergedVariables);
+                      const D = evaluateExpression(comp.depth, mergedVariables);
+                      const T = evaluateExpression(comp.thickness, mergedVariables);
 
-                    const edges = comp.polishedEdges || [];
+                      const edges = comp.polishedEdges || [];
 
-                    const isThicknessT = T <= L && T <= D;
-                    const isThicknessD = D < L && D < T;
-                    const isThicknessL = L < D && L < T;
+                      const isThicknessT = T <= L && T <= D;
+                      const isThicknessD = !isThicknessT && D <= L && D < T;
+                      const isThicknessL = !isThicknessT && !isThicknessD;
 
-                    let paperLength = D;
-                    let paperWidth = L;
-                    let crossTop = edges.includes('back');
-                    let crossBottom = edges.includes('front');
-                    let crossLeft = edges.includes('left');
-                    let crossRight = edges.includes('right');
+                      let paperLength = D;
+                      let paperWidth = L;
+                      let crossTop = edges.includes('back');
+                      let crossBottom = edges.includes('front');
+                      let crossLeft = edges.includes('left');
+                      let crossRight = edges.includes('right');
 
-                    if (isThicknessD) {
-                      // Case B: Backsplash. Cut dimensions are L x T
-                      paperLength = T;
-                      paperWidth = L;
-                      crossTop = edges.includes('back') || edges.includes('front'); // Top edge of backsplash
-                      crossBottom = false; // Bottom edge sits on countertop
-                      crossLeft = edges.includes('left');
-                      crossRight = edges.includes('right');
-                    } else if (isThicknessL) {
-                      // Case C: Z-aligned Waterfall. Cut dimensions are D x T
-                      paperLength = T;
-                      paperWidth = D;
-                      crossTop = edges.includes('left') || edges.includes('right'); // Top edge of waterfall
-                      crossBottom = false; // Bottom edge sits on floor
-                      crossLeft = edges.includes('front');
-                      crossRight = edges.includes('back');
-                    }
+                      if (isThicknessD) {
+                        // Case B: Backsplash. Cut dimensions are L x T
+                        paperLength = T;
+                        paperWidth = L;
+                        crossTop = edges.includes('back') || edges.includes('front'); // Top edge of backsplash
+                        crossBottom = false; // Bottom edge sits on countertop
+                        crossLeft = edges.includes('left');
+                        crossRight = edges.includes('right');
+                      } else if (isThicknessL) {
+                        // Case C: Z-aligned Waterfall. Cut dimensions are D x T
+                        paperLength = T;
+                        paperWidth = D;
+                        crossTop = edges.includes('left') || edges.includes('right'); // Top edge of waterfall
+                        crossBottom = false; // Bottom edge sits on floor
+                        crossLeft = edges.includes('front');
+                        crossRight = edges.includes('back');
+                      }
 
-                    return {
-                      id: comp.id,
-                      length: paperLength,
-                      width: paperWidth,
-                      hasCrossTop: crossTop,
-                      hasCrossBottom: crossBottom,
-                      hasCrossLeft: crossLeft,
-                      hasCrossRight: crossRight,
-                      label: comp.name,
-                      groupId: null,
-                      hasStroke: false
-                    };
-                  });
+                      return {
+                        id: comp.id,
+                        length: paperLength,
+                        width: paperWidth,
+                        hasCrossTop: crossTop,
+                        hasCrossBottom: crossBottom,
+                        hasCrossLeft: crossLeft,
+                        hasCrossRight: crossRight,
+                        label: comp.name,
+                        groupId: null,
+                        hasStroke: false
+                      };
+                    })
+                    .filter(
+                      (rect) =>
+                        Number.isFinite(rect.length) &&
+                        Number.isFinite(rect.width) &&
+                        rect.length > 0 &&
+                        rect.width > 0
+                    );
+
+                  if (rectangles.length === 0) return null;
 
                   return (
                     <div className="td-item-page px-4 pb-4 flex flex-col print:block print:h-auto print:min-h-0">
@@ -500,8 +519,13 @@ export const TemplatePrintLayout: React.FC<TemplatePrintLayoutProps> = ({
                             <PageHeader />
                             <div className="border rounded overflow-hidden border-gray-300 flex flex-col mt-2">
                               <div className="td-item-header bg-gray-100 px-3 py-1 flex items-center justify-between">
-                                <p className="text-xs font-bold text-gray-800 uppercase tracking-wide">
-                                  {index + 1}. {item.description} - {t("componentCutPolishList")}
+                                <p className="text-xs font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2">
+                                  <span>{index + 1}. {item.description} - {t("componentCutPolishList")}</span>
+                                  {item.quantity !== undefined && item.quantity > 1 && (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-800 text-white text-[10px] font-bold normal-case">
+                                      ×{item.quantity}
+                                    </span>
+                                  )}
                                 </p>
                                 <span className="text-[11px] text-gray-700">
                                   {t("quickPrintDimensions")}

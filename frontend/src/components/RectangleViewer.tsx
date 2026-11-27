@@ -24,6 +24,13 @@ interface RectangleViewerProps {
   header?: React.ReactNode;
 }
 
+function formatDimension(value: number): string {
+  if (!Number.isFinite(value)) return "0";
+  return Number(value.toFixed(2)).toString();
+}
+
+const MIN_EFFECTIVE_RECT_CM = 80;
+
 function groupRectanglesIntoRows(
   rectangles: RectangleData[],
   maxRowCapacityCm: number = 400
@@ -38,7 +45,8 @@ function groupRectanglesIntoRows(
   const remainingSpacePerRow: number[] = [];
 
   for (const rect of sortedRectangles) {
-    const rectLength = Math.max(rect.width, rect.length);
+    // Account for minWidth: 160px on rendered cards so narrow rows do not overflow print width
+    const rectLength = Math.max(Math.max(rect.width, rect.length), MIN_EFFECTIVE_RECT_CM);
     let placed = false;
 
     for (let i = 0; i < rows.length; i++) {
@@ -62,32 +70,10 @@ function groupRectanglesIntoRows(
 
 export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles, header }) => {
   const t = useTranslations("draw");
-  if (!rectangles || rectangles.length === 0) {
-    return (
-      <table className="w-full">
-        {header && (
-          <thead className="table-header-group">
-            <tr>
-              <th className="font-normal text-left bg-white p-0">
-                {header}
-              </th>
-            </tr>
-          </thead>
-        )}
-        <tbody>
-          <tr>
-            <td className="p-0">
-              <div className="flex justify-center items-center w-full min-h-[400px] border-2 border-dashed border-border rounded-md mt-4">
-                <p className="text-muted-foreground">{t("noRectanglesToDisplay")}</p>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    );
-  }
 
   const groupedRectangleRows = useMemo(() => {
+    if (!rectangles || rectangles.length === 0) return [];
+
     const groups: RectangleData[][] = [];
     let currentGroupId: string | null | undefined = undefined;
     let currentGroup: RectangleData[] = [];
@@ -108,12 +94,37 @@ export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles, he
     return groups.map((group) => groupRectanglesIntoRows(group, 400));
   }, [rectangles]);
 
+  if (!rectangles || rectangles.length === 0) {
+    return (
+      <table className="w-full">
+        {header && (
+          <thead className="table-header-group">
+            <tr>
+              <th className="font-normal text-left bg-card print:bg-white p-0">
+                {header}
+              </th>
+            </tr>
+          </thead>
+        )}
+        <tbody>
+          <tr>
+            <td className="p-0">
+              <div className="flex justify-center items-center w-full min-h-[400px] border-2 border-dashed border-border rounded-md mt-4 bg-muted/20">
+                <p className="text-muted-foreground">{t("noRectanglesToDisplay")}</p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    );
+  }
+
   return (
     <table className="w-full border-collapse print:border-none">
       {header && (
         <thead className="table-header-group">
           <tr>
-            <th className="font-normal text-left bg-white print:bg-white p-0 align-bottom">
+            <th className="font-normal text-left bg-card print:bg-white p-0 align-bottom">
               {header}
             </th>
           </tr>
@@ -140,7 +151,7 @@ export const RectangleViewer: React.FC<RectangleViewerProps> = ({ rectangles, he
                   className="print:break-inside-avoid"
                 >
                   <td className="p-0 align-bottom">
-                    <div className={`flex flex-row items-end justify-start w-full gap-6 print:gap-4 pt-6 pb-6 print:py-4 ${rowIndex < groupRows.length - 1 ? 'border-b border-gray-200 print:border-b-0' : ''}`}>
+                    <div className={`flex flex-row flex-wrap items-end justify-start w-full gap-6 print:gap-4 pt-6 pb-6 print:py-4 ${rowIndex < groupRows.length - 1 ? 'border-b border-border print:border-b-0' : ''}`}>
                       {row.map((rect) => (
                         <DynamicRectangle key={rect.id} rect={rect} />
                       ))}
@@ -172,7 +183,7 @@ const CrossMark: React.FC<{ className: string }> = ({ className }) => (
 
 const DimensionLabel: React.FC<{ value: number; positionClass: string }> = ({ value, positionClass }) => (
   <div className={`absolute flex flex-col items-end justify-center text-sm text-foreground whitespace-nowrap ${positionClass} print:text-black`}>
-    <span className="leading-none print:text-black">{value}</span>
+    <span className="leading-none print:text-black">{formatDimension(value)}</span>
     <span className="text-[10px] leading-none text-muted-foreground print:text-black">cm</span>
   </div>
 );
@@ -196,6 +207,8 @@ export const DynamicRectangle: React.FC<{ rect: RectangleData }> = ({ rect }) =>
   const isRotated = length > width;
   const renderWidth = isRotated ? length : width;
   const renderHeight = isRotated ? width : length;
+  const safeViewWidth = Math.max(renderWidth, 1);
+  const safeViewHeight = Math.max(renderHeight, 1);
 
   const longerSide = Math.max(width, length);
   const calculatedWidthPercentage = Math.min((longerSide / 100) * 25, 100);
@@ -212,7 +225,7 @@ export const DynamicRectangle: React.FC<{ rect: RectangleData }> = ({ rect }) =>
     >
       {label && label !== groupId && (
         <div className="w-full text-left text-xs font-semibold text-foreground print:text-black whitespace-normal break-keep leading-snug print:w-full">
-          {label}: {renderHeight} x {renderWidth}
+          {label}: {formatDimension(renderHeight)} x {formatDimension(renderWidth)}
         </div>
       )}
 
@@ -238,7 +251,7 @@ export const DynamicRectangle: React.FC<{ rect: RectangleData }> = ({ rect }) =>
             </>
           ))}
 
-        <svg viewBox={`0 0 ${renderWidth} ${renderHeight}`} xmlns="http://www.w3.org/2000/svg" className="w-full h-auto transition-all duration-300 ease-in-out overflow-visible">
+        <svg viewBox={`0 0 ${safeViewWidth} ${safeViewHeight}`} xmlns="http://www.w3.org/2000/svg" className="w-full h-auto transition-all duration-300 ease-in-out overflow-visible">
           <rect width="100%" height="100%" fill={fillColor} stroke={strokeColor} strokeWidth="2" vectorEffect="non-scaling-stroke" />
           {hasStroke && (
             <line

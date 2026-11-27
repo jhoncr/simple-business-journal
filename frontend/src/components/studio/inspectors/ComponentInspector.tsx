@@ -5,18 +5,18 @@ import { useTranslations } from "next-intl";
 
 interface ComponentInspectorProps {
   selectedComponent: SlabComponent;
-  handleComponentChange: (
+  handleComponentChange: <K extends keyof SlabComponent>(
     id: string,
-    field: keyof SlabComponent,
-    value: any,
+    field: K,
+    value: SlabComponent[K],
   ) => void;
   handleAddCutout: (slabId: string) => void;
   handleRemoveCutout: (slabId: string, cutoutId: string) => void;
-  handleUpdateCutout: (
+  handleUpdateCutout: <K extends keyof Cutout>(
     slabId: string,
     cutoutId: string,
-    field: keyof Cutout,
-    value: any,
+    field: K,
+    value: Cutout[K],
   ) => void;
 }
 
@@ -140,7 +140,7 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
               </label>
               <input
                 type="text"
-                value={String(selectedComponent.rotation?.[i as 0 | 1 | 2] || 0)}
+                value={String(selectedComponent.rotation?.[i as 0 | 1 | 2] ?? 0)}
                 onChange={(e) => {
                   const newRot = [
                     ...(selectedComponent.rotation || [0, 0, 0]),
@@ -204,7 +204,7 @@ export const ComponentInspector: React.FC<ComponentInspectorProps> = ({
                       selectedComponent.id,
                       cutout.id,
                       "shape",
-                      e.target.value,
+                      e.target.value as Cutout["shape"],
                     )
                   }
                   className="w-full text-xs border border-gray-300 rounded px-2 py-1"
